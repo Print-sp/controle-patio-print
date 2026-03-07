@@ -1,0 +1,23 @@
+# Node modules
+node_modules/
+
+# Banco de dados (não subir dados reais)
+database/*.db
+
+# Backups
+backups/*.json
+
+# Variáveis de ambiente (CONTÉM SENHAS!)
+.env
+
+# Logs
+*.log
+npm-debug.log*
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
