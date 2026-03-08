@@ -15,7 +15,6 @@ let pool = null;
 let db = null;
 
 if (isProduction) {
-    // 🌐 PRODUÇÃO: PostgreSQL
     const { Pool } = require('pg');
     pool = new Pool({
         connectionString: process.env.DATABASE_URL,
@@ -23,7 +22,6 @@ if (isProduction) {
     });
     console.log('💾 Banco: PostgreSQL (Produção)');
 } else {
-    // 💻 LOCAL: SQLite
     const Database = require('better-sqlite3');
     const dbDir = path.join(__dirname, 'database');
     if (!fs.existsSync(dbDir)) {
@@ -36,7 +34,7 @@ if (isProduction) {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 🔧 FIX: Trust proxy para Render (resolve erro do express-rate-limit)
+// 🔧 Trust proxy para Render
 app.set('trust proxy', 1);
 
 console.log('🔧 Iniciando servidor...');
@@ -78,7 +76,8 @@ function mapPostgresRow(row) {
         icon: row.icon,
         createdAt: row.createdat,
         updatedAt: row.updatedat,
-        updatedBy: row.updatedby
+        updatedBy: row.updatedby,
+        deliveryCategory: row.deliverycategory || ''
     };
 }
 
@@ -111,7 +110,6 @@ function mapSwapRow(row) {
 // ============ INICIALIZAR BANCO ============
 async function initDatabase() {
     if (isProduction) {
-        // PostgreSQL
         try {
             await pool.query(`
                 CREATE TABLE IF NOT EXISTS vehicles (
@@ -125,6 +123,7 @@ async function initDatabase() {
                     maintenanceProblems JSONB DEFAULT '[]',
                     keys TEXT DEFAULT '',
                     notes TEXT DEFAULT '',
+                    deliveryCategory TEXT DEFAULT '',
                     entryTime TIMESTAMP NOT NULL,
                     exitTime TIMESTAMP,
                     icon TEXT DEFAULT 'default-truck',
@@ -177,7 +176,6 @@ async function initDatabase() {
             console.error('❌ Erro PostgreSQL:', err.message);
         }
     } else {
-        // SQLite
         try {
             db.exec(`
                 CREATE TABLE IF NOT EXISTS vehicles (
@@ -191,6 +189,7 @@ async function initDatabase() {
                     maintenanceProblems TEXT DEFAULT '[]',
                     keys TEXT DEFAULT '',
                     notes TEXT DEFAULT '',
+                    deliveryCategory TEXT DEFAULT '',
                     entryTime TEXT NOT NULL,
                     exitTime TEXT,
                     icon TEXT DEFAULT 'default-truck',
@@ -370,7 +369,7 @@ app.get('/api/vehicles', requireAuth, async (req, res) => {
 });
 
 app.post('/api/vehicles', requireAuth, async (req, res) => {
-    const { plate, type, yard, base, keys, notes, entryDate } = req.body;
+    const { plate, type, yard, base, keys, notes, entryDate, deliveryCategory } = req.body;
     
     if (!plate || !type || !yard) {
         return res.status(400).json({ error: 'Placa, tipo e pátio obrigatórios' });
@@ -379,18 +378,18 @@ app.post('/api/vehicles', requireAuth, async (req, res) => {
     try {
         if (isProduction) {
             const result = await pool.query(`
-                INSERT INTO vehicles (plate, type, yard, base, keys, notes, entryTime, updatedBy)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *
+                INSERT INTO vehicles (plate, type, yard, base, keys, notes, deliveryCategory, entryTime, updatedBy)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *
             `, [plate.toUpperCase(), type, yard, base || 'Jaraguá-SP', keys || '', notes || '', 
-                entryDate ? new Date(entryDate).toISOString() : new Date().toISOString(), req.session.user.username]);
+                deliveryCategory || '', entryDate ? new Date(entryDate).toISOString() : new Date().toISOString(), req.session.user.username]);
             res.json(mapPostgresRow(result.rows[0]));
         } else {
             const stmt = db.prepare(`
-                INSERT INTO vehicles (plate, type, yard, base, keys, notes, entryTime, updatedBy)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO vehicles (plate, type, yard, base, keys, notes, deliveryCategory, entryTime, updatedBy)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             `);
             const result = stmt.run(plate.toUpperCase(), type, yard, base || 'Jaraguá-SP', keys || '', notes || '',
-                entryDate ? new Date(entryDate).toISOString() : new Date().toISOString(), req.session.user.username);
+                deliveryCategory || '', entryDate ? new Date(entryDate).toISOString() : new Date().toISOString(), req.session.user.username);
             const vehicle = db.prepare('SELECT * FROM vehicles WHERE id = ?').get(result.lastInsertRowid);
             res.json({ ...vehicle, maintenanceProblems: JSON.parse(vehicle.maintenanceProblems || '[]') });
         }
@@ -400,29 +399,73 @@ app.post('/api/vehicles', requireAuth, async (req, res) => {
     }
 });
 
+// 🔧 CORREÇÃO DATA RETROATIVA - PUT agora aceita entryTime
 app.put('/api/vehicles/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
     const updates = req.body;
     
+    console.log('🔧 Atualizando veículo:', id);
+    console.log('📅 EntryTime recebido:', updates.entryTime);
+    
     try {
         if (isProduction) {
             await pool.query(`
-                UPDATE vehicles SET plate = COALESCE($1, plate), type = COALESCE($2, type),
-                    yard = COALESCE($3, yard), status = COALESCE($4, status),
-                    maintenance = COALESCE($5, maintenance), notes = COALESCE($6, notes),
-                    updatedAt = CURRENT_TIMESTAMP, updatedBy = $7
-                WHERE id = $8
-            `, [updates.plate, updates.type, updates.yard, updates.status, updates.maintenance, updates.notes, req.session.user.username, id]);
+                UPDATE vehicles SET 
+                    plate = COALESCE($1, plate), 
+                    type = COALESCE($2, type),
+                    yard = COALESCE($3, yard), 
+                    base = COALESCE($4, base),
+                    status = COALESCE($5, status),
+                    maintenance = COALESCE($6, maintenance), 
+                    notes = COALESCE($7, notes),
+                    deliveryCategory = COALESCE($8, deliveryCategory),
+                    entryTime = COALESCE($9, entryTime),
+                    updatedAt = CURRENT_TIMESTAMP, 
+                    updatedBy = $10
+                WHERE id = $11
+            `, [
+                updates.plate, 
+                updates.type, 
+                updates.yard, 
+                updates.base,
+                updates.status, 
+                updates.maintenance, 
+                updates.notes,
+                updates.deliveryCategory,
+                updates.entryTime,  // ← DATA RETROATIVA SALVA AQUI
+                req.session.user.username, 
+                id
+            ]);
         } else {
             db.prepare(`
-                UPDATE vehicles SET plate = ?, type = ?, yard = ?, status = ?,
-                    maintenance = ?, notes = ?, updatedAt = ?, updatedBy = ?
+                UPDATE vehicles SET 
+                    plate = ?, type = ?, yard = ?, base = ?, 
+                    status = ?, maintenance = ?, notes = ?,
+                    deliveryCategory = ?,
+                    entryTime = ?,
+                    updatedAt = ?, updatedBy = ?
                 WHERE id = ?
-            `).run(updates.plate, updates.type, updates.yard, updates.status, updates.maintenance, updates.notes, new Date().toISOString(), req.session.user.username, id);
+            `).run(
+                updates.plate, 
+                updates.type, 
+                updates.yard, 
+                updates.base,
+                updates.status, 
+                updates.maintenance, 
+                updates.notes,
+                updates.deliveryCategory || '',
+                updates.entryTime,  // ← DATA RETROATIVA SALVA AQUI
+                new Date().toISOString(), 
+                req.session.user.username, 
+                id
+            );
         }
-        res.json({ success: true });
+        
+        console.log('✅ Veículo atualizado com sucesso');
+        res.json({ success: true, message: 'Veículo atualizado com sucesso' });
     } catch (err) {
-        res.status(500).json({ error: 'Erro ao atualizar' });
+        console.error('❌ Erro ao atualizar:', err);
+        res.status(500).json({ error: 'Erro ao atualizar veículo: ' + err.message });
     }
 });
 
@@ -615,11 +658,11 @@ app.post('/api/import', requireAuth, requireRole(['admin']), async (req, res) =>
             
             for (const v of importedVehicles) {
                 if (v.plate && v.type && v.yard) {
-                    await pool.query(`INSERT INTO vehicles (plate, type, yard, base, status, maintenance, keys, notes, entryTime, exitTime, updatedBy)
-                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`, [
+                    await pool.query(`INSERT INTO vehicles (plate, type, yard, base, status, maintenance, keys, notes, deliveryCategory, entryTime, exitTime, updatedBy)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`, [
                         v.plate.toUpperCase(), v.type, v.yard, v.base || 'Jaraguá-SP',
                         v.status || 'Aguardando linha', v.maintenance || false, v.keys || '', v.notes || '',
-                        v.entryTime || new Date().toISOString(), v.exitTime || null, req.session.user.username
+                        v.deliveryCategory || '', v.entryTime || new Date().toISOString(), v.exitTime || null, req.session.user.username
                     ]);
                 }
             }
@@ -629,13 +672,13 @@ app.post('/api/import', requireAuth, requireRole(['admin']), async (req, res) =>
             db.exec("DELETE FROM sqlite_sequence WHERE name='vehicles'");
             db.exec("DELETE FROM sqlite_sequence WHERE name='swaps'");
             
-            const vehicleStmt = db.prepare(`INSERT INTO vehicles (plate, type, yard, base, status, maintenance, keys, notes, entryTime, exitTime, updatedBy)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+            const vehicleStmt = db.prepare(`INSERT INTO vehicles (plate, type, yard, base, status, maintenance, keys, notes, deliveryCategory, entryTime, exitTime, updatedBy)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
             for (const v of importedVehicles) {
                 if (v.plate && v.type && v.yard) {
                     vehicleStmt.run(v.plate.toUpperCase(), v.type, v.yard, v.base || 'Jaraguá-SP',
                         v.status || 'Aguardando linha', v.maintenance ? 1 : 0, v.keys || '', v.notes || '',
-                        v.entryTime || new Date().toISOString(), v.exitTime || null, req.session.user.username);
+                        v.deliveryCategory || '', v.entryTime || new Date().toISOString(), v.exitTime || null, req.session.user.username);
                 }
             }
         }
@@ -658,7 +701,7 @@ app.get('/api/export', requireAuth, async (req, res) => {
             vehicles = db.prepare('SELECT * FROM vehicles').all();
             swaps = db.prepare('SELECT * FROM swaps').all();
         }
-        res.json({ vehicles, swaps, exportedAt: new Date().toISOString(), version: '5.2', exportedBy: req.session.user.username });
+        res.json({ vehicles, swaps, exportedAt: new Date().toISOString(), version: '5.3', exportedBy: req.session.user.username });
     } catch (err) {
         res.status(500).json({ error: 'Erro ao exportar' });
     }
@@ -691,7 +734,7 @@ function calculateTimeInYard(entryTime, exitTime) {
 // ============ INICIAR SERVIDOR ============
 app.listen(PORT, () => {
     console.log('\n' + '='.repeat(60));
-    console.log('🚚 CONTROLE DE PÁTIO PRINT - v5.2 (Híbrido)');
+    console.log('🚚 CONTROLE DE PÁTIO PRINT - v5.3');
     console.log('='.repeat(60));
     console.log(`📍 Servidor rodando na porta ${PORT}`);
     console.log(`🌐 Acesse: http://localhost:${PORT}`);

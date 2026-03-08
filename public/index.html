@@ -2,11 +2,14 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <title>Controle de Pátio - Transportadora Print</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         :root {
             --print-blue: #1a3a5c;
@@ -18,63 +21,168 @@
             --status-em-manutencao: #6f42c1;
             --status-liberado: #198754;
         }
-        body { background-color: #f4f6f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; }
-        .login-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #1a3a5c 0%, #2c5282 100%); display: flex; align-items: center; justify-content: center; z-index: 9999; }
-        .login-card { background: white; border-radius: 16px; padding: 40px; width: 100%; max-width: 420px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
-        .login-logo { width: 200px; max-width: 100%; height: auto; object-fit: contain; margin-bottom: 30px; background: white; padding: 10px; border-radius: 8px; }
-        .header-print { background: linear-gradient(135deg, var(--print-blue) 0%, #2c5282 100%); color: white; padding: 10px 0; box-shadow: 0 2px 10px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 1000; }
-        .header-print img { height: 50px; background: white; padding: 5px 10px; border-radius: 8px; object-fit: contain; max-width: 200px; }
-        .stat-card { border: none; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); transition: transform 0.2s; cursor: pointer; }
+        body { 
+            background-color: #f4f6f9; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        .login-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, #1a3a5c 0%, #2c5282 100%);
+            display: flex; align-items: center; justify-content: center; z-index: 9999;
+        }
+        .login-card {
+            background: white; border-radius: 16px; padding: 40px;
+            width: 100%; max-width: 420px; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .login-logo { 
+            width: 200px; max-width: 100%; height: auto; object-fit: contain;
+            margin-bottom: 30px; background: white; padding: 10px; border-radius: 8px;
+        }
+        .header-print {
+            background: linear-gradient(135deg, var(--print-blue) 0%, #2c5282 100%);
+            color: white; padding: 10px 0; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: sticky; top: 0; z-index: 1000;
+        }
+        .header-print img {
+            height: 50px; background: white; padding: 5px 10px;
+            border-radius: 8px; object-fit: contain; max-width: 200px;
+        }
+        .stat-card {
+            border: none; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            transition: transform 0.2s; cursor: pointer;
+        }
         .stat-card:hover { transform: translateY(-3px); box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
         .stat-card .card-body { padding: 1rem; text-align: center; }
-        .stat-card .icon-placeholder { width: 48px; height: 48px; background: #f8f9fa; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; font-size: 1.5rem; color: var(--print-blue); }
+        .stat-card .icon-placeholder {
+            width: 48px; height: 48px; background: #f8f9fa; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 8px; font-size: 1.5rem; color: var(--print-blue);
+        }
         .stat-card .count { font-size: 1.8rem; font-weight: 700; color: var(--print-blue); line-height: 1; }
         .stat-card .label { font-size: 0.85rem; color: #666; margin-top: 4px; }
-        .action-bar, .filter-bar { background: white; padding: 12px 0; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 20px; }
+        .action-bar, .filter-bar {
+            background: white; padding: 12px 0; border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 20px;
+        }
         .filter-bar { padding: 15px; }
         .action-bar .btn { min-width: 140px; padding: 8px 12px; }
-        .vehicle-table { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); overflow: hidden; }
-        .vehicle-table th { background: var(--print-blue); color: white; font-weight: 600; font-size: 0.9rem; padding: 12px 8px; border: none; white-space: nowrap; }
-        .vehicle-table td { padding: 10px 8px; font-size: 0.9rem; vertical-align: middle; border-bottom: 1px solid #eee; }
+        .vehicle-table {
+            background: white; border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08); overflow: hidden;
+        }
+        .vehicle-table th {
+            background: var(--print-blue); color: white; font-weight: 600;
+            font-size: 0.9rem; padding: 12px 8px; border: none; white-space: nowrap;
+        }
+        .vehicle-table td {
+            padding: 10px 8px; font-size: 0.9rem;
+            vertical-align: middle; border-bottom: 1px solid #eee;
+        }
         .vehicle-table tr:hover { background-color: #f8f9ff; }
-        .plate-badge { font-weight: 700; font-family: monospace; font-size: 1rem; padding: 4px 10px; background: #e9ecef; border-radius: 6px; }
+        .plate-badge {
+            font-weight: 700; font-family: monospace; font-size: 1rem;
+            padding: 4px 10px; background: #e9ecef; border-radius: 6px;
+        }
         .status-badge { font-size: 0.75rem; padding: 4px 10px; border-radius: 20px; font-weight: 500; }
         .status-aguardando-linha { background: #fff3cd; color: #856404; }
         .status-aguardando-abastecimento { background: #cff4fc; color: #055160; }
         .status-aguardando-manutencao { background: #f8d7da; color: #842029; }
         .status-em-manutencao { background: #e2d5f1; color: #5a2d82; }
         .status-liberado { background: #d1e7dd; color: #0f5132; }
-        .time-badge { background: #e7f1ff; color: #0d6efd; font-size: 0.8rem; padding: 3px 8px; border-radius: 4px; font-weight: 500; }
+        .time-badge {
+            background: #e7f1ff; color: #0d6efd; font-size: 0.8rem;
+            padding: 3px 8px; border-radius: 4px; font-weight: 500;
+        }
         .date-badge { background: #f1f5f9; color: #475569; font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; }
         .action-btn { padding: 4px 10px; font-size: 0.8rem; margin: 2px; }
         .modal-header { background: var(--print-blue); color: white; }
         .modal-header .btn-close { filter: brightness(0) invert(1); }
-        .vehicle-icon { width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; background: #f1f5f9; border-radius: 6px; margin-right: 6px; }
+        .vehicle-icon {
+            width: 28px; height: 28px; display: inline-flex; align-items: center;
+            justify-content: center; background: #f1f5f9; border-radius: 6px; margin-right: 6px;
+        }
         .user-menu { display: flex; align-items: center; gap: 10px; }
-        .user-avatar { width: 36px; height: 36px; border-radius: 50%; background: white; color: var(--print-blue); display: flex; align-items: center; justify-content: center; font-weight: 700; }
-        #camera-container-entry, #camera-container-exit { width: 100%; max-width: 500px; margin: 20px auto; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.15); background: #000; }
+        .user-avatar {
+            width: 36px; height: 36px; border-radius: 50%; background: white;
+            color: var(--print-blue); display: flex; align-items: center;
+            justify-content: center; font-weight: 700;
+        }
+        #camera-container-entry, #camera-container-exit {
+            width: 100%; max-width: 500px; margin: 20px auto;
+            border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.15); background: #000;
+        }
         #camera-container-entry video, #camera-container-exit video { width: 100%; display: block; }
         .scan-overlay { position: relative; }
-        .scan-overlay::after { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 200px; height: 60px; border: 3px solid #00ff00; border-radius: 8px; box-shadow: 0 0 20px #00ff00; animation: pulse 2s infinite; }
+        .scan-overlay::after {
+            content: ''; position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%); width: 200px; height: 60px;
+            border: 3px solid #00ff00; border-radius: 8px;
+            box-shadow: 0 0 20px #00ff00; animation: pulse 2s infinite;
+        }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-        .vehicle-history { background: #f8f9fa; border-radius: 8px; padding: 15px; margin-top: 15px; max-height: 300px; overflow-y: auto; }
+        .vehicle-history {
+            background: #f8f9fa; border-radius: 8px;
+            padding: 15px; margin-top: 15px; max-height: 300px; overflow-y: auto;
+        }
         .history-item { border-left: 3px solid var(--print-blue); padding-left: 12px; margin-bottom: 12px; }
         .history-item.alert { border-left-color: #dc3545; background: #fff5f5; }
         .history-item.success { border-left-color: #198754; background: #d1e7dd; }
         .history-item.info { border-left-color: #0d6efd; background: #e7f1ff; }
-        @media (max-width: 768px) { .stat-card .count { font-size: 1.4rem; } .action-bar .btn { width: 100%; margin-right: 0; margin-bottom: 8px; min-width: auto; } .vehicle-table { overflow-x: auto; } .vehicle-table table { min-width: 1000px; } .login-card { margin: 20px; padding: 30px 20px; } }
+        @media (max-width: 768px) {
+            .stat-card .count { font-size: 1.4rem; }
+            .action-bar .btn { width: 100%; margin-right: 0; margin-bottom: 8px; min-width: auto; }
+            .vehicle-table { overflow-x: auto; }
+            .vehicle-table table { min-width: 1000px; }
+            .login-card { margin: 20px; padding: 30px 20px; }
+            .header-print h1 { font-size: 1rem !important; }
+            .header-print small { font-size: 0.75rem !important; }
+            .header-print img { height: 40px !important; max-width: 150px !important; }
+            .quick-action-card { min-height: 100px !important; padding: 15px 10px !important; }
+            .quick-action-card i { font-size: 2rem !important; }
+            .quick-action-card div { font-size: 0.9rem !important; }
+            .quick-action-card small { font-size: 0.7rem !important; }
+            .action-bar .btn { min-width: auto !important; padding: 6px 10px !important; font-size: 0.85rem !important; margin-bottom: 5px !important; }
+            .vehicle-table { overflow-x: auto !important; }
+            .vehicle-table table { min-width: 800px !important; }
+            .modal-dialog { margin: 0 !important; max-width: 100% !important; height: 100% !important; display: flex !important; align-items: flex-end !important; }
+            .modal-content { max-height: 90vh !important; border-radius: 16px 16px 0 0 !important; }
+            .form-control, .form-select { font-size: 16px !important; }
+            .stat-card .count { font-size: 1.4rem !important; }
+            .stat-card .label { font-size: 0.75rem !important; }
+        }
+        @media (hover: none) {
+            .btn, .action-btn { min-height: 44px !important; min-width: 44px !important; }
+        }
         .hidden { display: none !important; }
-        .alert-stalled { background: #fff5f5; border-left: 4px solid #dc3545; padding: 15px; margin-bottom: 20px; border-radius: 8px; }
+        .alert-stalled {
+            background: #fff5f5; border-left: 4px solid #dc3545;
+            padding: 15px; margin-bottom: 20px; border-radius: 8px;
+        }
         .role-badge { background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; }
-        .btn-camera { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; }
-        .btn-camera:hover { background: linear-gradient(135deg, #764ba2 0%, #667eea 100%); color: white; }
-        .btn-scan-exit { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; border: none; }
-        .btn-scan-exit:hover { background: linear-gradient(135deg, #38ef7d 0%, #11998e 100%); color: white; }
+        .btn-camera {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;
+        }
+        .btn-camera:hover {
+            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%); color: white;
+        }
+        .btn-scan-exit {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; border: none;
+        }
+        .btn-scan-exit:hover {
+            background: linear-gradient(135deg, #38ef7d 0%, #11998e 100%); color: white;
+        }
         .scan-status { font-size: 0.85rem; margin-top: 5px; }
         .scan-status.scanning { color: #0d6efd; }
         .scan-status.success { color: #198754; }
         .scan-status.error { color: #dc3545; }
-        .quick-action-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px; padding: 20px; text-align: center; cursor: pointer; transition: transform 0.2s; min-height: 120px; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .quick-action-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;
+            border-radius: 12px; padding: 20px; text-align: center; cursor: pointer;
+            transition: transform 0.2s; min-height: 120px;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+        }
         .quick-action-card:hover { transform: scale(1.02); }
         .quick-action-card i { font-size: 2.5rem; margin-bottom: 10px; }
     </style>
@@ -84,20 +192,23 @@
     <!-- TELA DE LOGIN (SEGURA - SEM CREDENCIAIS) -->
     <div id="loginScreen" class="login-screen">
         <div class="login-card text-center">
-            <img src="/images/logo-print.png" alt="Transportadora Print" class="login-logo" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚛</text></svg>'">
+            <img src="/images/logo-print.png" alt="Transportadora Print" class="login-logo"
+                 onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚛</text></svg>'">
             <h4 class="mb-2">Controle de Pátio</h4>
             <p class="text-muted mb-4">Transportadora Print</p>
             <form id="loginForm">
                 <div class="mb-3">
                     <div class="input-group">
                         <span class="input-group-text"><i class="bi bi-person"></i></span>
-                        <input type="text" class="form-control form-control-lg" id="loginUsername" placeholder="Usuário" required autocomplete="username">
+                        <input type="text" class="form-control form-control-lg" id="loginUsername" 
+                               placeholder="Usuário" required autocomplete="username">
                     </div>
                 </div>
                 <div class="mb-3">
                     <div class="input-group">
                         <span class="input-group-text"><i class="bi bi-lock"></i></span>
-                        <input type="password" class="form-control form-control-lg" id="loginPassword" placeholder="Senha" required autocomplete="current-password">
+                        <input type="password" class="form-control form-control-lg" id="loginPassword" 
+                               placeholder="Senha" required autocomplete="current-password">
                     </div>
                 </div>
                 <button type="submit" class="btn btn-primary btn-lg w-100">
@@ -114,6 +225,9 @@
 
     <!-- SISTEMA PRINCIPAL -->
     <div id="mainApp" class="hidden">
+        <!-- Notificações em Tempo Real -->
+        <div id="notificationContainer" style="position: fixed; top: 80px; right: 20px; z-index: 9999; max-width: 400px;"></div>
+        
         <header class="header-print">
             <div class="container-fluid px-3">
                 <div class="d-flex align-items-center justify-content-between">
@@ -121,7 +235,12 @@
                         <img src="/images/logo-print.png" alt="Transportadora Print" onerror="this.style.display='none'">
                         <div>
                             <h1 style="font-size: 1.3rem; margin: 0;">Controle de Pátio</h1>
-                            <small><i class="bi bi-geo-alt me-1"></i><span id="current-yard-filter">Todos os Pátios</span> • <i class="bi bi-clock me-1"></i><span id="current-time"></span></small>
+                            <small>
+                                <i class="bi bi-geo-alt me-1"></i>
+                                <span id="current-yard-filter">Todos os Pátios</span> 
+                                • <i class="bi bi-clock me-1"></i>
+                                <span id="current-time"></span>
+                            </small>
                         </div>
                     </div>
                     <div class="d-flex align-items-center gap-3">
@@ -132,7 +251,9 @@
                                 <small class="text-white-50"><span id="userRole">Administrador</span> <span class="role-badge" id="userRoleBadge">ADMIN</span></small>
                             </div>
                         </div>
-                        <button class="btn btn-light btn-sm" onclick="logout()" title="Sair"><i class="bi bi-box-arrow-right"></i></button>
+                        <button class="btn btn-light btn-sm" onclick="logout()" title="Sair">
+                            <i class="bi bi-box-arrow-right"></i>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -142,7 +263,10 @@
             <div id="stalledAlert" class="alert-stalled hidden">
                 <div class="d-flex align-items-center">
                     <i class="bi bi-exclamation-triangle-fill text-danger fs-4 me-3"></i>
-                    <div><strong class="text-danger">⚠️ Veículos parados há mais de 24h</strong><p class="mb-0 mt-1" id="stalledList"></p></div>
+                    <div>
+                        <strong class="text-danger">⚠️ Veículos parados há mais de 24h</strong>
+                        <p class="mb-0 mt-1" id="stalledList"></p>
+                    </div>
                 </div>
             </div>
             
@@ -151,37 +275,64 @@
             <div class="row g-3 mb-4">
                 <div class="col-6 col-md-3">
                     <div class="quick-action-card" onclick="openEntryModal()">
-                        <i class="bi bi-plus-circle"></i><div><strong>Nova Entrada</strong></div><small>Cadastrar veículo</small>
+                        <i class="bi bi-plus-circle"></i>
+                        <div><strong>Nova Entrada</strong></div>
+                        <small>Cadastrar veículo</small>
                     </div>
                 </div>
                 <div class="col-6 col-md-3">
                     <div class="quick-action-card" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);" onclick="openScanExitModal()">
-                        <i class="bi bi-qr-code-scan"></i><div><strong>Escanear Saída</strong></div><small>Liberar veículo</small>
+                        <i class="bi bi-qr-code-scan"></i>
+                        <div><strong>Escanear Saída</strong></div>
+                        <small>Liberar veículo</small>
                     </div>
                 </div>
                 <div class="col-6 col-md-3">
                     <div class="quick-action-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);" onclick="exportToPDF()">
-                        <i class="bi bi-file-earmark-pdf"></i><div><strong>Exportar PDF</strong></div><small>Relatório completo</small>
+                        <i class="bi bi-file-earmark-pdf"></i>
+                        <div><strong>Exportar PDF</strong></div>
+                        <small>Relatório completo</small>
                     </div>
                 </div>
                 <div class="col-6 col-md-3">
                     <div class="quick-action-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);" onclick="exportToExcel()">
-                        <i class="bi bi-file-earmark-excel"></i><div><strong>Exportar Excel</strong></div><small>Planilha CSV</small>
+                        <i class="bi bi-file-earmark-excel"></i>
+                        <div><strong>Exportar Excel</strong></div>
+                        <small>Planilha CSV</small>
                     </div>
                 </div>
             </div>
 
             <div class="action-bar">
                 <div class="container-fluid px-3">
-                    <button class="btn btn-primary" onclick="openEntryModal()"><i class="bi bi-plus-lg"></i> Novo Veículo</button>
-                    <button class="btn btn-scan-exit" onclick="openScanExitModal()"><i class="bi bi-qr-code-scan"></i> Escanear Saída</button>
-                    <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#swapModal"><i class="bi bi-arrow-left-right"></i> Registrar Troca</button>
-                    <button class="btn btn-outline-success" onclick="exportToJSON()"><i class="bi bi-file-earmark-json"></i> Exportar JSON</button>
-                    <button class="btn btn-outline-success" onclick="exportToExcel()"><i class="bi bi-file-earmark-excel"></i> Exportar Excel</button>
-                    <button class="btn btn-outline-danger" onclick="exportToPDF()"><i class="bi bi-file-earmark-pdf"></i> Exportar PDF</button>
-                    <button class="btn btn-outline-info" id="btnImportJSON" data-bs-toggle="modal" data-bs-target="#importModal" style="display: inline-flex !important;"><i class="bi bi-file-earmark-arrow-up"></i> Importar JSON</button>
+                    <button class="btn btn-primary" onclick="openDashboard()">
+                        <i class="bi bi-graph-up me-1"></i> Dashboard
+                    </button>
+                    <button class="btn btn-primary" onclick="openEntryModal()">
+                        <i class="bi bi-plus-lg"></i> Novo Veículo
+                    </button>
+                    <button class="btn btn-scan-exit" onclick="openScanExitModal()">
+                        <i class="bi bi-qr-code-scan"></i> Escanear Saída
+                    </button>
+                    <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#swapModal">
+                        <i class="bi bi-arrow-left-right"></i> Registrar Troca
+                    </button>
+                    <button class="btn btn-outline-success" onclick="exportToJSON()">
+                        <i class="bi bi-file-earmark-json"></i> Exportar JSON
+                    </button>
+                    <button class="btn btn-outline-success" onclick="exportToExcel()">
+                        <i class="bi bi-file-earmark-excel"></i> Exportar Excel
+                    </button>
+                    <button class="btn btn-outline-danger" onclick="exportToPDF()">
+                        <i class="bi bi-file-earmark-pdf"></i> Exportar PDF
+                    </button>
+                    <button class="btn btn-outline-info" id="btnImportJSON" data-bs-toggle="modal" data-bs-target="#importModal" style="display: inline-flex !important;">
+                        <i class="bi bi-file-earmark-arrow-up"></i> Importar JSON
+                    </button>
                     <div class="vr mx-2"></div>
-                    <button class="btn btn-outline-warning" onclick="refreshData()"><i class="bi bi-arrow-clockwise"></i> Atualizar</button>
+                    <button class="btn btn-outline-warning" onclick="refreshData()">
+                        <i class="bi bi-arrow-clockwise"></i> Atualizar
+                    </button>
                 </div>
             </div>
 
@@ -213,7 +364,9 @@
                     </div>
                     <div class="col-md-2">
                         <label class="form-label small text-muted">&nbsp;</label>
-                        <button class="btn btn-outline-secondary w-100" onclick="clearFilters()"><i class="bi bi-x-circle"></i> Limpar</button>
+                        <button class="btn btn-outline-secondary w-100" onclick="clearFilters()">
+                            <i class="bi bi-x-circle"></i> Limpar
+                        </button>
                     </div>
                 </div>
             </div>
@@ -222,13 +375,24 @@
                 <div class="table-responsive">
                     <table class="table table-hover mb-0">
                         <thead>
-                            <tr><th>Tipo</th><th>Placa</th><th>Entrada</th><th>Saída</th><th>Tempo</th><th>Local</th><th>Manutenção</th><th>Status</th><th>Ações</th></tr>
+                            <tr>
+                                <th>Tipo</th>
+                                <th>Placa</th>
+                                <th>Entrada</th>
+                                <th>Saída</th>
+                                <th>Tempo</th>
+                                <th>Local</th>
+                                <th>Manutenção</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
                         </thead>
                         <tbody id="vehicleTableBody"></tbody>
                     </table>
                 </div>
                 <div class="p-3 text-center text-muted" id="emptyMessage">
-                    <i class="bi bi-inbox fs-1 d-block mb-2"></i>Nenhum veículo cadastrado. Clique em "Novo Veículo" para começar.
+                    <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                    Nenhum veículo cadastrado. Clique em "Novo Veículo" para começar.
                 </div>
             </div>
 
@@ -239,7 +403,14 @@
                 <div class="table-responsive">
                     <table class="table table-sm mb-0">
                         <thead class="table-light">
-                            <tr><th>Data</th><th>Entra</th><th>Sai</th><th>Base</th><th>Observações</th><th>Ações</th></tr>
+                            <tr>
+                                <th>Data</th>
+                                <th>Entra</th>
+                                <th>Sai</th>
+                                <th>Base</th>
+                                <th>Observações</th>
+                                <th>Ações</th>
+                            </tr>
                         </thead>
                         <tbody id="swapsTableBody"></tbody>
                     </table>
@@ -248,7 +419,53 @@
         </div>
     </div>
 
-    <!-- Modais (Entry, Scan Exit, Edit, Import, Swap) -->
+    <!-- Modal Dashboard -->
+    <div class="modal fade" id="dashboardModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title"><i class="bi bi-graph-up me-2"></i>Dashboard em Tempo Real</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-light"><strong>Veículos por Status</strong></div>
+                                <div class="card-body"><canvas id="statusChart"></canvas></div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-light"><strong>Veículos por Pátio</strong></div>
+                                <div class="card-body"><canvas id="yardChart"></canvas></div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-light"><strong>Veículos por Tipo</strong></div>
+                                <div class="card-body"><canvas id="typeChart"></canvas></div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header bg-light"><strong>Tempo Médio no Pátio</strong></div>
+                                <div class="card-body"><canvas id="timeChart"></canvas></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                    <button type="button" class="btn btn-primary" onclick="updateDashboard()">
+                        <i class="bi bi-arrow-clockwise me-1"></i>Atualizar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Nova Entrada COM CÂMERA -->
     <div class="modal fade" id="entryModal" tabindex="-1">
         <div class="modal-dialog modal-xl">
             <div class="modal-content">
@@ -261,16 +478,24 @@
                         <div class="col-lg-5">
                             <div class="card border-0 shadow-sm">
                                 <div class="card-body text-center">
-                                    <h6 class="card-title mb-3"><i class="bi bi-camera me-2"></i>Escanear Placa</h6>
+                                    <h6 class="card-title mb-3">
+                                        <i class="bi bi-camera me-2"></i>Escanear Placa
+                                    </h6>
                                     <div id="camera-container-entry" class="scan-overlay">
                                         <video id="camera-video-entry" autoplay playsinline></video>
                                     </div>
                                     <div class="btn-group w-100 mt-3">
-                                        <button class="btn btn-camera" onclick="startCamera('entry')"><i class="bi bi-camera-video me-2"></i>Iniciar</button>
-                                        <button class="btn btn-outline-secondary" onclick="stopCamera('entry')"><i class="bi bi-camera-video-off me-2"></i>Parar</button>
+                                        <button class="btn btn-camera" onclick="startCamera('entry')">
+                                            <i class="bi bi-camera-video me-2"></i>Iniciar
+                                        </button>
+                                        <button class="btn btn-outline-secondary" onclick="stopCamera('entry')">
+                                            <i class="bi bi-camera-video-off me-2"></i>Parar
+                                        </button>
                                     </div>
                                     <div id="scanStatusEntry" class="scan-status mt-2"></div>
-                                    <small class="text-muted d-block mt-2"><i class="bi bi-info-circle"></i> Aponte para a placa do veículo</small>
+                                    <small class="text-muted d-block mt-2">
+                                        <i class="bi bi-info-circle"></i> Aponte para a placa do veículo
+                                    </small>
                                 </div>
                             </div>
                         </div>
@@ -280,8 +505,12 @@
                                     <div class="col-12">
                                         <label class="form-label">Placa *</label>
                                         <div class="input-group">
-                                            <input type="text" class="form-control form-control-lg" id="plate" placeholder="ABC-1D23" maxlength="9" required style="text-transform:uppercase; font-family:monospace; font-weight:600; font-size: 1.2rem;">
-                                            <button class="btn btn-outline-secondary" type="button" onclick="manualPlateEntry()"><i class="bi bi-keyboard"></i></button>
+                                            <input type="text" class="form-control form-control-lg" id="plate" 
+                                                   placeholder="ABC-1D23" maxlength="9" required 
+                                                   style="text-transform:uppercase; font-family:monospace; font-weight:600; font-size: 1.2rem;">
+                                            <button class="btn btn-outline-secondary" type="button" onclick="manualPlateEntry()">
+                                                <i class="bi bi-keyboard"></i>
+                                            </button>
                                         </div>
                                         <div id="plateAlert" class="alert alert-danger mt-2 hidden"></div>
                                     </div>
@@ -345,12 +574,15 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-primary btn-lg" onclick="submitEntry()"><i class="bi bi-check-circle me-1"></i> Confirmar Entrada</button>
+                    <button type="button" class="btn btn-primary btn-lg" onclick="submitEntry()">
+                        <i class="bi bi-check-circle me-1"></i> Confirmar Entrada
+                    </button>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Modal: Escanear para Saída Rápida -->
     <div class="modal fade" id="scanExitModal" tabindex="-1">
         <div class="modal-dialog modal-md">
             <div class="modal-content">
@@ -363,20 +595,30 @@
                         <video id="camera-video-exit" autoplay playsinline></video>
                     </div>
                     <div class="btn-group w-100 mt-3">
-                        <button class="btn btn-scan-exit" onclick="startCamera('exit')"><i class="bi bi-camera-video me-2"></i>Iniciar Câmera</button>
-                        <button class="btn btn-outline-secondary" onclick="stopCamera('exit')"><i class="bi bi-camera-video-off me-2"></i>Parar</button>
+                        <button class="btn btn-scan-exit" onclick="startCamera('exit')">
+                            <i class="bi bi-camera-video me-2"></i>Iniciar Câmera
+                        </button>
+                        <button class="btn btn-outline-secondary" onclick="stopCamera('exit')">
+                            <i class="bi bi-camera-video-off me-2"></i>Parar
+                        </button>
                     </div>
                     <div id="scanStatusExit" class="scan-status mt-2"></div>
                     <div class="mt-3">
                         <label class="form-label">Ou digite a placa:</label>
                         <div class="input-group">
-                            <input type="text" class="form-control form-control-lg" id="scanExitPlate" placeholder="ABC-1D23" maxlength="9" style="text-transform:uppercase; font-family:monospace; font-weight:600;">
-                            <button class="btn btn-outline-secondary" type="button" onclick="checkPlateForExit()"><i class="bi bi-search"></i></button>
+                            <input type="text" class="form-control form-control-lg" id="scanExitPlate" 
+                                   placeholder="ABC-1D23" maxlength="9" 
+                                   style="text-transform:uppercase; font-family:monospace; font-weight:600;">
+                            <button class="btn btn-outline-secondary" type="button" onclick="checkPlateForExit()">
+                                <i class="bi bi-search"></i>
+                            </button>
                         </div>
                     </div>
                     <div id="exitVehicleInfo" class="vehicle-history hidden mt-3">
                         <div id="exitVehicleContent"></div>
-                        <button class="btn btn-success btn-lg w-100 mt-3" onclick="confirmExitVehicle()"><i class="bi bi-check-circle me-2"></i>Confirmar Saída</button>
+                        <button class="btn btn-success btn-lg w-100 mt-3" onclick="confirmExitVehicle()">
+                            <i class="bi bi-check-circle me-2"></i>Confirmar Saída
+                        </button>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -386,6 +628,7 @@
         </div>
     </div>
 
+    <!-- Modal: Editar Veículo -->
     <div class="modal fade" id="editVehicleModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
@@ -451,7 +694,9 @@
                             <div class="col-12">
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" id="editMaintenance">
-                                    <label class="form-check-label" for="editMaintenance"><strong>Em Manutenção?</strong></label>
+                                    <label class="form-check-label" for="editMaintenance">
+                                        <strong>Em Manutenção?</strong>
+                                    </label>
                                 </div>
                             </div>
                         </div>
@@ -459,12 +704,15 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-warning" onclick="saveVehicleEdit()"><i class="bi bi-save me-1"></i> Salvar Alterações</button>
+                    <button type="button" class="btn btn-warning" onclick="saveVehicleEdit()">
+                        <i class="bi bi-save me-1"></i> Salvar Alterações
+                    </button>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Modal: Importar JSON -->
     <div class="modal fade" id="importModal" tabindex="-1">
         <div class="modal-dialog modal-md">
             <div class="modal-content">
@@ -474,7 +722,8 @@
                 </div>
                 <div class="modal-body">
                     <div class="alert alert-warning">
-                        <i class="bi bi-exclamation-triangle me-2"></i><strong>Atenção:</strong> Importar um arquivo irá <u>substituir todos os dados atuais</u> do sistema.
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>Atenção:</strong> Importar um arquivo irá <u>substituir todos os dados atuais</u> do sistema.
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold">Selecione o arquivo JSON de backup</label>
@@ -485,12 +734,15 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-info text-white" onclick="processImport()"><i class="bi bi-upload me-1"></i> Importar e Substituir</button>
+                    <button type="button" class="btn btn-info text-white" onclick="processImport()">
+                        <i class="bi bi-upload me-1"></i> Importar e Substituir
+                    </button>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Modal: Registrar Troca -->
     <div class="modal fade" id="swapModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -530,7 +782,9 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-primary" onclick="submitSwap()"><i class="bi bi-check-circle me-1"></i> <span id="swapBtnText">Registrar</span></button>
+                    <button type="button" class="btn btn-primary" onclick="submitSwap()">
+                        <i class="bi bi-check-circle me-1"></i> <span id="swapBtnText">Registrar</span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -546,6 +800,7 @@
         let cameraStream = null;
         let currentCameraMode = null;
         let vehicleToExit = null;
+        let statusChart, yardChart, typeChart, timeChart;
 
         console.log('🚀 Sistema iniciado');
         console.log('📦 Tesseract disponível:', typeof Tesseract !== 'undefined');
@@ -554,6 +809,8 @@
             await checkAuth();
             updateClock();
             setInterval(updateClock, 1000);
+            setTimeout(checkStalledVehicles, 3000);
+            setInterval(checkStalledVehicles, 5 * 60 * 1000);
         });
 
         async function checkAuth() {
@@ -641,6 +898,32 @@
             showLoginScreen();
         }
 
+        // ============ NOTIFICAÇÕES ============
+        function showNotification(title, message, type = 'warning', duration = 5000) {
+            const container = document.getElementById('notificationContainer');
+            const notification = document.createElement('div');
+            notification.className = `alert alert-${type} alert-dismissible fade show shadow`;
+            notification.style.minWidth = '300px';
+            notification.innerHTML = `<strong>${title}</strong><br><small>${message}</small><button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+            container.appendChild(notification);
+            setTimeout(() => { notification.remove(); }, duration);
+        }
+
+        function checkStalledVehicles() {
+            if (allVehicles.length === 0) return;
+            const now = new Date();
+            const stalledVehicles = allVehicles.filter(v => {
+                if (v.status === 'Liberado') return false;
+                const entry = new Date(v.entryTime);
+                const hoursDiff = (now - entry) / (1000 * 60 * 60);
+                return hoursDiff > 24;
+            });
+            if (stalledVehicles.length > 0) {
+                showNotification('⚠️ Veículos Parados', `${stalledVehicles.length} veículo(s) parado(s) há mais de 24h`, 'warning', 10000);
+            }
+        }
+
+        // ============ CÂMERA / OCR ============
         function openEntryModal() {
             document.getElementById('plate').value = '';
             document.getElementById('vehicleHistory').classList.add('hidden');
@@ -860,6 +1143,88 @@
             }
         }
 
+        // ============ DASHBOARD ============
+        function openDashboard() {
+            new bootstrap.Modal(document.getElementById('dashboardModal')).show();
+            setTimeout(updateDashboard, 500);
+        }
+
+        function updateDashboard() {
+            updateStatusChart();
+            updateYardChart();
+            updateTypeChart();
+            updateTimeChart();
+        }
+
+        function updateStatusChart() {
+            const ctx = document.getElementById('statusChart');
+            if (!ctx) return;
+            const statusCount = {};
+            allVehicles.forEach(v => { statusCount[v.status] = (statusCount[v.status] || 0) + 1; });
+            if (statusChart) statusChart.destroy();
+            statusChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(statusCount),
+                    datasets: [{ data: Object.values(statusCount), backgroundColor: ['#ffc107', '#0dcaf0', '#dc3545', '#6f42c1', '#198754'] }]
+                },
+                options: { responsive: true, maintainAspectRatio: true }
+            });
+        }
+
+        function updateYardChart() {
+            const ctx = document.getElementById('yardChart');
+            if (!ctx) return;
+            const yardCount = {};
+            allVehicles.filter(v => v.status !== 'Liberado').forEach(v => { yardCount[v.yard] = (yardCount[v.yard] || 0) + 1; });
+            if (yardChart) yardChart.destroy();
+            yardChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(yardCount),
+                    datasets: [{ label: 'Veículos Ativos', data: Object.values(yardCount), backgroundColor: '#1a3a5c' }]
+                },
+                options: { responsive: true, maintainAspectRatio: true }
+            });
+        }
+
+        function updateTypeChart() {
+            const ctx = document.getElementById('typeChart');
+            if (!ctx) return;
+            const typeCount = {};
+            allVehicles.filter(v => v.status !== 'Liberado').forEach(v => { typeCount[v.type] = (typeCount[v.type] || 0) + 1; });
+            if (typeChart) typeChart.destroy();
+            typeChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: Object.keys(typeCount),
+                    datasets: [{ data: Object.values(typeCount), backgroundColor: ['#0d6efd', '#20c997', '#ffc107', '#dc3545', '#6f42c1', '#fd7e14', '#20c997'] }]
+                },
+                options: { responsive: true, maintainAspectRatio: true }
+            });
+        }
+
+        function updateTimeChart() {
+            const ctx = document.getElementById('timeChart');
+            if (!ctx) return;
+            const activeVehicles = allVehicles.filter(v => v.status !== 'Liberado');
+            const avgTime = activeVehicles.reduce((acc, v) => {
+                const entry = new Date(v.entryTime);
+                const now = new Date();
+                return acc + ((now - entry) / (1000 * 60 * 60));
+            }, 0) / (activeVehicles.length || 1);
+            if (timeChart) timeChart.destroy();
+            timeChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Tempo Médio (horas)'],
+                    datasets: [{ label: 'Tempo Médio no Pátio', data: [avgTime.toFixed(1)], borderColor: '#1a3a5c', backgroundColor: 'rgba(26, 58, 92, 0.1)', fill: true }]
+                },
+                options: { responsive: true, maintainAspectRatio: true }
+            });
+        }
+
+        // ============ CARREGAR DADOS ============
         async function loadStats() {
             try {
                 const res = await fetch(`${API_URL}/stats`);
@@ -945,6 +1310,7 @@
             } catch (err) { console.error('Erro loadSwaps:', err); }
         }
 
+        // ============ AÇÕES DE VEÍCULOS ============
         async function submitEntry() {
             const plate = document.getElementById('plate').value.trim();
             const plateAlert = document.getElementById('plateAlert');
@@ -956,7 +1322,7 @@
                 await fetch(`${API_URL}/vehicles`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ plate, type, yard, entryDate: document.getElementById('entryDate').value, base: document.getElementById('base').value, keys: document.getElementById('keys').value, notes: document.getElementById('notes').value })
+                    body: JSON.stringify({ plate, type, yard, entryDate: document.getElementById('entryDate').value, base: document.getElementById('base').value, keys: document.getElementById('keys').value, notes: document.getElementById('notes').value, deliveryCategory: document.getElementById('deliveryCategory').value })
                 });
                 stopCamera('entry');
                 bootstrap.Modal.getInstance(document.getElementById('entryModal')).hide();
@@ -1132,6 +1498,7 @@
             showToast('Troca excluída', 'info');
         }
 
+        // ============ EXPORTAR ============
         async function exportToJSON() {
             try {
                 const res = await fetch(`${API_URL}/export`);
@@ -1152,26 +1519,37 @@
             try {
                 let csv = 'CONTROLE DE PÁTIO - TRANSPORTADORA PRINT\n';
                 csv += `Data de Exportação: ${new Date().toLocaleString('pt-BR')}\n`;
-                csv += `Total de Veículos: ${allVehicles.length}\n\n`;
-                csv = 'ID;Placa;Tipo;Pátio;Base;Status;Manutenção;Entrada;Saída;Tempo no Pátio;Chaves;Observações\n';
+                csv += `Total de Veículos: ${allVehicles.length}\n`;
+                csv += `Veículos Ativos: ${allVehicles.filter(v => v.status !== 'Liberado').length}\n`;
+                csv += `Veículos Liberados: ${allVehicles.filter(v => v.status === 'Liberado').length}\n\n`;
+                csv = 'ID;Placa;Tipo;Pátio;Base;Status;Manutenção;Entrada;Saída;Tempo no Pátio;Chaves;Observações;Categoria\n';
                 allVehicles.forEach(v => {
-                    const row = [v.id, `"${v.plate}"`, `"${v.type}"`, `"${v.yard}"`, `"${v.base || ''}"`, `"${v.status}"`, v.maintenance ? 'Sim' : 'Não', `"${v.entryDate || ''}"`, `"${v.exitDate || ''}"`, `"${v.timeInYard || '—'}"`, `"${v.keys || ''}"`, `"${(v.notes || '').replace(/"/g, '""')}"`].join(';');
+                    const row = [v.id, `"${v.plate}"`, `"${v.type}"`, `"${v.yard}"`, `"${v.base || ''}"`, `"${v.status}"`, v.maintenance ? 'Sim' : 'Não', `"${v.entryDate || ''}"`, `"${v.exitDate || ''}"`, `"${v.timeInYard || '—'}"`, `"${v.keys || ''}"`, `"${(v.notes || '').replace(/"/g, '""')}"`, `"${v.deliveryCategory || ''}"`].join(';');
                     csv += row + '\n';
                 });
                 csv += '\n\nRESUMO POR PÁTIO\n';
-                csv += 'Pátio;Total de Veículos;Em Manutenção;Liberados\n';
+                csv += 'Pátio;Total;Em Manutenção;Liberados;Ativos\n';
                 const yards = ['Pátio Jaraguá', 'Pátio Bandeirantes', 'Pátio Superior'];
                 yards.forEach(yard => {
                     const total = allVehicles.filter(v => v.yard === yard).length;
                     const maintenance = allVehicles.filter(v => v.yard === yard && v.maintenance).length;
                     const liberated = allVehicles.filter(v => v.yard === yard && v.status === 'Liberado').length;
-                    csv += `"${yard}";${total};${maintenance};${liberated}\n`;
+                    const ativos = total - liberated;
+                    csv += `"${yard}";${total};${maintenance};${liberated};${ativos}\n`;
                 });
                 csv += '\n\nRESUMO POR STATUS\n';
-                csv += 'Status;Quantidade\n';
+                csv += 'Status;Quantidade;Percentual\n';
                 const statusCount = {};
                 allVehicles.forEach(v => { statusCount[v.status] = (statusCount[v.status] || 0) + 1; });
-                Object.entries(statusCount).forEach(([status, count]) => { csv += `"${status}";${count}\n`; });
+                Object.entries(statusCount).forEach(([status, count]) => {
+                    const percent = ((count / allVehicles.length) * 100).toFixed(1);
+                    csv += `"${status}";${count};${percent}%\n`;
+                });
+                csv += '\n\nRESUMO POR TIPO\n';
+                csv += 'Tipo;Quantidade\n';
+                const typeCount = {};
+                allVehicles.filter(v => v.status !== 'Liberado').forEach(v => { typeCount[v.type] = (typeCount[v.type] || 0) + 1; });
+                Object.entries(typeCount).forEach(([type, count]) => { csv += `"${type}";${count}\n`; });
                 const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -1224,6 +1602,7 @@
             fileInput.value = '';
         }
 
+        // ============ UTILITÁRIOS ============
         function getVehicleIcon(type) {
             const icons = {'Carreta': 'truck', 'Cavalo Mecânico': 'car-front', 'Vans': 'bus-front', 'Caminhão Truck': 'truck', 'Caminhão Toco': 'truck', 'Veículo Visitante': 'person', 'Veículo Diretoria': 'star'};
             return icons[type] || 'truck';
