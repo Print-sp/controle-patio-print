@@ -24,253 +24,108 @@
             margin: 0;
             padding: 0;
         }
-        
-        /* Login Screen */
         .login-screen {
-            position: fixed; 
-            top: 0; 
-            left: 0; 
-            width: 100%; 
-            height: 100%;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: linear-gradient(135deg, #1a3a5c 0%, #2c5282 100%);
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            z-index: 9999;
+            display: flex; align-items: center; justify-content: center; z-index: 9999;
         }
         .login-card {
-            background: white; 
-            border-radius: 16px; 
-            padding: 40px; 
-            width: 100%; 
-            max-width: 420px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            background: white; border-radius: 16px; padding: 40px;
+            width: 100%; max-width: 420px; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
         }
         .login-logo { 
-            width: 200px;
-            max-width: 100%;
-            height: auto;
-            object-fit: contain;
-            margin-bottom: 30px; 
-            background: white;
-            padding: 10px;
-            border-radius: 8px;
+            width: 200px; max-width: 100%; height: auto; object-fit: contain;
+            margin-bottom: 30px; background: white; padding: 10px; border-radius: 8px;
         }
-        
-        /* Header */
         .header-print {
             background: linear-gradient(135deg, var(--print-blue) 0%, #2c5282 100%);
-            color: white; 
-            padding: 10px 0; 
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            position: sticky; 
-            top: 0; 
-            z-index: 1000;
+            color: white; padding: 10px 0; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: sticky; top: 0; z-index: 1000;
         }
         .header-print img {
-            height: 50px; 
-            background: white; 
-            padding: 5px 10px; 
-            border-radius: 8px;
-            object-fit: contain;
-            max-width: 200px;
+            height: 50px; background: white; padding: 5px 10px;
+            border-radius: 8px; object-fit: contain; max-width: 200px;
         }
-        
-        /* Stats Cards */
         .stat-card {
-            border: none; 
-            border-radius: 12px; 
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            transition: transform 0.2s; 
-            cursor: pointer;
+            border: none; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            transition: transform 0.2s; cursor: pointer;
         }
-        .stat-card:hover { 
-            transform: translateY(-3px); 
-            box-shadow: 0 4px 16px rgba(0,0,0,0.12); 
-        }
+        .stat-card:hover { transform: translateY(-3px); box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
         .stat-card .card-body { padding: 1rem; text-align: center; }
         .stat-card .icon-placeholder {
-            width: 48px; 
-            height: 48px; 
-            background: #f8f9fa; 
-            border-radius: 10px;
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            margin: 0 auto 8px;
-            font-size: 1.5rem; 
-            color: var(--print-blue);
+            width: 48px; height: 48px; background: #f8f9fa; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 8px; font-size: 1.5rem; color: var(--print-blue);
         }
-        .stat-card .count { 
-            font-size: 1.8rem; 
-            font-weight: 700; 
-            color: var(--print-blue); 
-            line-height: 1; 
-        }
+        .stat-card .count { font-size: 1.8rem; font-weight: 700; color: var(--print-blue); line-height: 1; }
         .stat-card .label { font-size: 0.85rem; color: #666; margin-top: 4px; }
-        
-        /* Action Bar */
         .action-bar, .filter-bar {
-            background: white; 
-            padding: 12px 0; 
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08); 
-            margin-bottom: 20px;
+            background: white; padding: 12px 0; border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 20px;
         }
         .filter-bar { padding: 15px; }
-        .action-bar .btn {
-            min-width: 140px;
-            padding: 8px 12px;
-        }
-        
-        /* Table */
+        .action-bar .btn { min-width: 140px; padding: 8px 12px; }
         .vehicle-table {
-            background: white; 
-            border-radius: 12px; 
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08); 
-            overflow: hidden;
+            background: white; border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08); overflow: hidden;
         }
         .vehicle-table th {
-            background: var(--print-blue); 
-            color: white; 
-            font-weight: 600; 
-            font-size: 0.9rem;
-            padding: 12px 8px; 
-            border: none; 
-            white-space: nowrap;
+            background: var(--print-blue); color: white; font-weight: 600;
+            font-size: 0.9rem; padding: 12px 8px; border: none; white-space: nowrap;
         }
         .vehicle-table td {
-            padding: 10px 8px; 
-            font-size: 0.9rem; 
-            vertical-align: middle;
-            border-bottom: 1px solid #eee;
+            padding: 10px 8px; font-size: 0.9rem;
+            vertical-align: middle; border-bottom: 1px solid #eee;
         }
         .vehicle-table tr:hover { background-color: #f8f9ff; }
-        
-        /* Badges */
         .plate-badge {
-            font-weight: 700; 
-            font-family: monospace; 
-            font-size: 1rem;
-            padding: 4px 10px; 
-            background: #e9ecef; 
-            border-radius: 6px;
+            font-weight: 700; font-family: monospace; font-size: 1rem;
+            padding: 4px 10px; background: #e9ecef; border-radius: 6px;
         }
-        .status-badge {
-            font-size: 0.75rem; 
-            padding: 4px 10px; 
-            border-radius: 20px; 
-            font-weight: 500;
-        }
+        .status-badge { font-size: 0.75rem; padding: 4px 10px; border-radius: 20px; font-weight: 500; }
         .status-aguardando-linha { background: #fff3cd; color: #856404; }
         .status-aguardando-abastecimento { background: #cff4fc; color: #055160; }
         .status-aguardando-manutencao { background: #f8d7da; color: #842029; }
         .status-em-manutencao { background: #e2d5f1; color: #5a2d82; }
         .status-liberado { background: #d1e7dd; color: #0f5132; }
         .time-badge {
-            background: #e7f1ff; 
-            color: #0d6efd; 
-            font-size: 0.8rem;
-            padding: 3px 8px; 
-            border-radius: 4px; 
-            font-weight: 500;
+            background: #e7f1ff; color: #0d6efd; font-size: 0.8rem;
+            padding: 3px 8px; border-radius: 4px; font-weight: 500;
         }
-        .date-badge {
-            background: #f1f5f9; 
-            color: #475569; 
-            font-size: 0.75rem;
-            padding: 2px 6px; 
-            border-radius: 4px;
-        }
+        .date-badge { background: #f1f5f9; color: #475569; font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; }
         .action-btn { padding: 4px 10px; font-size: 0.8rem; margin: 2px; }
-        
-        /* Modal */
         .modal-header { background: var(--print-blue); color: white; }
         .modal-header .btn-close { filter: brightness(0) invert(1); }
         .vehicle-icon {
-            width: 28px; 
-            height: 28px; 
-            display: inline-flex; 
-            align-items: center;
-            justify-content: center; 
-            background: #f1f5f9; 
-            border-radius: 6px; 
-            margin-right: 6px;
+            width: 28px; height: 28px; display: inline-flex; align-items: center;
+            justify-content: center; background: #f1f5f9; border-radius: 6px; margin-right: 6px;
         }
-        
-        /* User Menu */
         .user-menu { display: flex; align-items: center; gap: 10px; }
         .user-avatar {
-            width: 36px; 
-            height: 36px; 
-            border-radius: 50%; 
-            background: white;
-            color: var(--print-blue); 
-            display: flex; 
-            align-items: center;
-            justify-content: center; 
-            font-weight: 700;
+            width: 36px; height: 36px; border-radius: 50%; background: white;
+            color: var(--print-blue); display: flex; align-items: center;
+            justify-content: center; font-weight: 700;
         }
-        
-        /* Camera */
         #camera-container-entry, #camera-container-exit {
-            width: 100%;
-            max-width: 500px;
-            margin: 20px auto;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            background: #000;
+            width: 100%; max-width: 500px; margin: 20px auto;
+            border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.15); background: #000;
         }
-        #camera-container-entry video, #camera-container-exit video {
-            width: 100%;
-            display: block;
-        }
-        .scan-overlay {
-            position: relative;
-        }
+        #camera-container-entry video, #camera-container-exit video { width: 100%; display: block; }
+        .scan-overlay { position: relative; }
         .scan-overlay::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 200px;
-            height: 60px;
-            border: 3px solid #00ff00;
-            border-radius: 8px;
-            box-shadow: 0 0 20px #00ff00;
-            animation: pulse 2s infinite;
+            content: ''; position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%); width: 200px; height: 60px;
+            border: 3px solid #00ff00; border-radius: 8px;
+            box-shadow: 0 0 20px #00ff00; animation: pulse 2s infinite;
         }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-        
-        /* Vehicle History */
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
         .vehicle-history {
-            background: #f8f9fa;
-            border-radius: 8px;
-            padding: 15px;
-            margin-top: 15px;
-            max-height: 300px;
-            overflow-y: auto;
+            background: #f8f9fa; border-radius: 8px;
+            padding: 15px; margin-top: 15px; max-height: 300px; overflow-y: auto;
         }
-        .history-item {
-            border-left: 3px solid var(--print-blue);
-            padding-left: 12px;
-            margin-bottom: 12px;
-        }
-        .history-item.alert {
-            border-left-color: #dc3545;
-            background: #fff5f5;
-        }
-        .history-item.success {
-            border-left-color: #198754;
-            background: #d1e7dd;
-        }
-        
-        /* Responsive */
+        .history-item { border-left: 3px solid var(--print-blue); padding-left: 12px; margin-bottom: 12px; }
+        .history-item.alert { border-left-color: #dc3545; background: #fff5f5; }
+        .history-item.success { border-left-color: #198754; background: #d1e7dd; }
         @media (max-width: 768px) {
             .stat-card .count { font-size: 1.4rem; }
             .action-bar .btn { width: 100%; margin-right: 0; margin-bottom: 8px; min-width: auto; }
@@ -278,114 +133,81 @@
             .vehicle-table table { min-width: 1000px; }
             .login-card { margin: 20px; padding: 30px 20px; }
         }
-        
-        /* Utilities */
         .hidden { display: none !important; }
         .alert-stalled {
-            background: #fff5f5; 
-            border-left: 4px solid #dc3545;
-            padding: 15px; 
-            margin-bottom: 20px; 
-            border-radius: 8px;
+            background: #fff5f5; border-left: 4px solid #dc3545;
+            padding: 15px; margin-bottom: 20px; border-radius: 8px;
         }
-        .role-badge {
-            background: rgba(255,255,255,0.2);
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 0.75rem;
-        }
+        .role-badge { background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; }
         .btn-camera {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;
         }
         .btn-camera:hover {
-            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
-            color: white;
+            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%); color: white;
         }
         .btn-scan-exit {
-            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-            color: white;
-            border: none;
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; border: none;
         }
         .btn-scan-exit:hover {
-            background: linear-gradient(135deg, #38ef7d 0%, #11998e 100%);
-            color: white;
+            background: linear-gradient(135deg, #38ef7d 0%, #11998e 100%); color: white;
         }
-        .scan-status {
-            font-size: 0.85rem;
-            margin-top: 5px;
-        }
+        .scan-status { font-size: 0.85rem; margin-top: 5px; }
         .scan-status.scanning { color: #0d6efd; }
         .scan-status.success { color: #198754; }
         .scan-status.error { color: #dc3545; }
         .quick-action-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-radius: 12px;
-            padding: 20px;
-            text-align: center;
-            cursor: pointer;
-            transition: transform 0.2s;
-            min-height: 120px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;
+            border-radius: 12px; padding: 20px; text-align: center; cursor: pointer;
+            transition: transform 0.2s; min-height: 120px;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
         }
-        .quick-action-card:hover {
-            transform: scale(1.02);
-        }
-        .quick-action-card i {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-        }
+        .quick-action-card:hover { transform: scale(1.02); }
+        .quick-action-card i { font-size: 2.5rem; margin-bottom: 10px; }
     </style>
 </head>
 <body>
 
-    <!-- TELA DE LOGIN -->
+    <!-- TELA DE LOGIN (SEGURA - SEM CREDENCIAIS) -->
     <div id="loginScreen" class="login-screen">
         <div class="login-card text-center">
-            <img src="/images/logo-print.png" 
-                 alt="Transportadora Print" class="login-logo"
+            <img src="/images/logo-print.png" alt="Transportadora Print" class="login-logo"
                  onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚛</text></svg>'">
-            <h4 class="mb-4">Controle de Pátio</h4>
+            <h4 class="mb-2">Controle de Pátio</h4>
+            <p class="text-muted mb-4">Transportadora Print</p>
             <form id="loginForm">
                 <div class="mb-3">
-                    <input type="text" class="form-control form-control-lg" id="loginUsername" 
-                           placeholder="Usuário" required autocomplete="username">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-person"></i></span>
+                        <input type="text" class="form-control form-control-lg" id="loginUsername" 
+                               placeholder="Usuário" required autocomplete="username">
+                    </div>
                 </div>
                 <div class="mb-3">
-                    <input type="password" class="form-control form-control-lg" id="loginPassword" 
-                           placeholder="Senha" required autocomplete="current-password">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                        <input type="password" class="form-control form-control-lg" id="loginPassword" 
+                               placeholder="Senha" required autocomplete="current-password">
+                    </div>
                 </div>
                 <button type="submit" class="btn btn-primary btn-lg w-100">
                     <i class="bi bi-box-arrow-in-right me-2"></i>Entrar
                 </button>
             </form>
             <div id="loginError" class="alert alert-danger mt-3 hidden"></div>
-            <div class="mt-4 p-3 bg-light rounded">
-                <small class="text-muted d-block mb-2">
-                    <i class="bi bi-info-circle"></i> Credenciais de Acesso:
-                </small>
-                <code class="d-block mb-1">👑 admin / *****</code>
-                <code class="d-block">👤 operador / *****</code>
+            <div class="mt-4 text-muted small">
+                <i class="bi bi-shield-lock"></i> Acesso restrito a usuários autorizados<br>
+                <small>Sistema de Controle de Pátio - Uso Interno</small>
             </div>
         </div>
     </div>
 
     <!-- SISTEMA PRINCIPAL -->
     <div id="mainApp" class="hidden">
-        
-        <!-- Header -->
         <header class="header-print">
             <div class="container-fluid px-3">
                 <div class="d-flex align-items-center justify-content-between">
                     <div class="d-flex align-items-center gap-3">
-                        <img src="/images/logo-print.png" 
-                             alt="Transportadora Print"
-                             onerror="this.style.display='none'">
+                        <img src="/images/logo-print.png" alt="Transportadora Print" onerror="this.style.display='none'">
                         <div>
                             <h1 style="font-size: 1.3rem; margin: 0;">Controle de Pátio</h1>
                             <small>
@@ -413,8 +235,6 @@
         </header>
 
         <div class="container-fluid px-3 py-3">
-            
-            <!-- Alerta de Veículos Parados -->
             <div id="stalledAlert" class="alert-stalled hidden">
                 <div class="d-flex align-items-center">
                     <i class="bi bi-exclamation-triangle-fill text-danger fs-4 me-3"></i>
@@ -425,10 +245,8 @@
                 </div>
             </div>
             
-            <!-- Cards de Estatísticas -->
             <div class="row g-3 mb-4" id="stats-cards"></div>
 
-            <!-- Ações Rápidas -->
             <div class="row g-3 mb-4">
                 <div class="col-6 col-md-3">
                     <div class="quick-action-card" onclick="openEntryModal()">
@@ -459,75 +277,7 @@
                     </div>
                 </div>
             </div>
-
-            <!-- Barra de Ações -->
-            <div class="action-bar">
-                <div class="container-fluid px-3">
-                    <button class="btn btn-primary" onclick="openEntryModal()">
-                        <i class="bi bi-plus-lg"></i> Novo Veículo
-                    </button>
-                    <button class="btn btn-scan-exit" onclick="openScanExitModal()">
-                        <i class="bi bi-qr-code-scan"></i> Escanear Saída
-                    </button>
-                    <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#swapModal">
-                        <i class="bi bi-arrow-left-right"></i> Registrar Troca
-                    </button>
-                    <button class="btn btn-outline-success" onclick="exportToJSON()">
-                        <i class="bi bi-file-earmark-json"></i> Exportar JSON
-                    </button>
-                    <button class="btn btn-outline-success" onclick="exportToExcel()">
-                        <i class="bi bi-file-earmark-excel"></i> Exportar Excel
-                    </button>
-                    <button class="btn btn-outline-danger" onclick="exportToPDF()">
-                        <i class="bi bi-file-earmark-pdf"></i> Exportar PDF
-                    </button>
-                    <button class="btn btn-outline-info" id="btnImportJSON" data-bs-toggle="modal" data-bs-target="#importModal" style="display: inline-flex !important;">
-                        <i class="bi bi-file-earmark-arrow-up"></i> Importar JSON
-                    </button>
-                    <div class="vr mx-2"></div>
-                    <button class="btn btn-outline-warning" onclick="refreshData()">
-                        <i class="bi bi-arrow-clockwise"></i> Atualizar
-                    </button>
-                </div>
-            </div>
-
-            <!-- Barra de Filtros -->
-            <div class="filter-bar">
-                <div class="row g-3 align-items-end">
-                    <div class="col-md-4">
-                        <label class="form-label small text-muted">Buscar</label>
-                        <input type="text" class="form-control" id="searchInput" placeholder="Placa, tipo ou pátio..." onkeyup="filterTable()">
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label small text-muted">Filtrar por Pátio</label>
-                        <select class="form-select" id="yardFilter" onchange="filterTable()">
-                            <option value="">Todos os Pátios</option>
-                            <option value="Pátio Jaraguá">Pátio Jaraguá</option>
-                            <option value="Pátio Bandeirantes">Pátio Bandeirantes</option>
-                            <option value="Pátio Superior">Pátio Superior</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label small text-muted">Filtrar por Status</label>
-                        <select class="form-select" id="statusFilter" onchange="filterTable()">
-                            <option value="">Todos os Status</option>
-                            <option value="Aguardando linha">Aguardando linha</option>
-                            <option value="Aguardando abastecimento">Aguardando abastecimento</option>
-                            <option value="Aguardando manutenção">Aguardando manutenção</option>
-                            <option value="Em manutenção">Em manutenção</option>
-                            <option value="Liberado">Liberado</option>
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label small text-muted">&nbsp;</label>
-                        <button class="btn btn-outline-secondary w-100" onclick="clearFilters()">
-                            <i class="bi bi-x-circle"></i> Limpar
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Tabela de Veículos -->
+                        <!-- Tabela de Veículos -->
             <div class="vehicle-table">
                 <div class="table-responsive">
                     <table class="table table-hover mb-0">
@@ -899,8 +649,7 @@
             </div>
         </div>
     </div>
-
-    <!-- Scripts -->
+        <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         const API_URL = '/api';
@@ -917,6 +666,7 @@
             setInterval(updateClock, 1000);
         });
 
+        // ============ AUTENTICAÇÃO ============
         async function checkAuth() {
             try {
                 const res = await fetch(`${API_URL}/auth/me`);
@@ -1007,6 +757,7 @@
             showLoginScreen();
         }
 
+        // ============ CÂMERA / OCR ============
         function openEntryModal() {
             document.getElementById('plate').value = '';
             document.getElementById('vehicleHistory').classList.add('hidden');
@@ -1112,6 +863,7 @@
             document.getElementById('plate').focus();
         }
 
+        // ============ HISTÓRICO DO VEÍCULO ============
         async function checkVehicleHistory(plate) {
             try {
                 const res = await fetch(`${API_URL}/vehicles`);
@@ -1259,6 +1011,7 @@
             }
         }
 
+        // ============ CARREGAR DADOS ============
         async function loadStats() {
             try {
                 const res = await fetch(`${API_URL}/stats`);
@@ -1414,7 +1167,7 @@
                 `).join('') || '<tr><td colspan="6" class="text-center text-muted py-3">Nenhuma troca</td></tr>';
             } catch (err) { console.error('Erro loadSwaps:', err); }
         }
-
+                // ============ AÇÕES DE VEÍCULOS ============
         async function submitEntry() {
             const plate = document.getElementById('plate').value.trim();
             const plateAlert = document.getElementById('plateAlert');
@@ -1564,6 +1317,7 @@
             }
         }
 
+        // ============ TROCAS ============
         async function submitSwap() {
             const plateOut = document.getElementById('swapPlateOut').value.trim();
             if (!plateOut) { alert('Placa que Sai é obrigatória'); return; }
@@ -1614,7 +1368,24 @@
             showToast('Troca excluída', 'info');
         }
 
-        // ============ EXPORTAR EXCEL MELHORADO ============
+        // ============ EXPORTAR ============
+        async function exportToJSON() {
+            try {
+                const res = await fetch(`${API_URL}/export`);
+                const data = await res.json();
+                
+                const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `print-patio-backup-${new Date().toISOString().slice(0,10)}.json`;
+                a.click();
+                showToast('📦 JSON exportado!', 'success');
+            } catch (err) {
+                showToast('❌ Erro ao exportar', 'danger');
+            }
+        }
+
         function exportToExcel() {
             try {
                 let csv = 'CONTROLE DE PÁTIO - TRANSPORTADORA PRINT\n';
@@ -1678,7 +1449,6 @@
             }
         }
 
-        // ============ EXPORTAR PDF ============
         function exportToPDF() {
             try {
                 let html = `
@@ -1696,7 +1466,6 @@
                             td { padding: 8px; border-bottom: 1px solid #ddd; }
                             tr:nth-child(even) { background-color: #f2f2f2; }
                             .header { background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-                            .summary { background-color: #e7f1ff; padding: 15px; border-radius: 8px; margin: 20px 0; }
                             @media print { body { margin: 10px; } table { font-size: 10px; } }
                         </style>
                     </head>
@@ -1743,23 +1512,6 @@
             } catch (err) {
                 console.error('Erro export PDF:', err);
                 showToast('❌ Erro ao gerar PDF', 'danger');
-            }
-        }
-
-        async function exportToJSON() {
-            try {
-                const res = await fetch(`${API_URL}/export`);
-                const data = await res.json();
-                
-                const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `print-patio-backup-${new Date().toISOString().slice(0,10)}.json`;
-                a.click();
-                showToast('📦 JSON exportado!', 'success');
-            } catch (err) {
-                showToast('❌ Erro ao exportar', 'danger');
             }
         }
 
@@ -1810,6 +1562,7 @@
             fileInput.value = '';
         }
 
+        // ============ UTILITÁRIOS ============
         function getVehicleIcon(type) {
             const icons = {
                 'Carreta': 'truck', 'Cavalo Mecânico': 'car-front', 'Vans': 'bus-front',
@@ -1863,5 +1616,4 @@
         setInterval(() => { loadVehicles(); }, 30000);
     </script>
 </body>
-
 </html>
