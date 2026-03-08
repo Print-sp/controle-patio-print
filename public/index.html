@@ -47,10 +47,7 @@
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
         }
         .login-logo { 
-            width: 200px;
-            max-width: 100%;
-            height: auto;
-            object-fit: contain;
+            width: 180px; 
             margin-bottom: 30px; 
             background: white;
             padding: 10px;
@@ -66,14 +63,6 @@
             position: sticky; 
             top: 0; 
             z-index: 1000;
-        }
-        .header-print img {
-            height: 50px; 
-            background: white; 
-            padding: 5px 10px; 
-            border-radius: 8px;
-            object-fit: contain;
-            max-width: 200px;
         }
         
         /* Stats Cards */
@@ -118,10 +107,6 @@
             margin-bottom: 20px;
         }
         .filter-bar { padding: 15px; }
-        .action-bar .btn {
-            min-width: 140px;
-            padding: 8px 12px;
-        }
         
         /* Table */
         .vehicle-table {
@@ -213,7 +198,7 @@
         }
         
         /* Camera */
-        #camera-container-entry, #camera-container-exit {
+        #camera-container {
             width: 100%;
             max-width: 500px;
             margin: 20px auto;
@@ -222,7 +207,7 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             background: #000;
         }
-        #camera-container-entry video, #camera-container-exit video {
+        #camera-container video {
             width: 100%;
             display: block;
         }
@@ -273,7 +258,7 @@
         /* Responsive */
         @media (max-width: 768px) {
             .stat-card .count { font-size: 1.4rem; }
-            .action-bar .btn { width: 100%; margin-right: 0; margin-bottom: 8px; min-width: auto; }
+            .action-bar .btn { width: 100%; margin-right: 0; margin-bottom: 8px; }
             .vehicle-table { overflow-x: auto; }
             .vehicle-table table { min-width: 1000px; }
             .login-card { margin: 20px; padding: 30px 20px; }
@@ -327,11 +312,6 @@
             text-align: center;
             cursor: pointer;
             transition: transform 0.2s;
-            min-height: 120px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
         }
         .quick-action-card:hover {
             transform: scale(1.02);
@@ -345,35 +325,42 @@
 <body>
 
     <!-- TELA DE LOGIN -->
-    <div id="loginScreen" class="login-screen">
-        <div class="login-card text-center">
-            <img src="/images/logo-print.png" 
-                 alt="Transportadora Print" class="login-logo"
-                 onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚛</text></svg>'">
-            <h4 class="mb-4">Controle de Pátio</h4>
-            <form id="loginForm">
-                <div class="mb-3">
+<div id="loginScreen" class="login-screen">
+    <div class="login-card text-center">
+        <img src="/images/logo-print.png" 
+             alt="Transportadora Print" class="login-logo"
+             onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚛</text></svg>'">
+        
+        <h4 class="mb-2">Controle de Pátio</h4>
+        <p class="text-muted mb-4">Transportadora Print</p>
+        
+        <form id="loginForm">
+            <div class="mb-3">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-person"></i></span>
                     <input type="text" class="form-control form-control-lg" id="loginUsername" 
                            placeholder="Usuário" required autocomplete="username">
                 </div>
-                <div class="mb-3">
+            </div>
+            <div class="mb-3">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-lock"></i></span>
                     <input type="password" class="form-control form-control-lg" id="loginPassword" 
                            placeholder="Senha" required autocomplete="current-password">
                 </div>
-                <button type="submit" class="btn btn-primary btn-lg w-100">
-                    <i class="bi bi-box-arrow-in-right me-2"></i>Entrar
-                </button>
-            </form>
-            <div id="loginError" class="alert alert-danger mt-3 hidden"></div>
-            <div class="mt-4 p-3 bg-light rounded">
-                <small class="text-muted d-block mb-2">
-                    <i class="bi bi-info-circle"></i> Credenciais de Acesso:
-                </small>
-                <code class="d-block mb-1">👑 admin / Print@2026</code>
-                <code class="d-block">👤 operador / Operador2026</code>
             </div>
+            <button type="submit" class="btn btn-primary btn-lg w-100">
+                <i class="bi bi-box-arrow-in-right me-2"></i>Entrar
+            </button>
+        </form>
+        
+        <div id="loginError" class="alert alert-danger mt-3 hidden"></div>
+        
+        <div class="mt-4 text-muted small">
+            <i class="bi bi-shield-lock"></i> Acesso restrito a usuários autorizados
         </div>
     </div>
+</div>
 
     <!-- SISTEMA PRINCIPAL -->
     <div id="mainApp" class="hidden">
@@ -383,9 +370,9 @@
             <div class="container-fluid px-3">
                 <div class="d-flex align-items-center justify-content-between">
                     <div class="d-flex align-items-center gap-3">
-                        <img src="/images/logo-print.png" 
-                             alt="Transportadora Print"
-                             onerror="this.style.display='none'">
+                        <img src="https://transportadoraprint.com.br/img-assets/print_logomarca_principal.png" 
+                             alt="Transportadora Print" 
+                             style="height: 50px; background: white; padding: 5px 10px; border-radius: 8px;">
                         <div>
                             <h1 style="font-size: 1.3rem; margin: 0;">Controle de Pátio</h1>
                             <small>
@@ -445,10 +432,10 @@
                     </div>
                 </div>
                 <div class="col-6 col-md-3">
-                    <div class="quick-action-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);" onclick="exportToPDF()">
-                        <i class="bi bi-file-earmark-pdf"></i>
-                        <div><strong>Exportar PDF</strong></div>
-                        <small>Relatório completo</small>
+                    <div class="quick-action-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);" onclick="exportToJSON()">
+                        <i class="bi bi-file-earmark-json"></i>
+                        <div><strong>Exportar JSON</strong></div>
+                        <small>Backup completo</small>
                     </div>
                 </div>
                 <div class="col-6 col-md-3">
@@ -478,11 +465,11 @@
                     <button class="btn btn-outline-success" onclick="exportToExcel()">
                         <i class="bi bi-file-earmark-excel"></i> Exportar Excel
                     </button>
-                    <button class="btn btn-outline-danger" onclick="exportToPDF()">
-                        <i class="bi bi-file-earmark-pdf"></i> Exportar PDF
-                    </button>
                     <button class="btn btn-outline-info" id="btnImportJSON" data-bs-toggle="modal" data-bs-target="#importModal" style="display: inline-flex !important;">
                         <i class="bi bi-file-earmark-arrow-up"></i> Importar JSON
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="window.print()">
+                        <i class="bi bi-printer"></i> PDF
                     </button>
                     <div class="vr mx-2"></div>
                     <button class="btn btn-outline-warning" onclick="refreshData()">
@@ -956,6 +943,10 @@
         }
 
         function applyPermissions() {
+            console.log('🔐 Permissões:', userPermissions);
+            console.log('🔐 canImport:', userPermissions.canImport);
+            
+            // Forçar exibição do botão Importar para ADMIN
             const importBtn = document.getElementById('btnImportJSON');
             if (importBtn) {
                 if (currentUser.role === 'admin') {
@@ -1007,6 +998,8 @@
             showLoginScreen();
         }
 
+        // ============ MODAL HELPERS ============
+        
         function openEntryModal() {
             document.getElementById('plate').value = '';
             document.getElementById('vehicleHistory').classList.add('hidden');
@@ -1026,6 +1019,8 @@
             stopCamera('exit');
             new bootstrap.Modal(document.getElementById('scanExitModal')).show();
         }
+
+        // ============ CÂMERA / OCR ============
 
         async function startCamera(mode) {
             currentCameraMode = mode;
@@ -1056,6 +1051,7 @@
                 statusDiv.className = 'scan-status success';
                 
             } catch (err) {
+                console.error('Erro ao iniciar câmera:', err);
                 statusDiv.innerHTML = '<i class="bi bi-exclamation-triangle"></i> Erro: ' + err.message;
                 statusDiv.className = 'scan-status error';
             }
@@ -1089,7 +1085,9 @@
             }
         }
 
-        function onScanError(error) {}
+        function onScanError(error) {
+            // Ignorar erros menores
+        }
 
         function extractPlate(text) {
             const patterns = [
@@ -1111,6 +1109,8 @@
             stopCamera('entry');
             document.getElementById('plate').focus();
         }
+
+        // ============ HISTÓRICO DO VEÍCULO ============
 
         async function checkVehicleHistory(plate) {
             try {
@@ -1182,6 +1182,8 @@
             }
         }
 
+        // ============ SAÍDA RÁPIDA POR SCAN ============
+
         async function checkPlateForExit(plate = null) {
             const plateInput = plate || document.getElementById('scanExitPlate').value.trim();
             
@@ -1233,6 +1235,7 @@
                     `;
                 }
             } catch (err) {
+                console.error('Erro ao buscar veículo:', err);
                 showToast('❌ Erro ao buscar veículo', 'danger');
             }
         }
@@ -1258,6 +1261,8 @@
                 showToast('❌ Erro ao registrar saída', 'danger');
             }
         }
+
+        // ============ CARREGAR DADOS ============
 
         async function loadStats() {
             try {
@@ -1414,6 +1419,8 @@
                 `).join('') || '<tr><td colspan="6" class="text-center text-muted py-3">Nenhuma troca</td></tr>';
             } catch (err) { console.error('Erro loadSwaps:', err); }
         }
+
+        // ============ AÇÕES ============
 
         async function submitEntry() {
             const plate = document.getElementById('plate').value.trim();
@@ -1614,153 +1621,49 @@
             showToast('Troca excluída', 'info');
         }
 
-        // ============ EXPORTAR EXCEL MELHORADO ============
-        function exportToExcel() {
-            try {
-                let csv = 'CONTROLE DE PÁTIO - TRANSPORTADORA PRINT\n';
-                csv += `Data de Exportação: ${new Date().toLocaleString('pt-BR')}\n`;
-                csv += `Total de Veículos: ${allVehicles.length}\n\n`;
-                
-                csv = 'ID;Placa;Tipo;Pátio;Base;Status;Manutenção;Entrada;Saída;Tempo no Pátio;Chaves;Observações\n';
-                
-                allVehicles.forEach(v => {
-                    const row = [
-                        v.id,
-                        `"${v.plate}"`,
-                        `"${v.type}"`,
-                        `"${v.yard}"`,
-                        `"${v.base || ''}"`,
-                        `"${v.status}"`,
-                        v.maintenance ? 'Sim' : 'Não',
-                        `"${v.entryDate || ''}"`,
-                        `"${v.exitDate || ''}"`,
-                        `"${v.timeInYard || '—'}"`,
-                        `"${v.keys || ''}"`,
-                        `"${(v.notes || '').replace(/"/g, '""')}"`
-                    ].join(';');
-                    csv += row + '\n';
-                });
-                
-                csv += '\n\nRESUMO POR PÁTIO\n';
-                csv += 'Pátio;Total de Veículos;Em Manutenção;Liberados\n';
-                
-                const yards = ['Pátio Jaraguá', 'Pátio Bandeirantes', 'Pátio Superior'];
-                yards.forEach(yard => {
-                    const total = allVehicles.filter(v => v.yard === yard).length;
-                    const maintenance = allVehicles.filter(v => v.yard === yard && v.maintenance).length;
-                    const liberated = allVehicles.filter(v => v.yard === yard && v.status === 'Liberado').length;
-                    csv += `"${yard}";${total};${maintenance};${liberated}\n`;
-                });
-                
-                csv += '\n\nRESUMO POR STATUS\n';
-                csv += 'Status;Quantidade\n';
-                
-                const statusCount = {};
-                allVehicles.forEach(v => {
-                    statusCount[v.status] = (statusCount[v.status] || 0) + 1;
-                });
-                
-                Object.entries(statusCount).forEach(([status, count]) => {
-                    csv += `"${status}";${count}\n`;
-                });
-                
-                const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `print-patio-completo-${new Date().toISOString().slice(0,10)}.csv`;
-                a.click();
-                
-                showToast('📊 Excel exportado com sucesso!', 'success');
-            } catch (err) {
-                console.error('Erro export Excel:', err);
-                showToast('❌ Erro ao exportar Excel', 'danger');
-            }
-        }
-
-        // ============ EXPORTAR PDF ============
-        function exportToPDF() {
-            try {
-                let html = `
-                    <!DOCTYPE html>
-                    <html>
-                    <head>
-                        <meta charset="utf-8">
-                        <title>Relatório de Pátio - Transportadora Print</title>
-                        <style>
-                            body { font-family: Arial, sans-serif; margin: 20px; }
-                            h1 { color: #1a3a5c; border-bottom: 3px solid #1a3a5c; padding-bottom: 10px; }
-                            h2 { color: #2c5282; margin-top: 30px; }
-                            table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-                            th { background-color: #1a3a5c; color: white; padding: 10px; text-align: left; }
-                            td { padding: 8px; border-bottom: 1px solid #ddd; }
-                            tr:nth-child(even) { background-color: #f2f2f2; }
-                            .header { background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-                            .summary { background-color: #e7f1ff; padding: 15px; border-radius: 8px; margin: 20px 0; }
-                            @media print { body { margin: 10px; } table { font-size: 10px; } }
-                        </style>
-                    </head>
-                    <body>
-                        <div class="header">
-                            <h1>🚚 CONTROLE DE PÁTIO - TRANSPORTADORA PRINT</h1>
-                            <p><strong>Data:</strong> ${new Date().toLocaleString('pt-BR')}</p>
-                            <p><strong>Total:</strong> ${allVehicles.length} veículos</p>
-                        </div>
-                        <h2>📋 TODAS AS MOVIMENTAÇÕES</h2>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>ID</th><th>Placa</th><th>Tipo</th><th>Pátio</th>
-                                    <th>Status</th><th>Entrada</th><th>Saída</th><th>Tempo</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                `;
-                
-                allVehicles.forEach(v => {
-                    html += `
-                        <tr>
-                            <td>${v.id}</td><td><strong>${v.plate}</strong></td><td>${v.type}</td>
-                            <td>${v.yard}</td><td>${v.status}</td><td>${v.entryDate || '—'}</td>
-                            <td>${v.exitDate || '—'}</td><td>${v.timeInYard || '—'}</td>
-                        </tr>
-                    `;
-                });
-                
-                html += `
-                            </tbody>
-                        </table>
-                    </body>
-                    </html>
-                `;
-                
-                const printWindow = window.open('', '_blank');
-                printWindow.document.write(html);
-                printWindow.document.close();
-                printWindow.print();
-                
-                showToast('📄 PDF gerado com sucesso!', 'success');
-            } catch (err) {
-                console.error('Erro export PDF:', err);
-                showToast('❌ Erro ao gerar PDF', 'danger');
-            }
-        }
+        // ============ EXPORTAR ============
 
         async function exportToJSON() {
-            try {
-                const res = await fetch(`${API_URL}/export`);
-                const data = await res.json();
-                
-                const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `print-patio-backup-${new Date().toISOString().slice(0,10)}.json`;
-                a.click();
-                showToast('📦 JSON exportado!', 'success');
-            } catch (err) {
-                showToast('❌ Erro ao exportar', 'danger');
-            }
+            const res = await fetch(`${API_URL}/export`);
+            const data = await res.json();
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `print-patio-${new Date().toISOString().slice(0,10)}.json`;
+            a.click();
+            showToast('📦 JSON exportado!', 'success');
+        }
+
+        function exportToExcel() {
+            let csv = 'ID,Placa,Tipo,Pátio,Base,Status,Manutenção,Entrada,Saída,Tempo,Chaves,Observações\n';
+            
+            allVehicles.forEach(v => {
+                const row = [
+                    v.id,
+                    `"${v.plate}"`,
+                    `"${v.type}"`,
+                    `"${v.yard}"`,
+                    `"${v.base || ''}"`,
+                    `"${v.status}"`,
+                    v.maintenance ? 'Sim' : 'Não',
+                    `"${v.entryDate || ''}"`,
+                    `"${v.exitDate || ''}"`,
+                    `"${v.timeInYard || ''}"`,
+                    `"${v.keys || ''}"`,
+                    `"${(v.notes || '').replace(/"/g, '""')}"`
+                ].join(',');
+                csv += row + '\n';
+            });
+            
+            const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `print-patio-${new Date().toISOString().slice(0,10)}.csv`;
+            a.click();
+            showToast('📊 Excel exportado!', 'success');
         }
 
         async function processImport() {
@@ -1809,6 +1712,8 @@
             }, 1500);
             fileInput.value = '';
         }
+
+        // ============ UTILITÁRIOS ============
 
         function getVehicleIcon(type) {
             const icons = {
