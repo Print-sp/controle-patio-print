@@ -6,7 +6,6 @@
     <title>Controle de Pátio - Transportadora Print</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
         :root {
@@ -19,150 +18,63 @@
             --status-em-manutencao: #6f42c1;
             --status-liberado: #198754;
         }
-        body { 
-            background-color: #f4f6f9; 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 0;
-        }
-        .login-screen {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(135deg, #1a3a5c 0%, #2c5282 100%);
-            display: flex; align-items: center; justify-content: center; z-index: 9999;
-        }
-        .login-card {
-            background: white; border-radius: 16px; padding: 40px;
-            width: 100%; max-width: 420px; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-        }
-        .login-logo { 
-            width: 200px; max-width: 100%; height: auto; object-fit: contain;
-            margin-bottom: 30px; background: white; padding: 10px; border-radius: 8px;
-        }
-        .header-print {
-            background: linear-gradient(135deg, var(--print-blue) 0%, #2c5282 100%);
-            color: white; padding: 10px 0; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            position: sticky; top: 0; z-index: 1000;
-        }
-        .header-print img {
-            height: 50px; background: white; padding: 5px 10px;
-            border-radius: 8px; object-fit: contain; max-width: 200px;
-        }
-        .stat-card {
-            border: none; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            transition: transform 0.2s; cursor: pointer;
-        }
+        body { background-color: #f4f6f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; }
+        .login-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #1a3a5c 0%, #2c5282 100%); display: flex; align-items: center; justify-content: center; z-index: 9999; }
+        .login-card { background: white; border-radius: 16px; padding: 40px; width: 100%; max-width: 420px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+        .login-logo { width: 200px; max-width: 100%; height: auto; object-fit: contain; margin-bottom: 30px; background: white; padding: 10px; border-radius: 8px; }
+        .header-print { background: linear-gradient(135deg, var(--print-blue) 0%, #2c5282 100%); color: white; padding: 10px 0; box-shadow: 0 2px 10px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 1000; }
+        .header-print img { height: 50px; background: white; padding: 5px 10px; border-radius: 8px; object-fit: contain; max-width: 200px; }
+        .stat-card { border: none; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); transition: transform 0.2s; cursor: pointer; }
         .stat-card:hover { transform: translateY(-3px); box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
         .stat-card .card-body { padding: 1rem; text-align: center; }
-        .stat-card .icon-placeholder {
-            width: 48px; height: 48px; background: #f8f9fa; border-radius: 10px;
-            display: flex; align-items: center; justify-content: center;
-            margin: 0 auto 8px; font-size: 1.5rem; color: var(--print-blue);
-        }
+        .stat-card .icon-placeholder { width: 48px; height: 48px; background: #f8f9fa; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; font-size: 1.5rem; color: var(--print-blue); }
         .stat-card .count { font-size: 1.8rem; font-weight: 700; color: var(--print-blue); line-height: 1; }
         .stat-card .label { font-size: 0.85rem; color: #666; margin-top: 4px; }
-        .action-bar, .filter-bar {
-            background: white; padding: 12px 0; border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 20px;
-        }
+        .action-bar, .filter-bar { background: white; padding: 12px 0; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 20px; }
         .filter-bar { padding: 15px; }
         .action-bar .btn { min-width: 140px; padding: 8px 12px; }
-        .vehicle-table {
-            background: white; border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08); overflow: hidden;
-        }
-        .vehicle-table th {
-            background: var(--print-blue); color: white; font-weight: 600;
-            font-size: 0.9rem; padding: 12px 8px; border: none; white-space: nowrap;
-        }
-        .vehicle-table td {
-            padding: 10px 8px; font-size: 0.9rem;
-            vertical-align: middle; border-bottom: 1px solid #eee;
-        }
+        .vehicle-table { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); overflow: hidden; }
+        .vehicle-table th { background: var(--print-blue); color: white; font-weight: 600; font-size: 0.9rem; padding: 12px 8px; border: none; white-space: nowrap; }
+        .vehicle-table td { padding: 10px 8px; font-size: 0.9rem; vertical-align: middle; border-bottom: 1px solid #eee; }
         .vehicle-table tr:hover { background-color: #f8f9ff; }
-        .plate-badge {
-            font-weight: 700; font-family: monospace; font-size: 1rem;
-            padding: 4px 10px; background: #e9ecef; border-radius: 6px;
-        }
+        .plate-badge { font-weight: 700; font-family: monospace; font-size: 1rem; padding: 4px 10px; background: #e9ecef; border-radius: 6px; }
         .status-badge { font-size: 0.75rem; padding: 4px 10px; border-radius: 20px; font-weight: 500; }
         .status-aguardando-linha { background: #fff3cd; color: #856404; }
         .status-aguardando-abastecimento { background: #cff4fc; color: #055160; }
         .status-aguardando-manutencao { background: #f8d7da; color: #842029; }
         .status-em-manutencao { background: #e2d5f1; color: #5a2d82; }
         .status-liberado { background: #d1e7dd; color: #0f5132; }
-        .time-badge {
-            background: #e7f1ff; color: #0d6efd; font-size: 0.8rem;
-            padding: 3px 8px; border-radius: 4px; font-weight: 500;
-        }
+        .time-badge { background: #e7f1ff; color: #0d6efd; font-size: 0.8rem; padding: 3px 8px; border-radius: 4px; font-weight: 500; }
         .date-badge { background: #f1f5f9; color: #475569; font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; }
         .action-btn { padding: 4px 10px; font-size: 0.8rem; margin: 2px; }
         .modal-header { background: var(--print-blue); color: white; }
         .modal-header .btn-close { filter: brightness(0) invert(1); }
-        .vehicle-icon {
-            width: 28px; height: 28px; display: inline-flex; align-items: center;
-            justify-content: center; background: #f1f5f9; border-radius: 6px; margin-right: 6px;
-        }
+        .vehicle-icon { width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; background: #f1f5f9; border-radius: 6px; margin-right: 6px; }
         .user-menu { display: flex; align-items: center; gap: 10px; }
-        .user-avatar {
-            width: 36px; height: 36px; border-radius: 50%; background: white;
-            color: var(--print-blue); display: flex; align-items: center;
-            justify-content: center; font-weight: 700;
-        }
-        #camera-container-entry, #camera-container-exit {
-            width: 100%; max-width: 500px; margin: 20px auto;
-            border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.15); background: #000;
-        }
+        .user-avatar { width: 36px; height: 36px; border-radius: 50%; background: white; color: var(--print-blue); display: flex; align-items: center; justify-content: center; font-weight: 700; }
+        #camera-container-entry, #camera-container-exit { width: 100%; max-width: 500px; margin: 20px auto; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.15); background: #000; }
         #camera-container-entry video, #camera-container-exit video { width: 100%; display: block; }
         .scan-overlay { position: relative; }
-        .scan-overlay::after {
-            content: ''; position: absolute; top: 50%; left: 50%;
-            transform: translate(-50%, -50%); width: 200px; height: 60px;
-            border: 3px solid #00ff00; border-radius: 8px;
-            box-shadow: 0 0 20px #00ff00; animation: pulse 2s infinite;
-        }
+        .scan-overlay::after { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 200px; height: 60px; border: 3px solid #00ff00; border-radius: 8px; box-shadow: 0 0 20px #00ff00; animation: pulse 2s infinite; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-        .vehicle-history {
-            background: #f8f9fa; border-radius: 8px;
-            padding: 15px; margin-top: 15px; max-height: 300px; overflow-y: auto;
-        }
+        .vehicle-history { background: #f8f9fa; border-radius: 8px; padding: 15px; margin-top: 15px; max-height: 300px; overflow-y: auto; }
         .history-item { border-left: 3px solid var(--print-blue); padding-left: 12px; margin-bottom: 12px; }
         .history-item.alert { border-left-color: #dc3545; background: #fff5f5; }
         .history-item.success { border-left-color: #198754; background: #d1e7dd; }
         .history-item.info { border-left-color: #0d6efd; background: #e7f1ff; }
-        @media (max-width: 768px) {
-            .stat-card .count { font-size: 1.4rem; }
-            .action-bar .btn { width: 100%; margin-right: 0; margin-bottom: 8px; min-width: auto; }
-            .vehicle-table { overflow-x: auto; }
-            .vehicle-table table { min-width: 1000px; }
-            .login-card { margin: 20px; padding: 30px 20px; }
-        }
+        @media (max-width: 768px) { .stat-card .count { font-size: 1.4rem; } .action-bar .btn { width: 100%; margin-right: 0; margin-bottom: 8px; min-width: auto; } .vehicle-table { overflow-x: auto; } .vehicle-table table { min-width: 1000px; } .login-card { margin: 20px; padding: 30px 20px; } }
         .hidden { display: none !important; }
-        .alert-stalled {
-            background: #fff5f5; border-left: 4px solid #dc3545;
-            padding: 15px; margin-bottom: 20px; border-radius: 8px;
-        }
+        .alert-stalled { background: #fff5f5; border-left: 4px solid #dc3545; padding: 15px; margin-bottom: 20px; border-radius: 8px; }
         .role-badge { background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; }
-        .btn-camera {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none;
-        }
-        .btn-camera:hover {
-            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%); color: white;
-        }
-        .btn-scan-exit {
-            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; border: none;
-        }
-        .btn-scan-exit:hover {
-            background: linear-gradient(135deg, #38ef7d 0%, #11998e 100%); color: white;
-        }
+        .btn-camera { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; }
+        .btn-camera:hover { background: linear-gradient(135deg, #764ba2 0%, #667eea 100%); color: white; }
+        .btn-scan-exit { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; border: none; }
+        .btn-scan-exit:hover { background: linear-gradient(135deg, #38ef7d 0%, #11998e 100%); color: white; }
         .scan-status { font-size: 0.85rem; margin-top: 5px; }
         .scan-status.scanning { color: #0d6efd; }
         .scan-status.success { color: #198754; }
         .scan-status.error { color: #dc3545; }
-        .quick-action-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;
-            border-radius: 12px; padding: 20px; text-align: center; cursor: pointer;
-            transition: transform 0.2s; min-height: 120px;
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-        }
+        .quick-action-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px; padding: 20px; text-align: center; cursor: pointer; transition: transform 0.2s; min-height: 120px; display: flex; flex-direction: column; justify-content: center; align-items: center; }
         .quick-action-card:hover { transform: scale(1.02); }
         .quick-action-card i { font-size: 2.5rem; margin-bottom: 10px; }
     </style>
@@ -172,23 +84,20 @@
     <!-- TELA DE LOGIN (SEGURA - SEM CREDENCIAIS) -->
     <div id="loginScreen" class="login-screen">
         <div class="login-card text-center">
-            <img src="/images/logo-print.png" alt="Transportadora Print" class="login-logo"
-                 onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚛</text></svg>'">
+            <img src="/images/logo-print.png" alt="Transportadora Print" class="login-logo" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚛</text></svg>'">
             <h4 class="mb-2">Controle de Pátio</h4>
             <p class="text-muted mb-4">Transportadora Print</p>
             <form id="loginForm">
                 <div class="mb-3">
                     <div class="input-group">
                         <span class="input-group-text"><i class="bi bi-person"></i></span>
-                        <input type="text" class="form-control form-control-lg" id="loginUsername" 
-                               placeholder="Usuário" required autocomplete="username">
+                        <input type="text" class="form-control form-control-lg" id="loginUsername" placeholder="Usuário" required autocomplete="username">
                     </div>
                 </div>
                 <div class="mb-3">
                     <div class="input-group">
                         <span class="input-group-text"><i class="bi bi-lock"></i></span>
-                        <input type="password" class="form-control form-control-lg" id="loginPassword" 
-                               placeholder="Senha" required autocomplete="current-password">
+                        <input type="password" class="form-control form-control-lg" id="loginPassword" placeholder="Senha" required autocomplete="current-password">
                     </div>
                 </div>
                 <button type="submit" class="btn btn-primary btn-lg w-100">
@@ -212,12 +121,7 @@
                         <img src="/images/logo-print.png" alt="Transportadora Print" onerror="this.style.display='none'">
                         <div>
                             <h1 style="font-size: 1.3rem; margin: 0;">Controle de Pátio</h1>
-                            <small>
-                                <i class="bi bi-geo-alt me-1"></i>
-                                <span id="current-yard-filter">Todos os Pátios</span> 
-                                • <i class="bi bi-clock me-1"></i>
-                                <span id="current-time"></span>
-                            </small>
+                            <small><i class="bi bi-geo-alt me-1"></i><span id="current-yard-filter">Todos os Pátios</span> • <i class="bi bi-clock me-1"></i><span id="current-time"></span></small>
                         </div>
                     </div>
                     <div class="d-flex align-items-center gap-3">
@@ -228,9 +132,7 @@
                                 <small class="text-white-50"><span id="userRole">Administrador</span> <span class="role-badge" id="userRoleBadge">ADMIN</span></small>
                             </div>
                         </div>
-                        <button class="btn btn-light btn-sm" onclick="logout()" title="Sair">
-                            <i class="bi bi-box-arrow-right"></i>
-                        </button>
+                        <button class="btn btn-light btn-sm" onclick="logout()" title="Sair"><i class="bi bi-box-arrow-right"></i></button>
                     </div>
                 </div>
             </div>
@@ -240,10 +142,7 @@
             <div id="stalledAlert" class="alert-stalled hidden">
                 <div class="d-flex align-items-center">
                     <i class="bi bi-exclamation-triangle-fill text-danger fs-4 me-3"></i>
-                    <div>
-                        <strong class="text-danger">⚠️ Veículos parados há mais de 24h</strong>
-                        <p class="mb-0 mt-1" id="stalledList"></p>
-                    </div>
+                    <div><strong class="text-danger">⚠️ Veículos parados há mais de 24h</strong><p class="mb-0 mt-1" id="stalledList"></p></div>
                 </div>
             </div>
             
@@ -252,61 +151,37 @@
             <div class="row g-3 mb-4">
                 <div class="col-6 col-md-3">
                     <div class="quick-action-card" onclick="openEntryModal()">
-                        <i class="bi bi-plus-circle"></i>
-                        <div><strong>Nova Entrada</strong></div>
-                        <small>Cadastrar veículo</small>
+                        <i class="bi bi-plus-circle"></i><div><strong>Nova Entrada</strong></div><small>Cadastrar veículo</small>
                     </div>
                 </div>
                 <div class="col-6 col-md-3">
                     <div class="quick-action-card" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);" onclick="openScanExitModal()">
-                        <i class="bi bi-qr-code-scan"></i>
-                        <div><strong>Escanear Saída</strong></div>
-                        <small>Liberar veículo</small>
+                        <i class="bi bi-qr-code-scan"></i><div><strong>Escanear Saída</strong></div><small>Liberar veículo</small>
                     </div>
                 </div>
                 <div class="col-6 col-md-3">
                     <div class="quick-action-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);" onclick="exportToPDF()">
-                        <i class="bi bi-file-earmark-pdf"></i>
-                        <div><strong>Exportar PDF</strong></div>
-                        <small>Relatório completo</small>
+                        <i class="bi bi-file-earmark-pdf"></i><div><strong>Exportar PDF</strong></div><small>Relatório completo</small>
                     </div>
                 </div>
                 <div class="col-6 col-md-3">
                     <div class="quick-action-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);" onclick="exportToExcel()">
-                        <i class="bi bi-file-earmark-excel"></i>
-                        <div><strong>Exportar Excel</strong></div>
-                        <small>Planilha CSV</small>
+                        <i class="bi bi-file-earmark-excel"></i><div><strong>Exportar Excel</strong></div><small>Planilha CSV</small>
                     </div>
                 </div>
             </div>
 
             <div class="action-bar">
                 <div class="container-fluid px-3">
-                    <button class="btn btn-primary" onclick="openEntryModal()">
-                        <i class="bi bi-plus-lg"></i> Novo Veículo
-                    </button>
-                    <button class="btn btn-scan-exit" onclick="openScanExitModal()">
-                        <i class="bi bi-qr-code-scan"></i> Escanear Saída
-                    </button>
-                    <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#swapModal">
-                        <i class="bi bi-arrow-left-right"></i> Registrar Troca
-                    </button>
-                    <button class="btn btn-outline-success" onclick="exportToJSON()">
-                        <i class="bi bi-file-earmark-json"></i> Exportar JSON
-                    </button>
-                    <button class="btn btn-outline-success" onclick="exportToExcel()">
-                        <i class="bi bi-file-earmark-excel"></i> Exportar Excel
-                    </button>
-                    <button class="btn btn-outline-danger" onclick="exportToPDF()">
-                        <i class="bi bi-file-earmark-pdf"></i> Exportar PDF
-                    </button>
-                    <button class="btn btn-outline-info" id="btnImportJSON" data-bs-toggle="modal" data-bs-target="#importModal" style="display: inline-flex !important;">
-                        <i class="bi bi-file-earmark-arrow-up"></i> Importar JSON
-                    </button>
+                    <button class="btn btn-primary" onclick="openEntryModal()"><i class="bi bi-plus-lg"></i> Novo Veículo</button>
+                    <button class="btn btn-scan-exit" onclick="openScanExitModal()"><i class="bi bi-qr-code-scan"></i> Escanear Saída</button>
+                    <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#swapModal"><i class="bi bi-arrow-left-right"></i> Registrar Troca</button>
+                    <button class="btn btn-outline-success" onclick="exportToJSON()"><i class="bi bi-file-earmark-json"></i> Exportar JSON</button>
+                    <button class="btn btn-outline-success" onclick="exportToExcel()"><i class="bi bi-file-earmark-excel"></i> Exportar Excel</button>
+                    <button class="btn btn-outline-danger" onclick="exportToPDF()"><i class="bi bi-file-earmark-pdf"></i> Exportar PDF</button>
+                    <button class="btn btn-outline-info" id="btnImportJSON" data-bs-toggle="modal" data-bs-target="#importModal" style="display: inline-flex !important;"><i class="bi bi-file-earmark-arrow-up"></i> Importar JSON</button>
                     <div class="vr mx-2"></div>
-                    <button class="btn btn-outline-warning" onclick="refreshData()">
-                        <i class="bi bi-arrow-clockwise"></i> Atualizar
-                    </button>
+                    <button class="btn btn-outline-warning" onclick="refreshData()"><i class="bi bi-arrow-clockwise"></i> Atualizar</button>
                 </div>
             </div>
 
@@ -338,9 +213,7 @@
                     </div>
                     <div class="col-md-2">
                         <label class="form-label small text-muted">&nbsp;</label>
-                        <button class="btn btn-outline-secondary w-100" onclick="clearFilters()">
-                            <i class="bi bi-x-circle"></i> Limpar
-                        </button>
+                        <button class="btn btn-outline-secondary w-100" onclick="clearFilters()"><i class="bi bi-x-circle"></i> Limpar</button>
                     </div>
                 </div>
             </div>
@@ -349,24 +222,13 @@
                 <div class="table-responsive">
                     <table class="table table-hover mb-0">
                         <thead>
-                            <tr>
-                                <th>Tipo</th>
-                                <th>Placa</th>
-                                <th>Entrada</th>
-                                <th>Saída</th>
-                                <th>Tempo</th>
-                                <th>Local</th>
-                                <th>Manutenção</th>
-                                <th>Status</th>
-                                <th>Ações</th>
-                            </tr>
+                            <tr><th>Tipo</th><th>Placa</th><th>Entrada</th><th>Saída</th><th>Tempo</th><th>Local</th><th>Manutenção</th><th>Status</th><th>Ações</th></tr>
                         </thead>
                         <tbody id="vehicleTableBody"></tbody>
                     </table>
                 </div>
                 <div class="p-3 text-center text-muted" id="emptyMessage">
-                    <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-                    Nenhum veículo cadastrado. Clique em "Novo Veículo" para começar.
+                    <i class="bi bi-inbox fs-1 d-block mb-2"></i>Nenhum veículo cadastrado. Clique em "Novo Veículo" para começar.
                 </div>
             </div>
 
@@ -377,14 +239,7 @@
                 <div class="table-responsive">
                     <table class="table table-sm mb-0">
                         <thead class="table-light">
-                            <tr>
-                                <th>Data</th>
-                                <th>Entra</th>
-                                <th>Sai</th>
-                                <th>Base</th>
-                                <th>Observações</th>
-                                <th>Ações</th>
-                            </tr>
+                            <tr><th>Data</th><th>Entra</th><th>Sai</th><th>Base</th><th>Observações</th><th>Ações</th></tr>
                         </thead>
                         <tbody id="swapsTableBody"></tbody>
                     </table>
@@ -393,7 +248,7 @@
         </div>
     </div>
 
-    <!-- Modal: Nova Entrada COM CÂMERA -->
+    <!-- Modais (Entry, Scan Exit, Edit, Import, Swap) -->
     <div class="modal fade" id="entryModal" tabindex="-1">
         <div class="modal-dialog modal-xl">
             <div class="modal-content">
@@ -406,24 +261,16 @@
                         <div class="col-lg-5">
                             <div class="card border-0 shadow-sm">
                                 <div class="card-body text-center">
-                                    <h6 class="card-title mb-3">
-                                        <i class="bi bi-camera me-2"></i>Escanear Placa
-                                    </h6>
+                                    <h6 class="card-title mb-3"><i class="bi bi-camera me-2"></i>Escanear Placa</h6>
                                     <div id="camera-container-entry" class="scan-overlay">
                                         <video id="camera-video-entry" autoplay playsinline></video>
                                     </div>
                                     <div class="btn-group w-100 mt-3">
-                                        <button class="btn btn-camera" onclick="startCamera('entry')">
-                                            <i class="bi bi-camera-video me-2"></i>Iniciar
-                                        </button>
-                                        <button class="btn btn-outline-secondary" onclick="stopCamera('entry')">
-                                            <i class="bi bi-camera-video-off me-2"></i>Parar
-                                        </button>
+                                        <button class="btn btn-camera" onclick="startCamera('entry')"><i class="bi bi-camera-video me-2"></i>Iniciar</button>
+                                        <button class="btn btn-outline-secondary" onclick="stopCamera('entry')"><i class="bi bi-camera-video-off me-2"></i>Parar</button>
                                     </div>
                                     <div id="scanStatusEntry" class="scan-status mt-2"></div>
-                                    <small class="text-muted d-block mt-2">
-                                        <i class="bi bi-info-circle"></i> Aponte para a placa do veículo
-                                    </small>
+                                    <small class="text-muted d-block mt-2"><i class="bi bi-info-circle"></i> Aponte para a placa do veículo</small>
                                 </div>
                             </div>
                         </div>
@@ -433,12 +280,8 @@
                                     <div class="col-12">
                                         <label class="form-label">Placa *</label>
                                         <div class="input-group">
-                                            <input type="text" class="form-control form-control-lg" id="plate" 
-                                                   placeholder="ABC-1D23" maxlength="9" required 
-                                                   style="text-transform:uppercase; font-family:monospace; font-weight:600; font-size: 1.2rem;">
-                                            <button class="btn btn-outline-secondary" type="button" onclick="manualPlateEntry()">
-                                                <i class="bi bi-keyboard"></i>
-                                            </button>
+                                            <input type="text" class="form-control form-control-lg" id="plate" placeholder="ABC-1D23" maxlength="9" required style="text-transform:uppercase; font-family:monospace; font-weight:600; font-size: 1.2rem;">
+                                            <button class="btn btn-outline-secondary" type="button" onclick="manualPlateEntry()"><i class="bi bi-keyboard"></i></button>
                                         </div>
                                         <div id="plateAlert" class="alert alert-danger mt-2 hidden"></div>
                                     </div>
@@ -502,15 +345,12 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-primary btn-lg" onclick="submitEntry()">
-                        <i class="bi bi-check-circle me-1"></i> Confirmar Entrada
-                    </button>
+                    <button type="button" class="btn btn-primary btn-lg" onclick="submitEntry()"><i class="bi bi-check-circle me-1"></i> Confirmar Entrada</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Modal: Escanear para Saída Rápida -->
     <div class="modal fade" id="scanExitModal" tabindex="-1">
         <div class="modal-dialog modal-md">
             <div class="modal-content">
@@ -523,30 +363,20 @@
                         <video id="camera-video-exit" autoplay playsinline></video>
                     </div>
                     <div class="btn-group w-100 mt-3">
-                        <button class="btn btn-scan-exit" onclick="startCamera('exit')">
-                            <i class="bi bi-camera-video me-2"></i>Iniciar Câmera
-                        </button>
-                        <button class="btn btn-outline-secondary" onclick="stopCamera('exit')">
-                            <i class="bi bi-camera-video-off me-2"></i>Parar
-                        </button>
+                        <button class="btn btn-scan-exit" onclick="startCamera('exit')"><i class="bi bi-camera-video me-2"></i>Iniciar Câmera</button>
+                        <button class="btn btn-outline-secondary" onclick="stopCamera('exit')"><i class="bi bi-camera-video-off me-2"></i>Parar</button>
                     </div>
                     <div id="scanStatusExit" class="scan-status mt-2"></div>
                     <div class="mt-3">
                         <label class="form-label">Ou digite a placa:</label>
                         <div class="input-group">
-                            <input type="text" class="form-control form-control-lg" id="scanExitPlate" 
-                                   placeholder="ABC-1D23" maxlength="9" 
-                                   style="text-transform:uppercase; font-family:monospace; font-weight:600;">
-                            <button class="btn btn-outline-secondary" type="button" onclick="checkPlateForExit()">
-                                <i class="bi bi-search"></i>
-                            </button>
+                            <input type="text" class="form-control form-control-lg" id="scanExitPlate" placeholder="ABC-1D23" maxlength="9" style="text-transform:uppercase; font-family:monospace; font-weight:600;">
+                            <button class="btn btn-outline-secondary" type="button" onclick="checkPlateForExit()"><i class="bi bi-search"></i></button>
                         </div>
                     </div>
                     <div id="exitVehicleInfo" class="vehicle-history hidden mt-3">
                         <div id="exitVehicleContent"></div>
-                        <button class="btn btn-success btn-lg w-100 mt-3" onclick="confirmExitVehicle()">
-                            <i class="bi bi-check-circle me-2"></i>Confirmar Saída
-                        </button>
+                        <button class="btn btn-success btn-lg w-100 mt-3" onclick="confirmExitVehicle()"><i class="bi bi-check-circle me-2"></i>Confirmar Saída</button>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -556,7 +386,6 @@
         </div>
     </div>
 
-    <!-- Modal: Editar Veículo -->
     <div class="modal fade" id="editVehicleModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
@@ -622,9 +451,7 @@
                             <div class="col-12">
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" id="editMaintenance">
-                                    <label class="form-check-label" for="editMaintenance">
-                                        <strong>Em Manutenção?</strong>
-                                    </label>
+                                    <label class="form-check-label" for="editMaintenance"><strong>Em Manutenção?</strong></label>
                                 </div>
                             </div>
                         </div>
@@ -632,15 +459,12 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-warning" onclick="saveVehicleEdit()">
-                        <i class="bi bi-save me-1"></i> Salvar Alterações
-                    </button>
+                    <button type="button" class="btn btn-warning" onclick="saveVehicleEdit()"><i class="bi bi-save me-1"></i> Salvar Alterações</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Modal: Importar JSON -->
     <div class="modal fade" id="importModal" tabindex="-1">
         <div class="modal-dialog modal-md">
             <div class="modal-content">
@@ -650,8 +474,7 @@
                 </div>
                 <div class="modal-body">
                     <div class="alert alert-warning">
-                        <i class="bi bi-exclamation-triangle me-2"></i>
-                        <strong>Atenção:</strong> Importar um arquivo irá <u>substituir todos os dados atuais</u> do sistema.
+                        <i class="bi bi-exclamation-triangle me-2"></i><strong>Atenção:</strong> Importar um arquivo irá <u>substituir todos os dados atuais</u> do sistema.
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold">Selecione o arquivo JSON de backup</label>
@@ -662,15 +485,12 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-info text-white" onclick="processImport()">
-                        <i class="bi bi-upload me-1"></i> Importar e Substituir
-                    </button>
+                    <button type="button" class="btn btn-info text-white" onclick="processImport()"><i class="bi bi-upload me-1"></i> Importar e Substituir</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Modal: Registrar Troca -->
     <div class="modal fade" id="swapModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -710,9 +530,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-primary" onclick="submitSwap()">
-                        <i class="bi bi-check-circle me-1"></i> <span id="swapBtnText">Registrar</span>
-                    </button>
+                    <button type="button" class="btn btn-primary" onclick="submitSwap()"><i class="bi bi-check-circle me-1"></i> <span id="swapBtnText">Registrar</span></button>
                 </div>
             </div>
         </div>
@@ -725,10 +543,12 @@
         let currentUser = null;
         let userPermissions = {};
         let allVehicles = [];
-        let html5QrcodeScanner = null;
+        let cameraStream = null;
         let currentCameraMode = null;
         let vehicleToExit = null;
-        let cameraStream = null;
+
+        console.log('🚀 Sistema iniciado');
+        console.log('📦 Tesseract disponível:', typeof Tesseract !== 'undefined');
 
         document.addEventListener('DOMContentLoaded', async () => {
             await checkAuth();
@@ -736,7 +556,6 @@
             setInterval(updateClock, 1000);
         });
 
-        // ============ AUTENTICAÇÃO ============
         async function checkAuth() {
             try {
                 const res = await fetch(`${API_URL}/auth/me`);
@@ -822,14 +641,11 @@
             showLoginScreen();
         }
 
-        // ============ CÂMERA / OCR COM TESSERACT ============
         function openEntryModal() {
             document.getElementById('plate').value = '';
             document.getElementById('vehicleHistory').classList.add('hidden');
             document.getElementById('plateAlert').classList.add('hidden');
-            document.getElementById('entryForm').querySelectorAll('input, select, textarea').forEach(el => {
-                el.disabled = false;
-            });
+            document.getElementById('entryForm').querySelectorAll('input, select, textarea').forEach(el => el.disabled = false);
             stopCamera('entry');
             new bootstrap.Modal(document.getElementById('entryModal')).show();
         }
@@ -847,23 +663,28 @@
             currentCameraMode = mode;
             const statusId = mode === 'entry' ? 'scanStatusEntry' : 'scanStatusExit';
             const statusDiv = document.getElementById(statusId);
-            
-            statusDiv.innerHTML = '<i class="bi bi-hourglass-split"></i> Acessando câmera...';
+            console.log('📷 Iniciando câmera - Mode:', mode);
+            statusDiv.innerHTML = '<i class="bi bi-hourglass-split"></i> Solicitando permissão...';
             statusDiv.className = 'scan-status scanning';
-            
             try {
+                if (typeof Tesseract === 'undefined') {
+                    throw new Error('Tesseract.js não carregou. Verifique sua conexão.');
+                }
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    throw new Error('Navegador não suporta acesso à câmera');
+                }
                 cameraStream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } 
+                    video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
+                    audio: false
                 });
-                
                 const videoId = mode === 'entry' ? 'camera-video-entry' : 'camera-video-exit';
                 const video = document.getElementById(videoId);
                 video.srcObject = cameraStream;
-                
-                statusDiv.innerHTML = '<i class="bi bi-camera-video"></i> Câmera ativa. Tire uma foto da placa.';
+                await new Promise((resolve) => {
+                    video.onloadedmetadata = () => { video.play(); resolve(); };
+                });
+                statusDiv.innerHTML = '<i class="bi bi-camera-video"></i> Câmera ativa. Posicione a placa e clique em "Capturar".';
                 statusDiv.className = 'scan-status success';
-                
-                // Adicionar botão para capturar
                 const container = video.parentElement;
                 let captureBtn = container.querySelector('.btn-capture');
                 if (!captureBtn) {
@@ -873,40 +694,46 @@
                     captureBtn.onclick = () => capturePlate(mode, video, cameraStream);
                     container.appendChild(captureBtn);
                 }
-                
+                console.log('✅ Câmera iniciada com sucesso');
             } catch (err) {
-                statusDiv.innerHTML = '<i class="bi bi-exclamation-triangle"></i> Erro: ' + err.message;
+                console.error('❌ Erro câmera:', err);
+                statusDiv.innerHTML = `<i class="bi bi-exclamation-triangle"></i> Erro: ${err.message}`;
                 statusDiv.className = 'scan-status error';
+                if (err.name === 'NotAllowedError') {
+                    statusDiv.innerHTML += '<br><small>Permita o acesso à câmera no navegador</small>';
+                } else if (err.name === 'NotFoundError') {
+                    statusDiv.innerHTML += '<br><small>Nenhuma câmera encontrada</small>';
+                }
             }
         }
 
         async function capturePlate(mode, video, stream) {
             const statusId = mode === 'entry' ? 'scanStatusEntry' : 'scanStatusExit';
             const statusDiv = document.getElementById(statusId);
-            
+            console.log('📸 Capturando imagem...');
             statusDiv.innerHTML = '<i class="bi bi-hourglass-split"></i> Processando imagem...';
-            
-            // Criar canvas para capturar frame
-            const canvas = document.createElement('canvas');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            canvas.getContext('2d').drawImage(video, 0, 0);
-            
             try {
-                // Usar Tesseract para OCR
-                const { data: { text } } = await Tesseract.recognize(canvas, 'por', {
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth || 1920;
+                canvas.height = video.videoHeight || 1080;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                ctx.filter = 'contrast(1.2) brightness(1.1)';
+                ctx.drawImage(canvas, 0, 0);
+                console.log('🔍 Iniciando OCR com Tesseract...');
+                const { data: { text, confidence } } = await Tesseract.recognize(canvas, 'por', {
                     logger: m => {
                         if (m.status === 'recognizing text') {
                             statusDiv.innerHTML = `<i class="bi bi-hourglass-split"></i> Processando: ${Math.round(m.progress * 100)}%`;
                         }
                     }
                 });
-                
+                console.log('📝 Texto OCR:', text);
+                console.log('📊 Confiança:', confidence);
                 const plate = extractPlate(text);
                 if (plate) {
-                    statusDiv.innerHTML = `<i class="bi bi-check-circle"></i> Placa: ${plate}`;
+                    statusDiv.innerHTML = `<i class="bi bi-check-circle"></i> ✅ Placa: ${plate} (Confiança: ${Math.round(confidence)}%)`;
                     statusDiv.className = 'scan-status success';
-                    
                     if (mode === 'entry') {
                         document.getElementById('plate').value = plate;
                         checkVehicleHistory(plate);
@@ -914,14 +741,13 @@
                         document.getElementById('scanExitPlate').value = plate;
                         checkPlateForExit(plate);
                     }
-                    
-                    // Parar câmera
                     stopCamera(mode);
                 } else {
-                    statusDiv.innerHTML = '<i class="bi bi-x-circle"></i> Não foi possível ler a placa. Tente novamente.';
+                    statusDiv.innerHTML = `<i class="bi bi-x-circle"></i> ❌ Não foi possível ler a placa.<br><small class="text-muted">Texto detectado: "${text.substring(0, 50)}..."</small>`;
                     statusDiv.className = 'scan-status error';
                 }
             } catch (err) {
+                console.error('❌ Erro OCR:', err);
                 statusDiv.innerHTML = '<i class="bi bi-x-circle"></i> Erro no OCR: ' + err.message;
                 statusDiv.className = 'scan-status error';
             }
@@ -940,33 +766,13 @@
             }
             const statusId = mode === 'entry' ? 'scanStatusEntry' : 'scanStatusExit';
             document.getElementById(statusId).innerHTML = '<i class="bi bi-camera-video-off"></i> Câmera desligada';
-            
-            // Remover botão de capturar
             const container = video?.parentElement;
             if (container) {
                 const captureBtn = container.querySelector('.btn-capture');
                 if (captureBtn) captureBtn.remove();
             }
+            console.log('📷 Câmera parada');
         }
-
-        function onScanSuccess(decodedText, decodedResult) {
-            const plate = extractPlate(decodedText);
-            if (plate) {
-                if (currentCameraMode === 'entry') {
-                    document.getElementById('plate').value = plate;
-                    document.getElementById('scanStatusEntry').innerHTML = `<i class="bi bi-check-circle"></i> Placa: ${plate}`;
-                    stopCamera('entry');
-                    checkVehicleHistory(plate);
-                } else if (currentCameraMode === 'exit') {
-                    document.getElementById('scanExitPlate').value = plate;
-                    document.getElementById('scanStatusExit').innerHTML = `<i class="bi bi-check-circle"></i> Placa: ${plate}`;
-                    stopCamera('exit');
-                    checkPlateForExit(plate);
-                }
-            }
-        }
-
-        function onScanError(error) {}
 
         function extractPlate(text) {
             const patterns = [/[A-Z]{3}\d[A-Z]\d{2}/i, /[A-Z]{3}\d{4}/i, /[A-Z]{3}-\d{4}/i];
@@ -982,7 +788,6 @@
             document.getElementById('plate').focus();
         }
 
-        // ============ HISTÓRICO E AUTO-PREENCHIMENTO ============
         async function checkVehicleHistory(plate) {
             try {
                 const res = await fetch(`${API_URL}/vehicles`);
@@ -991,7 +796,6 @@
                 const historyDiv = document.getElementById('vehicleHistory');
                 const historyContent = document.getElementById('historyContent');
                 const plateAlert = document.getElementById('plateAlert');
-
                 if (existingVehicle) {
                     plateAlert.innerHTML = `<i class="bi bi-exclamation-triangle-fill"></i> <strong>Veículo já está no pátio!</strong><br>📍 Local: ${existingVehicle.yard}<br>⏱️ Entrada: ${existingVehicle.entryDate}<br>⏳ Tempo: ${existingVehicle.timeInYard}`;
                     plateAlert.classList.remove('hidden');
@@ -1003,26 +807,13 @@
                     const vehicleHistory = vehicles.filter(v => v.plate.toUpperCase() === plate.toUpperCase());
                     plateAlert.classList.add('hidden');
                     document.getElementById('entryForm').querySelectorAll('input, select, textarea').forEach(el => el.disabled = false);
-
                     if (vehicleHistory.length > 0) {
                         const lastRecord = vehicleHistory[0];
                         document.getElementById('type').value = lastRecord.type || '';
                         document.getElementById('base').value = lastRecord.base || 'Jaraguá-SP';
                         document.getElementById('keys').value = lastRecord.keys || '';
-                        
                         historyDiv.classList.remove('hidden');
-                        historyContent.innerHTML = `
-                            <div class="history-item info">
-                                <strong>✅ Veículo conhecido - Dados preenchidos automaticamente</strong><br>
-                                <small>Tipo: ${lastRecord.type || '—'} | Base: ${lastRecord.base || '—'}</small>
-                            </div>
-                            ${vehicleHistory.slice(0, 3).map(v => `
-                                <div class="history-item">
-                                    <div><strong>${v.entryDate}</strong> - ${v.yard}</div>
-                                    <small class="text-muted">${v.type} • ${v.timeInYard || '—'}</small>
-                                </div>
-                            `).join('')}
-                        `;
+                        historyContent.innerHTML = `<div class="history-item info"><strong>✅ Veículo conhecido - Dados preenchidos automaticamente</strong><br><small>Tipo: ${lastRecord.type || '—'} | Base: ${lastRecord.base || '—'}</small></div>${vehicleHistory.slice(0, 3).map(v => `<div class="history-item"><div><strong>${v.entryDate}</strong> - ${v.yard}</div><small class="text-muted">${v.type} • ${v.timeInYard || '—'}</small></div>`).join('')}`;
                     } else {
                         historyDiv.classList.add('hidden');
                     }
@@ -1041,36 +832,14 @@
                 const vehicle = vehicles.find(v => v.plate.toUpperCase() === plateInput.toUpperCase() && v.status !== 'Liberado');
                 const exitInfo = document.getElementById('exitVehicleInfo');
                 const exitContent = document.getElementById('exitVehicleContent');
-
                 if (vehicle) {
                     vehicleToExit = vehicle;
                     exitInfo.classList.remove('hidden');
-                    exitContent.innerHTML = `
-                        <div class="history-item success">
-                            <h5><i class="bi bi-check-circle me-2"></i>Veículo Encontrado</h5>
-                            <div class="row mt-3">
-                                <div class="col-6 text-start">
-                                    <strong>Placa:</strong> ${vehicle.plate}<br>
-                                    <strong>Tipo:</strong> ${vehicle.type}<br>
-                                    <strong>Pátio:</strong> ${vehicle.yard}
-                                </div>
-                                <div class="col-6 text-start">
-                                    <strong>Entrada:</strong> ${vehicle.entryDate}<br>
-                                    <strong>Tempo:</strong> ${vehicle.timeInYard}<br>
-                                    <strong>Status:</strong> ${vehicle.status}
-                                </div>
-                            </div>
-                        </div>
-                    `;
+                    exitContent.innerHTML = `<div class="history-item success"><h5><i class="bi bi-check-circle me-2"></i>Veículo Encontrado</h5><div class="row mt-3"><div class="col-6 text-start"><strong>Placa:</strong> ${vehicle.plate}<br><strong>Tipo:</strong> ${vehicle.type}<br><strong>Pátio:</strong> ${vehicle.yard}</div><div class="col-6 text-start"><strong>Entrada:</strong> ${vehicle.entryDate}<br><strong>Tempo:</strong> ${vehicle.timeInYard}<br><strong>Status:</strong> ${vehicle.status}</div></div></div>`;
                 } else {
                     vehicleToExit = null;
                     exitInfo.classList.remove('hidden');
-                    exitContent.innerHTML = `
-                        <div class="history-item alert">
-                            <h5><i class="bi bi-exclamation-triangle me-2"></i>Veículo Não Encontrado</h5>
-                            <p class="mb-0">A placa <strong>${plateInput}</strong> não está registrada no pátio ou já foi liberada.</p>
-                        </div>
-                    `;
+                    exitContent.innerHTML = `<div class="history-item alert"><h5><i class="bi bi-exclamation-triangle me-2"></i>Veículo Não Encontrado</h5><p class="mb-0">A placa <strong>${plateInput}</strong> não está registrada no pátio ou já foi liberada.</p></div>`;
                 }
             } catch (err) {
                 showToast('❌ Erro ao buscar veículo', 'danger');
@@ -1091,7 +860,6 @@
             }
         }
 
-        // ============ CARREGAR DADOS ============
         async function loadStats() {
             try {
                 const res = await fetch(`${API_URL}/stats`);
@@ -1105,17 +873,7 @@
                     { icon: '📮', label: 'Correios', value: stats.entreguesCorreios, filterNote: 'correios' },
                     { icon: '📊', label: 'Total Ativos', value: stats.totalAtivos, filterClear: true }
                 ];
-                document.getElementById('stats-cards').innerHTML = cards.map(card => `
-                    <div class="col-6 col-md-3 col-lg-2">
-                        <div class="stat-card card" onclick="filterByCard(${JSON.stringify(card).replace(/"/g, '&quot;')})">
-                            <div class="card-body">
-                                <div class="icon-placeholder">${card.icon}</div>
-                                <div class="count">${card.value}</div>
-                                <div class="label">${card.label}</div>
-                            </div>
-                        </div>
-                    </div>
-                `).join('');
+                document.getElementById('stats-cards').innerHTML = cards.map(card => `<div class="col-6 col-md-3 col-lg-2"><div class="stat-card card" onclick="filterByCard(${JSON.stringify(card).replace(/"/g, '&quot;')})"><div class="card-body"><div class="icon-placeholder">${card.icon}</div><div class="count">${card.value}</div><div class="label">${card.label}</div></div></div></div>`).join('');
                 if (stats.stalledVehicles > 0) {
                     document.getElementById('stalledAlert').classList.remove('hidden');
                     document.getElementById('stalledList').textContent = stats.stalledVehiclesList.map(v => `${v.plate} (${v.hours}h)`).join(', ');
@@ -1173,31 +931,7 @@
                 tbody.innerHTML = vehicles.map(v => {
                     const statusClass = `status-${v.status.toLowerCase().replace(/ /g, '-').replace('ç','c').replace('ã','a')}`;
                     const maintenanceBadge = v.maintenance ? `<span class="text-danger"><i class="bi bi-exclamation-circle"></i> SIM</span>` : '<span class="text-muted">Não</span>';
-                    return `
-                        <tr data-yard="${v.yard}" data-status="${v.status}" data-type="${v.type}" data-search="${v.plate} ${v.type} ${v.yard} ${v.base} ${v.notes || ''}" data-id="${v.id}">
-                            <td><span class="vehicle-icon"><i class="bi bi-${getVehicleIcon(v.type)}"></i></span><small class="d-md-none">${v.type}</small></td>
-                            <td><span class="plate-badge">${v.plate}</span></td>
-                            <td><span class="date-badge">${v.entryDate}</span></td>
-                            <td>${v.exitDate ? `<span class="date-badge text-success">${v.exitDate}</span>` : '—'}</td>
-                            <td><span class="time-badge">${v.timeInYard}</span></td>
-                            <td><small class="text-primary"><i class="bi bi-pin me-1"></i>${v.yard}</small></td>
-                            <td>${maintenanceBadge}</td>
-                            <td><span class="status-badge ${statusClass}">${v.status}</span></td>
-                            <td>
-                                <div class="btn-group btn-group-sm flex-wrap">
-                                    ${v.status !== 'Liberado' ? `
-                                        <button class="btn btn-outline-warning action-btn" onclick="updateStatus(${v.id}, 'Aguardando linha')"><i class="bi bi-hourglass-split"></i></button>
-                                        <button class="btn btn-outline-info action-btn" onclick="updateStatus(${v.id}, 'Aguardando abastecimento')"><i class="bi bi-fuel-pump"></i></button>
-                                        <button class="btn btn-outline-danger action-btn" onclick="updateStatus(${v.id}, 'Aguardando manutenção')"><i class="bi bi-tools"></i></button>
-                                        <button class="btn btn-outline-purple action-btn" style="border-color:#6f42c1;color:#6f42c1" onclick="updateStatus(${v.id}, 'Em manutenção')"><i class="bi bi-wrench"></i></button>
-                                        <button class="btn btn-success action-btn" onclick="exitVehicle(${v.id})"><i class="bi bi-check-lg"></i></button>
-                                    ` : '<span class="text-success"><i class="bi bi-check-circle"></i></span>'}
-                                    <button class="btn btn-outline-secondary action-btn" onclick="openEditVehicle(${v.id})"><i class="bi bi-pencil"></i></button>
-                                    <button class="btn btn-outline-danger action-btn" onclick="deleteVehicle(${v.id})"><i class="bi bi-trash"></i></button>
-                                </div>
-                            </td>
-                        </tr>
-                    `;
+                    return `<tr data-yard="${v.yard}" data-status="${v.status}" data-type="${v.type}" data-search="${v.plate} ${v.type} ${v.yard} ${v.base} ${v.notes || ''}" data-id="${v.id}"><td><span class="vehicle-icon"><i class="bi bi-${getVehicleIcon(v.type)}"></i></span><small class="d-md-none">${v.type}</small></td><td><span class="plate-badge">${v.plate}</span></td><td><span class="date-badge">${v.entryDate}</span></td><td>${v.exitDate ? `<span class="date-badge text-success">${v.exitDate}</span>` : '—'}</td><td><span class="time-badge">${v.timeInYard}</span></td><td><small class="text-primary"><i class="bi bi-pin me-1"></i>${v.yard}</small></td><td>${maintenanceBadge}</td><td><span class="status-badge ${statusClass}">${v.status}</span></td><td><div class="btn-group btn-group-sm flex-wrap">${v.status !== 'Liberado' ? `<button class="btn btn-outline-warning action-btn" onclick="updateStatus(${v.id}, 'Aguardando linha')"><i class="bi bi-hourglass-split"></i></button><button class="btn btn-outline-info action-btn" onclick="updateStatus(${v.id}, 'Aguardando abastecimento')"><i class="bi bi-fuel-pump"></i></button><button class="btn btn-outline-danger action-btn" onclick="updateStatus(${v.id}, 'Aguardando manutenção')"><i class="bi bi-tools"></i></button><button class="btn btn-outline-purple action-btn" style="border-color:#6f42c1;color:#6f42c1" onclick="updateStatus(${v.id}, 'Em manutenção')"><i class="bi bi-wrench"></i></button><button class="btn btn-success action-btn" onclick="exitVehicle(${v.id})"><i class="bi bi-check-lg"></i></button>` : '<span class="text-success"><i class="bi bi-check-circle"></i></span>'}<button class="btn btn-outline-secondary action-btn" onclick="openEditVehicle(${v.id})"><i class="bi bi-pencil"></i></button><button class="btn btn-outline-danger action-btn" onclick="deleteVehicle(${v.id})"><i class="bi bi-trash"></i></button></div></td></tr>`;
                 }).join('');
             } catch (err) { console.error('Erro loadVehicles:', err); }
         }
@@ -1207,47 +941,22 @@
                 const res = await fetch(`${API_URL}/swaps`);
                 const swaps = await res.json();
                 const tbody = document.getElementById('swapsTableBody');
-                tbody.innerHTML = swaps.slice(0, 20).map(s => `
-                    <tr>
-                        <td><small>${new Date(s.date).toLocaleDateString('pt-BR')}</small></td>
-                        <td><strong>${s.plateIn}</strong></td>
-                        <td><strong>${s.plateOut}</strong></td>
-                        <td><small>${s.base}</small></td>
-                        <td><small class="text-muted">${s.notes || '—'}</small></td>
-                        <td>
-                            <button class="btn btn-sm btn-link" onclick="openEditSwap(${s.id})"><i class="bi bi-pencil"></i></button>
-                            <button class="btn btn-sm btn-link text-danger" onclick="deleteSwap(${s.id})"><i class="bi bi-trash"></i></button>
-                        </td>
-                    </tr>
-                `).join('') || '<tr><td colspan="6" class="text-center text-muted py-3">Nenhuma troca</td></tr>';
+                tbody.innerHTML = swaps.slice(0, 20).map(s => `<tr><td><small>${new Date(s.date).toLocaleDateString('pt-BR')}</small></td><td><strong>${s.plateIn}</strong></td><td><strong>${s.plateOut}</strong></td><td><small>${s.base}</small></td><td><small class="text-muted">${s.notes || '—'}</small></td><td><button class="btn btn-sm btn-link" onclick="openEditSwap(${s.id})"><i class="bi bi-pencil"></i></button><button class="btn btn-sm btn-link text-danger" onclick="deleteSwap(${s.id})"><i class="bi bi-trash"></i></button></td></tr>`).join('') || '<tr><td colspan="6" class="text-center text-muted py-3">Nenhuma troca</td></tr>';
             } catch (err) { console.error('Erro loadSwaps:', err); }
         }
 
-        // ============ AÇÕES DE VEÍCULOS ============
         async function submitEntry() {
             const plate = document.getElementById('plate').value.trim();
             const plateAlert = document.getElementById('plateAlert');
-            if (!plateAlert.classList.contains('hidden')) {
-                alert('⚠️ Não é possível cadastrar. Veículo já está no pátio!');
-                return;
-            }
+            if (!plateAlert.classList.contains('hidden')) { alert('⚠️ Não é possível cadastrar. Veículo já está no pátio!'); return; }
             const type = document.getElementById('type').value;
             const yard = document.getElementById('yard').value;
-            if (!plate || !type || !yard) {
-                alert('⚠️ Preencha: Placa, Tipo e Pátio');
-                return;
-            }
+            if (!plate || !type || !yard) { alert('⚠️ Preencha: Placa, Tipo e Pátio'); return; }
             try {
                 await fetch(`${API_URL}/vehicles`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ 
-                        plate, type, yard, 
-                        entryDate: document.getElementById('entryDate').value,
-                        base: document.getElementById('base').value,
-                        keys: document.getElementById('keys').value,
-                        notes: document.getElementById('notes').value
-                    })
+                    body: JSON.stringify({ plate, type, yard, entryDate: document.getElementById('entryDate').value, base: document.getElementById('base').value, keys: document.getElementById('keys').value, notes: document.getElementById('notes').value })
                 });
                 stopCamera('entry');
                 bootstrap.Modal.getInstance(document.getElementById('entryModal')).hide();
@@ -1276,7 +985,7 @@
         async function openEditVehicle(id) {
             const v = allVehicles.find(x => x.id === id);
             if (!v) return;
-            
+            console.log('🔐 Editando veículo - Role:', currentUser?.role);
             document.getElementById('editVehicleId').value = v.id;
             document.getElementById('editPlate').value = v.plate;
             document.getElementById('editType').value = v.type;
@@ -1286,8 +995,6 @@
             document.getElementById('editNotes').value = v.notes || '';
             document.getElementById('editStatus').value = v.status;
             document.getElementById('editMaintenance').checked = v.maintenance || false;
-            
-            // 🔧 CORREÇÃO: Formatar data corretamente para o input datetime-local
             if (v.entryTime) {
                 const d = new Date(v.entryTime);
                 const year = d.getFullYear();
@@ -1297,30 +1004,36 @@
                 const minutes = String(d.getMinutes()).padStart(2, '0');
                 document.getElementById('editEntryTime').value = `${year}-${month}-${day}T${hours}:${minutes}`;
             }
-            
-            // 🔐 Admin Only: Habilitar campo de data apenas para admin
             const dateField = document.getElementById('editEntryTime');
             const dateBadge = document.getElementById('dateEditBadge');
             const dateHelp = document.getElementById('dateEditHelp');
-            
-            if (currentUser?.role === 'admin') {
+            const isAdmin = currentUser?.role?.toLowerCase() === 'admin';
+            console.log('✅ É admin?', isAdmin);
+            if (isAdmin) {
                 dateField.disabled = false;
+                dateField.readOnly = false;
                 if (dateBadge) dateBadge.style.display = 'inline-block';
                 if (dateHelp) {
                     dateHelp.style.display = 'block';
-                    dateHelp.textContent = 'Apenas administradores podem alterar';
+                    dateHelp.textContent = '✅ Administrador - Pode editar a data';
                     dateHelp.classList.remove('text-danger');
+                    dateHelp.classList.add('text-success');
                 }
             } else {
                 dateField.disabled = true;
+                dateField.readOnly = true;
                 if (dateBadge) dateBadge.style.display = 'none';
                 if (dateHelp) {
                     dateHelp.style.display = 'block';
-                    dateHelp.textContent = 'Campo disponível apenas para administradores';
+                    dateHelp.textContent = '🔒 Campo disponível apenas para administradores';
                     dateHelp.classList.add('text-danger');
+                    dateHelp.classList.remove('text-success');
                 }
             }
-            
+            setTimeout(() => {
+                console.log('📅 Campo data disabled:', dateField.disabled);
+                console.log('📅 Campo data value:', dateField.value);
+            }, 500);
             new bootstrap.Modal(document.getElementById('editVehicleModal')).show();
         }
 
@@ -1336,13 +1049,10 @@
                 status: document.getElementById('editStatus').value,
                 maintenance: document.getElementById('editMaintenance').checked
             };
-            
-            // 🔧 CORREÇÃO: Incluir data de entrada apenas se admin e preenchido
             const entryTime = document.getElementById('editEntryTime').value;
-            if (entryTime && currentUser?.role === 'admin') {
+            if (entryTime && currentUser?.role?.toLowerCase() === 'admin') {
                 updates.entryTime = new Date(entryTime).toISOString();
             }
-
             try {
                 const res = await fetch(`${API_URL}/vehicles/${id}`, {
                     method: 'PUT',
@@ -1350,7 +1060,6 @@
                     body: JSON.stringify(updates)
                 });
                 const result = await res.json();
-                
                 if (result.success) {
                     bootstrap.Modal.getInstance(document.getElementById('editVehicleModal')).hide();
                     loadStats(); loadVehicles();
@@ -1365,11 +1074,7 @@
         }
 
         async function updateStatus(id, newStatus) {
-            await fetch(`${API_URL}/vehicles/${id}/status`, {
-                method: 'PUT',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ status: newStatus })
-            });
+            await fetch(`${API_URL}/vehicles/${id}/status`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ status: newStatus }) });
             loadStats(); loadVehicles();
         }
 
@@ -1392,21 +1097,10 @@
             }
         }
 
-        // ============ TROCAS ============
         async function submitSwap() {
             const plateOut = document.getElementById('swapPlateOut').value.trim();
             if (!plateOut) { alert('Placa que Sai é obrigatória'); return; }
-            await fetch(`${API_URL}/swaps`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ 
-                    date: document.getElementById('swapDate').value,
-                    plateIn: document.getElementById('swapPlateIn').value.trim() || '0000',
-                    plateOut,
-                    base: document.getElementById('swapBase').value,
-                    notes: document.getElementById('swapNotes').value
-                })
-            });
+            await fetch(`${API_URL}/swaps`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ date: document.getElementById('swapDate').value, plateIn: document.getElementById('swapPlateIn').value.trim() || '0000', plateOut, base: document.getElementById('swapBase').value, notes: document.getElementById('swapNotes').value }) });
             bootstrap.Modal.getInstance(document.getElementById('swapModal')).hide();
             document.getElementById('swapForm').reset();
             loadSwaps();
@@ -1438,7 +1132,6 @@
             showToast('Troca excluída', 'info');
         }
 
-        // ============ EXPORTAR ============
         async function exportToJSON() {
             try {
                 const res = await fetch(`${API_URL}/export`);
@@ -1462,13 +1155,7 @@
                 csv += `Total de Veículos: ${allVehicles.length}\n\n`;
                 csv = 'ID;Placa;Tipo;Pátio;Base;Status;Manutenção;Entrada;Saída;Tempo no Pátio;Chaves;Observações\n';
                 allVehicles.forEach(v => {
-                    const row = [
-                        v.id, `"${v.plate}"`, `"${v.type}"`, `"${v.yard}"`, `"${v.base || ''}"`,
-                        `"${v.status}"`, v.maintenance ? 'Sim' : 'Não',
-                        `"${v.entryDate || ''}"`, `"${v.exitDate || ''}"`,
-                        `"${v.timeInYard || '—'}"`, `"${v.keys || ''}"`,
-                        `"${(v.notes || '').replace(/"/g, '""')}"`
-                    ].join(';');
+                    const row = [v.id, `"${v.plate}"`, `"${v.type}"`, `"${v.yard}"`, `"${v.base || ''}"`, `"${v.status}"`, v.maintenance ? 'Sim' : 'Não', `"${v.entryDate || ''}"`, `"${v.exitDate || ''}"`, `"${v.timeInYard || '—'}"`, `"${v.keys || ''}"`, `"${(v.notes || '').replace(/"/g, '""')}"`].join(';');
                     csv += row + '\n';
                 });
                 csv += '\n\nRESUMO POR PÁTIO\n';
@@ -1500,21 +1187,8 @@
 
         function exportToPDF() {
             try {
-                let html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Relatório de Pátio - Transportadora Print</title>
-                <style>body{font-family:Arial,sans-serif;margin:20px;}h1{color:#1a3a5c;border-bottom:3px solid #1a3a5c;padding-bottom:10px;}
-                h2{color:#2c5282;margin-top:30px;}table{width:100%;border-collapse:collapse;margin:20px 0;}
-                th{background-color:#1a3a5c;color:white;padding:10px;text-align:left;}td{padding:8px;border-bottom:1px solid #ddd;}
-                tr:nth-child(even){background-color:#f2f2f2;}.header{background-color:#f8f9fa;padding:20px;border-radius:8px;margin-bottom:20px;}
-                @media print{body{margin:10px;}table{font-size:10px;}}</style></head><body>
-                <div class="header"><h1>🚚 CONTROLE DE PÁTIO - TRANSPORTADORA PRINT</h1>
-                <p><strong>Data:</strong> ${new Date().toLocaleString('pt-BR')}</p><p><strong>Total:</strong> ${allVehicles.length} veículos</p></div>
-                <h2>📋 TODAS AS MOVIMENTAÇÕES</h2><table><thead><tr><th>ID</th><th>Placa</th><th>Tipo</th><th>Pátio</th>
-                <th>Status</th><th>Entrada</th><th>Saída</th><th>Tempo</th></tr></thead><tbody>`;
-                allVehicles.forEach(v => {
-                    html += `<tr><td>${v.id}</td><td><strong>${v.plate}</strong></td><td>${v.type}</td>
-                    <td>${v.yard}</td><td>${v.status}</td><td>${v.entryDate || '—'}</td>
-                    <td>${v.exitDate || '—'}</td><td>${v.timeInYard || '—'}</td></tr>`;
-                });
+                let html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Relatório de Pátio - Transportadora Print</title><style>body{font-family:Arial,sans-serif;margin:20px;}h1{color:#1a3a5c;border-bottom:3px solid #1a3a5c;padding-bottom:10px;}h2{color:#2c5282;margin-top:30px;}table{width:100%;border-collapse:collapse;margin:20px 0;}th{background-color:#1a3a5c;color:white;padding:10px;text-align:left;}td{padding:8px;border-bottom:1px solid #ddd;}tr:nth-child(even){background-color:#f2f2f2;}.header{background-color:#f8f9fa;padding:20px;border-radius:8px;margin-bottom:20px;}@media print{body{margin:10px;}table{font-size:10px;}}</style></head><body><div class="header"><h1>🚚 CONTROLE DE PÁTIO - TRANSPORTADORA PRINT</h1><p><strong>Data:</strong> ${new Date().toLocaleString('pt-BR')}</p><p><strong>Total:</strong> ${allVehicles.length} veículos</p></div><h2>📋 TODAS AS MOVIMENTAÇÕES</h2><table><thead><tr><th>ID</th><th>Placa</th><th>Tipo</th><th>Pátio</th><th>Status</th><th>Entrada</th><th>Saída</th><th>Tempo</th></tr></thead><tbody>`;
+                allVehicles.forEach(v => { html += `<tr><td>${v.id}</td><td><strong>${v.plate}</strong></td><td>${v.type}</td><td>${v.yard}</td><td>${v.status}</td><td>${v.entryDate || '—'}</td><td>${v.exitDate || '—'}</td><td>${v.timeInYard || '—'}</td></tr>`; });
                 html += `</tbody></table></body></html>`;
                 const printWindow = window.open('', '_blank');
                 printWindow.document.write(html);
@@ -1529,23 +1203,13 @@
 
         async function processImport() {
             const fileInput = document.getElementById('importJsonFile');
-            if (!fileInput.files || fileInput.files.length === 0) {
-                alert('⚠️ Selecione um arquivo JSON');
-                return;
-            }
+            if (!fileInput.files || fileInput.files.length === 0) { alert('⚠️ Selecione um arquivo JSON'); return; }
             const file = fileInput.files[0];
             const text = await file.text();
             const jsonData = JSON.parse(text);
-            if (!jsonData.vehicles || !Array.isArray(jsonData.vehicles)) {
-                alert('❌ Arquivo inválido');
-                return;
-            }
+            if (!jsonData.vehicles || !Array.isArray(jsonData.vehicles)) { alert('❌ Arquivo inválido'); return; }
             if (!confirm(`🔄 Substituir TODOS os dados por ${jsonData.vehicles.length} veículo(s)?`)) return;
-            const res = await fetch(`${API_URL}/import`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ vehicles: jsonData.vehicles, swaps: jsonData.swaps || [] })
-            });
+            const res = await fetch(`${API_URL}/import`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ vehicles: jsonData.vehicles, swaps: jsonData.swaps || [] }) });
             const result = await res.json();
             if (res.status === 403) {
                 document.getElementById('importPreview').innerHTML = `<div class="alert alert-danger mt-3">🔒 Apenas administradores podem importar</div>`;
@@ -1560,11 +1224,8 @@
             fileInput.value = '';
         }
 
-        // ============ UTILITÁRIOS ============
         function getVehicleIcon(type) {
-            const icons = {'Carreta': 'truck', 'Cavalo Mecânico': 'car-front', 'Vans': 'bus-front',
-                'Caminhão Truck': 'truck', 'Caminhão Toco': 'truck',
-                'Veículo Visitante': 'person', 'Veículo Diretoria': 'star'};
+            const icons = {'Carreta': 'truck', 'Cavalo Mecânico': 'car-front', 'Vans': 'bus-front', 'Caminhão Truck': 'truck', 'Caminhão Toco': 'truck', 'Veículo Visitante': 'person', 'Veículo Diretoria': 'star'};
             return icons[type] || 'truck';
         }
 
@@ -1573,9 +1234,7 @@
             const yardFilter = document.getElementById('yardFilter').value;
             const statusFilter = document.getElementById('statusFilter').value;
             document.querySelectorAll('#vehicleTableBody tr').forEach(row => {
-                const matches = (!search || row.dataset.search.toLowerCase().includes(search)) &&
-                               (!yardFilter || row.dataset.yard === yardFilter) &&
-                               (!statusFilter || row.dataset.status === statusFilter);
+                const matches = (!search || row.dataset.search.toLowerCase().includes(search)) && (!yardFilter || row.dataset.yard === yardFilter) && (!statusFilter || row.dataset.status === statusFilter);
                 row.style.display = matches ? '' : 'none';
             });
         }
