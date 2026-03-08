@@ -7,6 +7,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <style>
         :root {
             --print-blue: #1a3a5c;
@@ -592,8 +593,9 @@
                                 </select>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">Data de Entrada</label>
+                                <label class="form-label">Data de Entrada <span id="dateEditBadge" class="badge bg-warning text-dark ms-1">Admin</span></label>
                                 <input type="datetime-local" class="form-control" id="editEntryTime">
+                                <small class="text-muted" id="dateEditHelp">Apenas administradores podem alterar</small>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Status</label>
@@ -726,6 +728,7 @@
         let html5QrcodeScanner = null;
         let currentCameraMode = null;
         let vehicleToExit = null;
+        let cameraStream = null;
 
         document.addEventListener('DOMContentLoaded', async () => {
             await checkAuth();
@@ -819,7 +822,7 @@
             showLoginScreen();
         }
 
-        // ============ CÂMERA / OCR ============
+        // ============ CÂMERA / OCR COM TESSERACT ============
         function openEntryModal() {
             document.getElementById('plate').value = '';
             document.getElementById('vehicleHistory').classList.add('hidden');
@@ -842,29 +845,107 @@
 
         async function startCamera(mode) {
             currentCameraMode = mode;
-            const containerId = mode === 'entry' ? 'camera-container-entry' : 'camera-container-exit';
             const statusId = mode === 'entry' ? 'scanStatusEntry' : 'scanStatusExit';
             const statusDiv = document.getElementById(statusId);
-            statusDiv.innerHTML = '<i class="bi bi-hourglass-split"></i> Iniciando câmera...';
+            
+            statusDiv.innerHTML = '<i class="bi bi-hourglass-split"></i> Acessando câmera...';
             statusDiv.className = 'scan-status scanning';
+            
             try {
-                html5QrcodeScanner = new Html5Qrcode(containerId);
-                const config = { fps: 10, qrbox: { width: 250, height: 100 }, aspectRatio: 2.0 };
-                await html5QrcodeScanner.start({ facingMode: "environment" }, config, onScanSuccess, onScanError);
-                statusDiv.innerHTML = '<i class="bi bi-camera-video"></i> Câmera ativa. Aponte para a placa.';
+                cameraStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } 
+                });
+                
+                const videoId = mode === 'entry' ? 'camera-video-entry' : 'camera-video-exit';
+                const video = document.getElementById(videoId);
+                video.srcObject = cameraStream;
+                
+                statusDiv.innerHTML = '<i class="bi bi-camera-video"></i> Câmera ativa. Tire uma foto da placa.';
                 statusDiv.className = 'scan-status success';
+                
+                // Adicionar botão para capturar
+                const container = video.parentElement;
+                let captureBtn = container.querySelector('.btn-capture');
+                if (!captureBtn) {
+                    captureBtn = document.createElement('button');
+                    captureBtn.className = 'btn btn-success btn-capture w-100 mt-2';
+                    captureBtn.innerHTML = '<i class="bi bi-camera"></i> Capturar Placa';
+                    captureBtn.onclick = () => capturePlate(mode, video, cameraStream);
+                    container.appendChild(captureBtn);
+                }
+                
             } catch (err) {
                 statusDiv.innerHTML = '<i class="bi bi-exclamation-triangle"></i> Erro: ' + err.message;
                 statusDiv.className = 'scan-status error';
             }
         }
 
+        async function capturePlate(mode, video, stream) {
+            const statusId = mode === 'entry' ? 'scanStatusEntry' : 'scanStatusExit';
+            const statusDiv = document.getElementById(statusId);
+            
+            statusDiv.innerHTML = '<i class="bi bi-hourglass-split"></i> Processando imagem...';
+            
+            // Criar canvas para capturar frame
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            
+            try {
+                // Usar Tesseract para OCR
+                const { data: { text } } = await Tesseract.recognize(canvas, 'por', {
+                    logger: m => {
+                        if (m.status === 'recognizing text') {
+                            statusDiv.innerHTML = `<i class="bi bi-hourglass-split"></i> Processando: ${Math.round(m.progress * 100)}%`;
+                        }
+                    }
+                });
+                
+                const plate = extractPlate(text);
+                if (plate) {
+                    statusDiv.innerHTML = `<i class="bi bi-check-circle"></i> Placa: ${plate}`;
+                    statusDiv.className = 'scan-status success';
+                    
+                    if (mode === 'entry') {
+                        document.getElementById('plate').value = plate;
+                        checkVehicleHistory(plate);
+                    } else {
+                        document.getElementById('scanExitPlate').value = plate;
+                        checkPlateForExit(plate);
+                    }
+                    
+                    // Parar câmera
+                    stopCamera(mode);
+                } else {
+                    statusDiv.innerHTML = '<i class="bi bi-x-circle"></i> Não foi possível ler a placa. Tente novamente.';
+                    statusDiv.className = 'scan-status error';
+                }
+            } catch (err) {
+                statusDiv.innerHTML = '<i class="bi bi-x-circle"></i> Erro no OCR: ' + err.message;
+                statusDiv.className = 'scan-status error';
+            }
+        }
+
         function stopCamera(mode) {
-            if (html5QrcodeScanner) {
-                html5QrcodeScanner.stop().then(() => {
-                    const statusId = mode === 'entry' ? 'scanStatusEntry' : 'scanStatusExit';
-                    document.getElementById(statusId).innerHTML = '<i class="bi bi-camera-video-off"></i> Câmera desligada';
-                }).catch(err => console.error('Erro ao parar câmera:', err));
+            const videoId = mode === 'entry' ? 'camera-video-entry' : 'camera-video-exit';
+            const video = document.getElementById(videoId);
+            if (video && video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+            }
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+                cameraStream = null;
+            }
+            const statusId = mode === 'entry' ? 'scanStatusEntry' : 'scanStatusExit';
+            document.getElementById(statusId).innerHTML = '<i class="bi bi-camera-video-off"></i> Câmera desligada';
+            
+            // Remover botão de capturar
+            const container = video?.parentElement;
+            if (container) {
+                const captureBtn = container.querySelector('.btn-capture');
+                if (captureBtn) captureBtn.remove();
             }
         }
 
@@ -912,7 +993,6 @@
                 const plateAlert = document.getElementById('plateAlert');
 
                 if (existingVehicle) {
-                    // ⚠️ Veículo já está no pátio
                     plateAlert.innerHTML = `<i class="bi bi-exclamation-triangle-fill"></i> <strong>Veículo já está no pátio!</strong><br>📍 Local: ${existingVehicle.yard}<br>⏱️ Entrada: ${existingVehicle.entryDate}<br>⏳ Tempo: ${existingVehicle.timeInYard}`;
                     plateAlert.classList.remove('hidden');
                     document.getElementById('entryForm').querySelectorAll('input, select, textarea').forEach(el => el.disabled = true);
@@ -920,13 +1000,11 @@
                     historyDiv.classList.remove('hidden');
                     historyContent.innerHTML = `<div class="history-item alert"><strong>⚠️ VEÍCULO JÁ ESTÁ NO PÁTIO</strong><br><small>Não é possível cadastrar entrada duplicada</small></div>`;
                 } else {
-                    // ✅ Verificar se veículo já existiu (retornou ao pátio)
                     const vehicleHistory = vehicles.filter(v => v.plate.toUpperCase() === plate.toUpperCase());
                     plateAlert.classList.add('hidden');
                     document.getElementById('entryForm').querySelectorAll('input, select, textarea').forEach(el => el.disabled = false);
 
                     if (vehicleHistory.length > 0) {
-                        // 🔄 Veículo conhecido - auto-preencher dados
                         const lastRecord = vehicleHistory[0];
                         document.getElementById('type').value = lastRecord.type || '';
                         document.getElementById('base').value = lastRecord.base || 'Jaraguá-SP';
@@ -1005,7 +1083,7 @@
             try {
                 await fetch(`${API_URL}/vehicles/${vehicleToExit.id}/exit`, { method: 'POST' });
                 bootstrap.Modal.getInstance(document.getElementById('scanExitModal')).hide();
-                loadStats(); // 🔁 Atualiza contadores
+                loadStats();
                 loadVehicles();
                 showToast('🚪 Saída registrada com sucesso!', 'success');
             } catch (err) {
@@ -1198,6 +1276,7 @@
         async function openEditVehicle(id) {
             const v = allVehicles.find(x => x.id === id);
             if (!v) return;
+            
             document.getElementById('editVehicleId').value = v.id;
             document.getElementById('editPlate').value = v.plate;
             document.getElementById('editType').value = v.type;
@@ -1207,11 +1286,41 @@
             document.getElementById('editNotes').value = v.notes || '';
             document.getElementById('editStatus').value = v.status;
             document.getElementById('editMaintenance').checked = v.maintenance || false;
+            
+            // 🔧 CORREÇÃO: Formatar data corretamente para o input datetime-local
             if (v.entryTime) {
                 const d = new Date(v.entryTime);
-                const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
-                document.getElementById('editEntryTime').value = local.toISOString().slice(0,16);
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                const hours = String(d.getHours()).padStart(2, '0');
+                const minutes = String(d.getMinutes()).padStart(2, '0');
+                document.getElementById('editEntryTime').value = `${year}-${month}-${day}T${hours}:${minutes}`;
             }
+            
+            // 🔐 Admin Only: Habilitar campo de data apenas para admin
+            const dateField = document.getElementById('editEntryTime');
+            const dateBadge = document.getElementById('dateEditBadge');
+            const dateHelp = document.getElementById('dateEditHelp');
+            
+            if (currentUser?.role === 'admin') {
+                dateField.disabled = false;
+                if (dateBadge) dateBadge.style.display = 'inline-block';
+                if (dateHelp) {
+                    dateHelp.style.display = 'block';
+                    dateHelp.textContent = 'Apenas administradores podem alterar';
+                    dateHelp.classList.remove('text-danger');
+                }
+            } else {
+                dateField.disabled = true;
+                if (dateBadge) dateBadge.style.display = 'none';
+                if (dateHelp) {
+                    dateHelp.style.display = 'block';
+                    dateHelp.textContent = 'Campo disponível apenas para administradores';
+                    dateHelp.classList.add('text-danger');
+                }
+            }
+            
             new bootstrap.Modal(document.getElementById('editVehicleModal')).show();
         }
 
@@ -1227,8 +1336,13 @@
                 status: document.getElementById('editStatus').value,
                 maintenance: document.getElementById('editMaintenance').checked
             };
+            
+            // 🔧 CORREÇÃO: Incluir data de entrada apenas se admin e preenchido
             const entryTime = document.getElementById('editEntryTime').value;
-            if (entryTime) updates.entryTime = new Date(entryTime).toISOString();
+            if (entryTime && currentUser?.role === 'admin') {
+                updates.entryTime = new Date(entryTime).toISOString();
+            }
+
             try {
                 const res = await fetch(`${API_URL}/vehicles/${id}`, {
                     method: 'PUT',
@@ -1236,13 +1350,17 @@
                     body: JSON.stringify(updates)
                 });
                 const result = await res.json();
+                
                 if (result.success) {
                     bootstrap.Modal.getInstance(document.getElementById('editVehicleModal')).hide();
                     loadStats(); loadVehicles();
                     showToast('✏️ Veículo atualizado!', 'success');
+                } else {
+                    alert('Erro: ' + (result.error || 'Não foi possível salvar'));
                 }
             } catch (err) {
-                alert('Erro ao salvar');
+                console.error('Erro ao salvar:', err);
+                alert('Erro de conexão ao salvar alterações');
             }
         }
 
