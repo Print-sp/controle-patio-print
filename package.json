@@ -1,6 +1,6 @@
 {
   "name": "controle-patio-print",
-  "version": "3.0.0",
+  "version": "5.1.0",
   "description": "Sistema de Controle de Pátio - Transportadora Print",
   "main": "server.js",
   "scripts": {
@@ -18,6 +18,6 @@
     "express-rate-limit": "^7.1.5"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": "18.x"
   }
 }
