@@ -71,13 +71,13 @@ function mapPostgresRow(row) {
         maintenanceProblems: row.maintenanceproblems || [],
         keys: row.keys,
         notes: row.notes,
+        deliveryCategory: row.deliverycategory || '',
         entryTime: row.entrytime,
         exitTime: row.exittime,
         icon: row.icon,
         createdAt: row.createdat,
         updatedAt: row.updatedat,
-        updatedBy: row.updatedby,
-        deliveryCategory: row.deliverycategory || ''
+        updatedBy: row.updatedby
     };
 }
 
@@ -111,6 +111,7 @@ function mapSwapRow(row) {
 async function initDatabase() {
     if (isProduction) {
         try {
+            // Criar tabela vehicles com deliveryCategory
             await pool.query(`
                 CREATE TABLE IF NOT EXISTS vehicles (
                     id SERIAL PRIMARY KEY,
@@ -161,8 +162,19 @@ async function initDatabase() {
                     details JSONB,
                     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
+                
+                CREATE INDEX IF NOT EXISTS idx_vehicles_plate ON vehicles(plate);
+                CREATE INDEX IF NOT EXISTS idx_vehicles_status ON vehicles(status);
+                CREATE INDEX IF NOT EXISTS idx_vehicles_yard ON vehicles(yard);
             `);
             
+            // Migração: adicionar deliveryCategory se não existir
+            await pool.query(`
+                ALTER TABLE vehicles 
+                ADD COLUMN IF NOT EXISTS "deliveryCategory" TEXT DEFAULT ''
+            `);
+            
+            // Criar usuários padrão se não existirem
             const adminExists = await pool.query('SELECT id FROM users WHERE username = $1', ['admin']);
             if (adminExists.rows.length === 0) {
                 const adminHash = bcrypt.hashSync(process.env.ADMIN_PASSWORD || 'Print@2026', 10);
@@ -177,6 +189,7 @@ async function initDatabase() {
         }
     } else {
         try {
+            // SQLite
             db.exec(`
                 CREATE TABLE IF NOT EXISTS vehicles (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -229,6 +242,7 @@ async function initDatabase() {
                 );
             `);
             
+            // Criar usuários padrão se não existirem
             const adminExists = db.prepare('SELECT id FROM users WHERE username = ?').get('admin');
             if (!adminExists) {
                 const adminHash = bcrypt.hashSync(process.env.ADMIN_PASSWORD || 'Print@2026', 10);
@@ -380,16 +394,34 @@ app.post('/api/vehicles', requireAuth, async (req, res) => {
             const result = await pool.query(`
                 INSERT INTO vehicles (plate, type, yard, base, keys, notes, deliveryCategory, entryTime, updatedBy)
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *
-            `, [plate.toUpperCase(), type, yard, base || 'Jaraguá-SP', keys || '', notes || '', 
-                deliveryCategory || '', entryDate ? new Date(entryDate).toISOString() : new Date().toISOString(), req.session.user.username]);
+            `, [
+                plate.toUpperCase(), 
+                type, 
+                yard, 
+                base || 'Jaraguá-SP', 
+                keys || '', 
+                notes || '', 
+                deliveryCategory || '', 
+                entryDate ? new Date(entryDate).toISOString() : new Date().toISOString(), 
+                req.session.user.username
+            ]);
             res.json(mapPostgresRow(result.rows[0]));
         } else {
             const stmt = db.prepare(`
                 INSERT INTO vehicles (plate, type, yard, base, keys, notes, deliveryCategory, entryTime, updatedBy)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             `);
-            const result = stmt.run(plate.toUpperCase(), type, yard, base || 'Jaraguá-SP', keys || '', notes || '',
-                deliveryCategory || '', entryDate ? new Date(entryDate).toISOString() : new Date().toISOString(), req.session.user.username);
+            const result = stmt.run(
+                plate.toUpperCase(), 
+                type, 
+                yard, 
+                base || 'Jaraguá-SP', 
+                keys || '', 
+                notes || '',
+                deliveryCategory || '', 
+                entryDate ? new Date(entryDate).toISOString() : new Date().toISOString(), 
+                req.session.user.username
+            );
             const vehicle = db.prepare('SELECT * FROM vehicles WHERE id = ?').get(result.lastInsertRowid);
             res.json({ ...vehicle, maintenanceProblems: JSON.parse(vehicle.maintenanceProblems || '[]') });
         }
@@ -399,7 +431,7 @@ app.post('/api/vehicles', requireAuth, async (req, res) => {
     }
 });
 
-// 🔧 CORREÇÃO DATA RETROATIVA - PUT agora aceita entryTime
+// 🔧 CORREÇÃO DATA RETROATIVA - PUT agora aceita e salva entryTime
 app.put('/api/vehicles/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
     const updates = req.body;
@@ -431,7 +463,7 @@ app.put('/api/vehicles/:id', requireAuth, async (req, res) => {
                 updates.status, 
                 updates.maintenance, 
                 updates.notes,
-                updates.deliveryCategory,
+                updates.deliveryCategory || '',
                 updates.entryTime,  // ← DATA RETROATIVA SALVA AQUI
                 req.session.user.username, 
                 id
@@ -540,14 +572,25 @@ app.post('/api/swaps', requireAuth, async (req, res) => {
             const result = await pool.query(`
                 INSERT INTO swaps (date, plateIn, plateOut, base, notes, updatedBy)
                 VALUES ($1, $2, $3, $4, $5, $6) RETURNING *
-            `, [dateIn ? new Date(dateIn).toISOString() : new Date().toISOString(),
-                plateIn?.toUpperCase() || '0000', plateOut?.toUpperCase() || '0000',
-                base || '', notes || '', req.session.user.username]);
+            `, [
+                dateIn ? new Date(dateIn).toISOString() : new Date().toISOString(),
+                plateIn?.toUpperCase() || '0000', 
+                plateOut?.toUpperCase() || '0000',
+                base || '', 
+                notes || '', 
+                req.session.user.username
+            ]);
             res.json({ success: true, ...mapSwapRow(result.rows[0]), dateFormatted: formatDateBR(result.rows[0].date) });
         } else {
             const stmt = db.prepare(`INSERT INTO swaps (date, plateIn, plateOut, base, notes, updatedBy) VALUES (?, ?, ?, ?, ?, ?)`);
-            const result = stmt.run(dateIn ? new Date(dateIn).toISOString() : new Date().toISOString(),
-                plateIn?.toUpperCase() || '0000', plateOut?.toUpperCase() || '0000', base || '', notes || '', req.session.user.username);
+            const result = stmt.run(
+                dateIn ? new Date(dateIn).toISOString() : new Date().toISOString(),
+                plateIn?.toUpperCase() || '0000', 
+                plateOut?.toUpperCase() || '0000', 
+                base || '', 
+                notes || '', 
+                req.session.user.username
+            );
             const swap = db.prepare('SELECT * FROM swaps WHERE id = ?').get(result.lastInsertRowid);
             res.json({ success: true, ...swap, dateFormatted: formatDateBR(swap.date) });
         }
@@ -563,11 +606,24 @@ app.put('/api/swaps/:id', requireAuth, async (req, res) => {
         if (isProduction) {
             await pool.query(`UPDATE swaps SET date = COALESCE($1, date), plateIn = COALESCE($2, plateIn),
                 plateOut = COALESCE($3, plateOut), base = COALESCE($4, base), notes = COALESCE($5, notes)
-                WHERE id = $6`, [updates.date ? new Date(updates.date).toISOString() : null,
-                updates.plateIn, updates.plateOut, updates.base, updates.notes, id]);
+                WHERE id = $6`, [
+                updates.date ? new Date(updates.date).toISOString() : null,
+                updates.plateIn, 
+                updates.plateOut, 
+                updates.base, 
+                updates.notes, 
+                id
+            ]);
         } else {
             db.prepare(`UPDATE swaps SET date = ?, plateIn = ?, plateOut = ?, base = ?, notes = ? WHERE id = ?`)
-                .run(updates.date ? new Date(updates.date).toISOString() : null, updates.plateIn, updates.plateOut, updates.base, updates.notes, id);
+                .run(
+                    updates.date ? new Date(updates.date).toISOString() : null, 
+                    updates.plateIn, 
+                    updates.plateOut, 
+                    updates.base, 
+                    updates.notes, 
+                    id
+                );
         }
         res.json({ success: true });
     } catch (err) {
@@ -676,9 +732,11 @@ app.post('/api/import', requireAuth, requireRole(['admin']), async (req, res) =>
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
             for (const v of importedVehicles) {
                 if (v.plate && v.type && v.yard) {
-                    vehicleStmt.run(v.plate.toUpperCase(), v.type, v.yard, v.base || 'Jaraguá-SP',
+                    vehicleStmt.run(
+                        v.plate.toUpperCase(), v.type, v.yard, v.base || 'Jaraguá-SP',
                         v.status || 'Aguardando linha', v.maintenance ? 1 : 0, v.keys || '', v.notes || '',
-                        v.deliveryCategory || '', v.entryTime || new Date().toISOString(), v.exitTime || null, req.session.user.username);
+                        v.deliveryCategory || '', v.entryTime || new Date().toISOString(), v.exitTime || null, req.session.user.username
+                    );
                 }
             }
         }
