@@ -5,14 +5,13 @@ const session = require('express-session');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const bcrypt = require('bcryptjs');
-const Database = require('better-sqlite3');
+const { Pool } = require('pg');
 const path = require('path');
-const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-console.log('🔧 Iniciando servidor com permissões...');
+console.log('🔧 Iniciando servidor com PostgreSQL...');
 
 // ============ SEGURANÇA ============
 app.use(helmet({
@@ -31,109 +30,97 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
-// ============ BANCO DE DADOS ============
-const dbDir = path.join(__dirname, 'database');
-if (!fs.existsSync(dbDir)) {
-    fs.mkdirSync(dbDir, { recursive: true });
-    console.log('📁 Pasta database criada');
-}
+// ============ CONEXÃO POSTGRESQL ============
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+});
 
-const dbPath = path.join(dbDir, 'patio.db');
-console.log(`💾 Banco de dados: ${dbPath}`);
+// Testar conexão
+pool.connect((err, client, release) => {
+  if (err) {
+    console.error('❌ Erro ao conectar PostgreSQL:', err.message);
+  } else {
+    console.log('✅ PostgreSQL conectado com sucesso!');
+    release();
+  }
+});
 
-const db = new Database(dbPath);
-
-// Criar tabelas
-db.exec(`
-    CREATE TABLE IF NOT EXISTS vehicles (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+// ============ INICIALIZAR BANCO ============
+async function initDatabase() {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS vehicles (
+        id SERIAL PRIMARY KEY,
         plate TEXT NOT NULL,
         type TEXT NOT NULL,
         yard TEXT NOT NULL,
         base TEXT DEFAULT 'Jaraguá-SP',
         status TEXT DEFAULT 'Aguardando linha',
-        maintenance INTEGER DEFAULT 0,
-        maintenanceProblems TEXT DEFAULT '[]',
+        maintenance BOOLEAN DEFAULT false,
+        maintenanceProblems JSONB DEFAULT '[]',
         keys TEXT DEFAULT '',
         notes TEXT DEFAULT '',
-        entryTime TEXT NOT NULL,
-        exitTime TEXT,
+        entryTime TIMESTAMP NOT NULL,
+        exitTime TIMESTAMP,
         icon TEXT DEFAULT 'default-truck',
-        createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
-        updatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
+        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updatedBy TEXT DEFAULT 'system'
-    );
-
-    CREATE TABLE IF NOT EXISTS swaps (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        date TEXT NOT NULL,
+      );
+      
+      CREATE TABLE IF NOT EXISTS swaps (
+        id SERIAL PRIMARY KEY,
+        date TIMESTAMP NOT NULL,
         plateIn TEXT DEFAULT '0000',
         plateOut TEXT NOT NULL,
         base TEXT DEFAULT '',
         notes TEXT DEFAULT '',
-        createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updatedBy TEXT DEFAULT 'system'
-    );
-
-    CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+      );
+      
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
         username TEXT UNIQUE NOT NULL,
         passwordHash TEXT NOT NULL,
         role TEXT DEFAULT 'operator',
-        createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
-        lastLogin TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS audit_log (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        lastLogin TIMESTAMP
+      );
+      
+      CREATE TABLE IF NOT EXISTS audit_log (
+        id SERIAL PRIMARY KEY,
         action TEXT NOT NULL,
         entityType TEXT,
         entityId INTEGER,
         userId TEXT,
-        details TEXT,
-        timestamp TEXT DEFAULT CURRENT_TIMESTAMP
-    );
-`);
-
-console.log('✅ Tabelas criadas com sucesso');
-
-// ============ CRIAR USUÁRIOS PADRÃO ============
-function criarUsuariosPadrao() {
-    try {
-        const adminPassword = process.env.ADMIN_PASSWORD || 'Print@2026';
-        const operatorPassword = process.env.OPERATOR_PASSWORD || 'Operador2026';
-        
-        console.log('🔐 Criando usuários padrão...');
-        console.log(`   Admin: admin / ${adminPassword}`);
-        console.log(`   Operador: operador / ${operatorPassword}`);
-
-        const existingAdmin = db.prepare('SELECT * FROM users WHERE username = ?').get('admin');
-        const existingOperator = db.prepare('SELECT * FROM users WHERE username = ?').get('operador');
-
-        if (!existingAdmin) {
-            const adminHash = bcrypt.hashSync(adminPassword, 10);
-            db.prepare('INSERT INTO users (username, passwordHash, role) VALUES (?, ?, ?)')
-                .run('admin', adminHash, 'admin');
-            console.log('✅ Usuário admin criado');
-        } else {
-            console.log('ℹ️ Usuário admin já existe');
-        }
-
-        if (!existingOperator) {
-            const operatorHash = bcrypt.hashSync(operatorPassword, 10);
-            db.prepare('INSERT INTO users (username, passwordHash, role) VALUES (?, ?, ?)')
-                .run('operador', operatorHash, 'operator');
-            console.log('✅ Usuário operador criado');
-        } else {
-            console.log('ℹ️ Usuário operador já existe');
-        }
-
-    } catch (error) {
-        console.error('❌ Erro ao criar usuários:', error.message);
+        details JSONB,
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+      
+      CREATE INDEX IF NOT EXISTS idx_vehicles_plate ON vehicles(plate);
+      CREATE INDEX IF NOT EXISTS idx_vehicles_status ON vehicles(status);
+      CREATE INDEX IF NOT EXISTS idx_vehicles_yard ON vehicles(yard);
+    `);
+    
+    // Criar usuários padrão se não existirem
+    const adminExists = await pool.query('SELECT id FROM users WHERE username = $1', ['admin']);
+    if (adminExists.rows.length === 0) {
+      const adminHash = bcrypt.hashSync(process.env.ADMIN_PASSWORD || 'Print@2026', 10);
+      const operatorHash = bcrypt.hashSync(process.env.OPERATOR_PASSWORD || 'Operador2026', 10);
+      await pool.query('INSERT INTO users (username, passwordHash, role) VALUES ($1, $2, $3)', ['admin', adminHash, 'admin']);
+      await pool.query('INSERT INTO users (username, passwordHash, role) VALUES ($1, $2, $3)', ['operador', operatorHash, 'operator']);
+      console.log('✅ Usuários padrão criados');
     }
+    
+    console.log('✅ Banco de dados PostgreSQL inicializado');
+  } catch (err) {
+    console.error('❌ Erro ao inicializar banco:', err.message);
+  }
 }
 
-criarUsuariosPadrao();
+initDatabase();
 
 // ============ MIDDLEWARES ============
 app.use(express.json({ limit: '10mb' }));
@@ -144,7 +131,7 @@ app.use(session({
     resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: false,
+        secure: process.env.NODE_ENV === 'production',
         httpOnly: true,
         maxAge: 8 * 60 * 60 * 1000
     }
@@ -159,7 +146,7 @@ const requireAuth = (req, res, next) => {
     }
 };
 
-// 🔐 Middleware de verificação de permissão (NOVO)
+// Middleware de verificação de permissão
 const requireRole = (allowedRoles) => (req, res, next) => {
     if (!req.session?.user) {
         return res.status(401).json({ error: 'Não autenticado' });
@@ -168,24 +155,9 @@ const requireRole = (allowedRoles) => (req, res, next) => {
     const userRole = req.session.user.role;
     
     if (!allowedRoles.includes(userRole)) {
-        // Log de tentativa de acesso não autorizado
-        db.run(`INSERT INTO audit_log (action, entityType, userId, details, timestamp) VALUES (?, ?, ?, ?, ?)`,
-            ['ACCESS_DENIED', 'system', req.session.user.id, 
-             JSON.stringify({ 
-                 role: userRole, 
-                 path: req.path, 
-                 method: req.method,
-                 allowedRoles 
-             }), 
-             new Date().toISOString()]);
-        
-        console.log(`🚫 Acesso negado: ${userRole} tentou acessar ${req.path}`);
-        
         return res.status(403).json({ 
             error: 'Acesso negado', 
-            message: 'Você não tem permissão para realizar esta ação. Contate um administrador.',
-            userRole,
-            allowedRoles
+            message: 'Você não tem permissão para realizar esta ação.'
         });
     }
     
@@ -199,9 +171,9 @@ const logAction = (action) => (req, res, next) => {
         try {
             const parsed = typeof data === 'string' ? JSON.parse(data) : data;
             if (res.statusCode < 400) {
-                db.run(`
+                pool.query(`
                     INSERT INTO audit_log (action, entityType, entityId, userId, details, timestamp)
-                    VALUES (?, ?, ?, ?, ?, ?)
+                    VALUES ($1, $2, $3, $4, $5, $6)
                 `, [
                     action,
                     parsed?.entityType || null,
@@ -218,7 +190,7 @@ const logAction = (action) => (req, res, next) => {
 };
 
 // ============ ROTAS DE AUTENTICAÇÃO ============
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
     const { username, password } = req.body;
     
     console.log(`🔐 Tentativa de login: ${username}`);
@@ -228,7 +200,8 @@ app.post('/api/auth/login', (req, res) => {
     }
 
     try {
-        const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username.toLowerCase());
+        const result = await pool.query('SELECT * FROM users WHERE username = $1', [username.toLowerCase()]);
+        const user = result.rows[0];
         
         if (!user) {
             console.log(`❌ Usuário não encontrado: ${username}`);
@@ -246,8 +219,7 @@ app.post('/api/auth/login', (req, res) => {
 
         console.log(`✅ Login bem-sucedido: ${username}`);
 
-        db.prepare('UPDATE users SET lastLogin = ? WHERE id = ?')
-            .run(new Date().toISOString(), user.id);
+        await pool.query('UPDATE users SET lastLogin = $1 WHERE id = $2', [new Date().toISOString(), user.id]);
 
         req.session.user = {
             id: user.id,
@@ -270,8 +242,6 @@ app.post('/api/auth/login', (req, res) => {
 app.post('/api/auth/logout', (req, res) => {
     if (req.session?.user) {
         console.log(`🚪 Logout: ${req.session.user.username}`);
-        db.run(`INSERT INTO audit_log (action, entityType, userId, details, timestamp) VALUES (?, ?, ?, ?, ?)`,
-            ['LOGOUT', 'user', req.session.user.id, req.session.user.username, new Date().toISOString()]);
     }
     req.session.destroy();
     res.json({ success: true });
@@ -317,424 +287,482 @@ function getPermissions(role) {
 }
 
 // ============ ROTAS DE VEÍCULOS ============
-app.get('/api/vehicles', requireAuth, (req, res) => {
-    const vehicles = db.prepare(`
-        SELECT * FROM vehicles 
-        ORDER BY 
-            CASE WHEN status = 'Liberado' THEN 1 ELSE 0 END,
-            entryTime DESC
-    `).all();
+app.get('/api/vehicles', requireAuth, async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT * FROM vehicles 
+            ORDER BY 
+                CASE WHEN status = 'Liberado' THEN 1 ELSE 0 END,
+                entryTime DESC
+        `);
+        
+        const vehiclesFormatted = result.rows.map(v => ({
+            ...v,
+            maintenanceProblems: v.maintenanceproblems || [],
+            entryDate: formatDateBR(v.entrytime),
+            exitDate: v.exittime ? formatDateBR(v.exittime) : null,
+            timeInYard: calculateTimeInYard(v.entrytime, v.exittime)
+        }));
 
-    const vehiclesFormatted = vehicles.map(v => ({
-        ...v,
-        maintenanceProblems: JSON.parse(v.maintenanceProblems || '[]'),
-        entryDate: formatDateBR(v.entryTime),
-        exitDate: v.exitTime ? formatDateBR(v.exitTime) : null,
-        timeInYard: calculateTimeInYard(v.entryTime, v.exitTime)
-    }));
-
-    res.json(vehiclesFormatted);
+        res.json(vehiclesFormatted);
+    } catch (err) {
+        console.error('Erro ao listar veículos:', err);
+        res.status(500).json({ error: 'Erro ao buscar veículos' });
+    }
 });
 
-app.post('/api/vehicles', requireAuth, logAction('VEHICLE_CREATED'), (req, res) => {
+app.post('/api/vehicles', requireAuth, logAction('VEHICLE_CREATED'), async (req, res) => {
     const { plate, type, yard, base, keys, notes, entryDate } = req.body;
     
     if (!plate || !type || !yard) {
         return res.status(400).json({ error: 'Placa, tipo e pátio são obrigatórios' });
     }
 
-    const stmt = db.prepare(`
-        INSERT INTO vehicles (plate, type, yard, base, keys, notes, entryTime, updatedBy)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `);
+    try {
+        const result = await pool.query(`
+            INSERT INTO vehicles (plate, type, yard, base, keys, notes, entrytime, updatedby)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            RETURNING *
+        `, [
+            plate.toUpperCase().replace(/[^A-Z0-9-]/g, ''),
+            type,
+            yard,
+            base || 'Jaraguá-SP',
+            keys || '',
+            notes || '',
+            entryDate ? new Date(entryDate).toISOString() : new Date().toISOString(),
+            req.session.user.username
+        ]);
+        
+        const newVehicle = result.rows[0];
+        newVehicle.maintenanceProblems = newVehicle.maintenanceproblems || [];
 
-    const result = stmt.run(
-        plate.toUpperCase().replace(/[^A-Z0-9-]/g, ''),
-        type,
-        yard,
-        base || 'Jaraguá-SP',
-        keys || '',
-        notes || '',
-        entryDate ? new Date(entryDate).toISOString() : new Date().toISOString(),
-        req.session.user.username
-    );
-
-    const newVehicle = db.prepare('SELECT * FROM vehicles WHERE id = ?').get(result.lastInsertRowid);
-
-    res.json({
-        ...newVehicle,
-        maintenanceProblems: JSON.parse(newVehicle.maintenanceProblems || '[]'),
-        entityType: 'vehicle',
-        entityId: result.lastInsertRowid
-    });
+        res.json({
+            ...newVehicle,
+            entityType: 'vehicle',
+            entityId: newVehicle.id
+        });
+    } catch (err) {
+        console.error('Erro ao criar veículo:', err);
+        res.status(500).json({ error: 'Erro ao criar veículo' });
+    }
 });
 
-app.put('/api/vehicles/:id', requireAuth, logAction('VEHICLE_UPDATED'), (req, res) => {
+app.put('/api/vehicles/:id', requireAuth, logAction('VEHICLE_UPDATED'), async (req, res) => {
     const { id } = req.params;
     const updates = req.body;
     
-    const vehicle = db.prepare('SELECT * FROM vehicles WHERE id = ?').get(id);
-    if (!vehicle) {
-        return res.status(404).json({ error: 'Veículo não encontrado' });
-    }
-
-    const allowedFields = ['plate', 'type', 'yard', 'base', 'status', 'maintenance', 'keys', 'notes', 'entryTime'];
-    const setClauses = [];
-    const values = [];
-
-    allowedFields.forEach(field => {
-        if (updates[field] !== undefined) {
-            if (field === 'maintenance') {
-                setClauses.push(`${field} = ?`);
-                values.push(updates[field] ? 1 : 0);
-            } else if (field === 'entryTime') {
-                setClauses.push(`${field} = ?`);
-                values.push(new Date(updates[field]).toISOString());
-            } else {
-                setClauses.push(`${field} = ?`);
-                values.push(updates[field]);
-            }
+    try {
+        const result = await pool.query(`
+            UPDATE vehicles 
+            SET plate = COALESCE($1, plate),
+                type = COALESCE($2, type),
+                yard = COALESCE($3, yard),
+                base = COALESCE($4, base),
+                status = COALESCE($5, status),
+                maintenance = COALESCE($6, maintenance),
+                keys = COALESCE($7, keys),
+                notes = COALESCE($8, notes),
+                entrytime = COALESCE($9, entrytime),
+                updatedat = CURRENT_TIMESTAMP,
+                updatedby = $10
+            WHERE id = $11
+            RETURNING *
+        `, [
+            updates.plate,
+            updates.type,
+            updates.yard,
+            updates.base,
+            updates.status,
+            updates.maintenance,
+            updates.keys,
+            updates.notes,
+            updates.entryTime ? new Date(updates.entryTime).toISOString() : null,
+            req.session.user.username,
+            id
+        ]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Veículo não encontrado' });
         }
-    });
+        
+        const updatedVehicle = result.rows[0];
+        updatedVehicle.maintenanceProblems = updatedVehicle.maintenanceproblems || [];
 
-    setClauses.push(`updatedAt = ?`);
-    values.push(new Date().toISOString());
-    setClauses.push(`updatedBy = ?`);
-    values.push(req.session.user.username);
-    values.push(id);
-
-    const stmt = db.prepare(`UPDATE vehicles SET ${setClauses.join(', ')} WHERE id = ?`);
-    stmt.run(...values);
-
-    const updatedVehicle = db.prepare('SELECT * FROM vehicles WHERE id = ?').get(id);
-
-    res.json({
-        success: true,
-        ...updatedVehicle,
-        maintenanceProblems: JSON.parse(updatedVehicle.maintenanceProblems || '[]'),
-        entityType: 'vehicle',
-        entityId: parseInt(id)
-    });
+        res.json({
+            success: true,
+            ...updatedVehicle,
+            entityType: 'vehicle',
+            entityId: parseInt(id)
+        });
+    } catch (err) {
+        console.error('Erro ao atualizar veículo:', err);
+        res.status(500).json({ error: 'Erro ao atualizar veículo' });
+    }
 });
 
-app.put('/api/vehicles/:id/status', requireAuth, logAction('VEHICLE_STATUS_UPDATED'), (req, res) => {
+app.put('/api/vehicles/:id/status', requireAuth, logAction('VEHICLE_STATUS_UPDATED'), async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
 
-    const vehicle = db.prepare('SELECT * FROM vehicles WHERE id = ?').get(id);
-    if (!vehicle) {
-        return res.status(404).json({ error: 'Veículo não encontrado' });
+    try {
+        const maintenance = status === 'Em manutenção';
+        
+        const result = await pool.query(`
+            UPDATE vehicles 
+            SET status = $1, maintenance = $2, updatedat = CURRENT_TIMESTAMP, updatedby = $3
+            WHERE id = $4
+            RETURNING *
+        `, [status, maintenance, req.session.user.username, id]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Veículo não encontrado' });
+        }
+        
+        const updatedVehicle = result.rows[0];
+        updatedVehicle.maintenanceProblems = updatedVehicle.maintenanceproblems || [];
+
+        res.json({
+            success: true,
+            ...updatedVehicle,
+            entityType: 'vehicle',
+            entityId: parseInt(id)
+        });
+    } catch (err) {
+        console.error('Erro ao atualizar status:', err);
+        res.status(500).json({ error: 'Erro ao atualizar status' });
     }
-
-    const maintenance = status === 'Em manutenção' ? 1 : vehicle.maintenance;
-
-    db.prepare(`
-        UPDATE vehicles SET status = ?, maintenance = ?, updatedAt = ?, updatedBy = ?
-        WHERE id = ?
-    `).run(status, maintenance, new Date().toISOString(), req.session.user.username, id);
-
-    const updatedVehicle = db.prepare('SELECT * FROM vehicles WHERE id = ?').get(id);
-
-    res.json({
-        success: true,
-        ...updatedVehicle,
-        maintenanceProblems: JSON.parse(updatedVehicle.maintenanceProblems || '[]'),
-        entityType: 'vehicle',
-        entityId: parseInt(id)
-    });
 });
 
-app.post('/api/vehicles/:id/exit', requireAuth, logAction('VEHICLE_EXIT'), (req, res) => {
+app.post('/api/vehicles/:id/exit', requireAuth, logAction('VEHICLE_EXIT'), async (req, res) => {
     const { id } = req.params;
 
-    const vehicle = db.prepare('SELECT * FROM vehicles WHERE id = ?').get(id);
-    if (!vehicle) {
-        return res.status(404).json({ error: 'Veículo não encontrado' });
+    try {
+        const result = await pool.query(`
+            UPDATE vehicles 
+            SET status = 'Liberado', exittime = CURRENT_TIMESTAMP, 
+                updatedat = CURRENT_TIMESTAMP, updatedby = $1
+            WHERE id = $2
+            RETURNING *
+        `, [req.session.user.username, id]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Veículo não encontrado' });
+        }
+        
+        const updatedVehicle = result.rows[0];
+        updatedVehicle.maintenanceProblems = updatedVehicle.maintenanceproblems || [];
+
+        res.json({
+            success: true,
+            ...updatedVehicle,
+            entityType: 'vehicle',
+            entityId: parseInt(id)
+        });
+    } catch (err) {
+        console.error('Erro na saída:', err);
+        res.status(500).json({ error: 'Erro ao registrar saída' });
     }
-
-    db.prepare(`
-        UPDATE vehicles SET status = 'Liberado', exitTime = ?, updatedAt = ?, updatedBy = ?
-        WHERE id = ?
-    `).run(new Date().toISOString(), new Date().toISOString(), req.session.user.username, id);
-
-    const updatedVehicle = db.prepare('SELECT * FROM vehicles WHERE id = ?').get(id);
-
-    res.json({
-        success: true,
-        ...updatedVehicle,
-        maintenanceProblems: JSON.parse(updatedVehicle.maintenanceProblems || '[]'),
-        entityType: 'vehicle',
-        entityId: parseInt(id)
-    });
 });
 
-// 🔐 Rota de EXCLUIR - Apenas ADMIN
-app.delete('/api/vehicles/:id', requireAuth, requireRole(['admin']), logAction('VEHICLE_DELETED'), (req, res) => {
+app.delete('/api/vehicles/:id', requireAuth, requireRole(['admin']), logAction('VEHICLE_DELETED'), async (req, res) => {
     const { id } = req.params;
 
-    const vehicle = db.prepare('SELECT * FROM vehicles WHERE id = ?').get(id);
-    if (!vehicle) {
-        return res.status(404).json({ error: 'Veículo não encontrado' });
+    try {
+        await pool.query('DELETE FROM vehicles WHERE id = $1', [id]);
+        res.json({
+            success: true,
+            message: 'Veículo removido',
+            entityType: 'vehicle',
+            entityId: parseInt(id)
+        });
+    } catch (err) {
+        console.error('Erro ao deletar:', err);
+        res.status(500).json({ error: 'Erro ao deletar veículo' });
     }
-
-    db.prepare('DELETE FROM vehicles WHERE id = ?').run(id);
-
-    res.json({
-        success: true,
-        message: 'Veículo removido',
-        entityType: 'vehicle',
-        entityId: parseInt(id)
-    });
 });
 
 // ============ ROTAS DE TROCAS ============
-app.get('/api/swaps', requireAuth, (req, res) => {
-    const swaps = db.prepare('SELECT * FROM swaps ORDER BY createdAt DESC LIMIT 100').all();
-    
-    const swapsFormatted = swaps.map(s => ({
-        ...s,
-        dateFormatted: formatDateBR(s.date)
-    }));
+app.get('/api/swaps', requireAuth, async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM swaps ORDER BY createdat DESC LIMIT 100');
+        
+        const swapsFormatted = result.rows.map(s => ({
+            ...s,
+            dateFormatted: formatDateBR(s.date)
+        }));
 
-    res.json(swapsFormatted);
+        res.json(swapsFormatted);
+    } catch (err) {
+        console.error('Erro ao listar trocas:', err);
+        res.status(500).json({ error: 'Erro ao buscar trocas' });
+    }
 });
 
-app.post('/api/swaps', requireAuth, logAction('SWAP_CREATED'), (req, res) => {
+app.post('/api/swaps', requireAuth, logAction('SWAP_CREATED'), async (req, res) => {
     const { dateIn, plateIn, plateOut, base, notes } = req.body;
     
-    const stmt = db.prepare(`
-        INSERT INTO swaps (date, plateIn, plateOut, base, notes, updatedBy)
-        VALUES (?, ?, ?, ?, ?, ?)
-    `);
+    try {
+        const result = await pool.query(`
+            INSERT INTO swaps (date, platein, plateout, base, notes, updatedby)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            RETURNING *
+        `, [
+            dateIn ? new Date(dateIn).toISOString() : new Date().toISOString(),
+            plateIn?.toUpperCase() || '0000',
+            plateOut?.toUpperCase() || '0000',
+            base || '',
+            notes || '',
+            req.session.user.username
+        ]);
+        
+        const newSwap = result.rows[0];
 
-    const result = stmt.run(
-        dateIn ? new Date(dateIn).toISOString() : new Date().toISOString(),
-        plateIn?.toUpperCase() || '0000',
-        plateOut?.toUpperCase() || '0000',
-        base || '',
-        notes || '',
-        req.session.user.username
-    );
-
-    const newSwap = db.prepare('SELECT * FROM swaps WHERE id = ?').get(result.lastInsertRowid);
-
-    res.json({
-        success: true,
-        ...newSwap,
-        dateFormatted: formatDateBR(newSwap.date),
-        entityType: 'swap',
-        entityId: result.lastInsertRowid
-    });
+        res.json({
+            success: true,
+            ...newSwap,
+            dateFormatted: formatDateBR(newSwap.date),
+            entityType: 'swap',
+            entityId: newSwap.id
+        });
+    } catch (err) {
+        console.error('Erro ao criar troca:', err);
+        res.status(500).json({ error: 'Erro ao criar troca' });
+    }
 });
 
-app.put('/api/swaps/:id', requireAuth, logAction('SWAP_UPDATED'), (req, res) => {
+app.put('/api/swaps/:id', requireAuth, logAction('SWAP_UPDATED'), async (req, res) => {
     const { id } = req.params;
     const updates = req.body;
 
-    const swap = db.prepare('SELECT * FROM swaps WHERE id = ?').get(id);
-    if (!swap) {
-        return res.status(404).json({ error: 'Troca não encontrada' });
-    }
-
-    const allowedFields = ['date', 'plateIn', 'plateOut', 'base', 'notes'];
-    const setClauses = [];
-    const values = [];
-
-    allowedFields.forEach(field => {
-        if (updates[field] !== undefined) {
-            if (field === 'date') {
-                setClauses.push(`${field} = ?`);
-                values.push(new Date(updates[field]).toISOString());
-            } else {
-                setClauses.push(`${field} = ?`);
-                values.push(updates[field]);
-            }
+    try {
+        const result = await pool.query(`
+            UPDATE swaps 
+            SET date = COALESCE($1, date),
+                platein = COALESCE($2, platein),
+                plateout = COALESCE($3, plateout),
+                base = COALESCE($4, base),
+                notes = COALESCE($5, notes),
+                updatedby = $6
+            WHERE id = $7
+            RETURNING *
+        `, [
+            updates.date ? new Date(updates.date).toISOString() : null,
+            updates.plateIn,
+            updates.plateOut,
+            updates.base,
+            updates.notes,
+            req.session.user.username,
+            id
+        ]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Troca não encontrada' });
         }
-    });
+        
+        const updatedSwap = result.rows[0];
 
-    values.push(id);
-    const stmt = db.prepare(`UPDATE swaps SET ${setClauses.join(', ')} WHERE id = ?`);
-    stmt.run(...values);
-
-    const updatedSwap = db.prepare('SELECT * FROM swaps WHERE id = ?').get(id);
-
-    res.json({
-        success: true,
-        ...updatedSwap,
-        dateFormatted: formatDateBR(updatedSwap.date),
-        entityType: 'swap',
-        entityId: parseInt(id)
-    });
+        res.json({
+            success: true,
+            ...updatedSwap,
+            dateFormatted: formatDateBR(updatedSwap.date),
+            entityType: 'swap',
+            entityId: parseInt(id)
+        });
+    } catch (err) {
+        console.error('Erro ao atualizar troca:', err);
+        res.status(500).json({ error: 'Erro ao atualizar troca' });
+    }
 });
 
-// 🔐 Rota de EXCLUIR TROCA - Apenas ADMIN
-app.delete('/api/swaps/:id', requireAuth, requireRole(['admin']), logAction('SWAP_DELETED'), (req, res) => {
+app.delete('/api/swaps/:id', requireAuth, requireRole(['admin']), logAction('SWAP_DELETED'), async (req, res) => {
     const { id } = req.params;
-    db.prepare('DELETE FROM swaps WHERE id = ?').run(id);
-
-    res.json({
-        success: true,
-        entityType: 'swap',
-        entityId: parseInt(id)
-    });
+    
+    try {
+        await pool.query('DELETE FROM swaps WHERE id = $1', [id]);
+        res.json({
+            success: true,
+            entityType: 'swap',
+            entityId: parseInt(id)
+        });
+    } catch (err) {
+        console.error('Erro ao deletar troca:', err);
+        res.status(500).json({ error: 'Erro ao deletar troca' });
+    }
 });
 
 // ============ ESTATÍSTICAS ============
-app.get('/api/stats', requireAuth, (req, res) => {
-    const active = db.prepare("SELECT * FROM vehicles WHERE status != 'Liberado'").all();
-    const liberated = db.prepare("SELECT * FROM vehicles WHERE status = 'Liberado'").all();
+app.get('/api/stats', requireAuth, async (req, res) => {
+    try {
+        const activeResult = await pool.query("SELECT * FROM vehicles WHERE status != 'Liberado'");
+        const liberatedResult = await pool.query("SELECT * FROM vehicles WHERE status = 'Liberado'");
+        
+        const active = activeResult.rows;
+        const liberated = liberatedResult.rows;
 
-    const entreguesDiversos = liberated.filter(v => {
-        const notes = (v.notes || '').toLowerCase();
-        return !notes.includes('correios') && !notes.includes('ect');
-    }).length;
+        const entreguesDiversos = liberated.filter(v => {
+            const notes = (v.notes || '').toLowerCase();
+            return !notes.includes('correios') && !notes.includes('ect');
+        }).length;
 
-    const entreguesCorreios = liberated.filter(v => {
-        const notes = (v.notes || '').toLowerCase();
-        return notes.includes('correios') || notes.includes('ect');
-    }).length;
+        const entreguesCorreios = liberated.filter(v => {
+            const notes = (v.notes || '').toLowerCase();
+            return notes.includes('correios') || notes.includes('ect');
+        }).length;
 
-    const now = new Date();
-    const stalledVehicles = active.filter(v => {
-        const entry = new Date(v.entryTime);
-        const hoursDiff = (now - entry) / (1000 * 60 * 60);
-        return hoursDiff > 24 && v.status === 'Aguardando linha';
-    });
+        const now = new Date();
+        const stalledVehicles = active.filter(v => {
+            const entry = new Date(v.entrytime);
+            const hoursDiff = (now - entry) / (1000 * 60 * 60);
+            return hoursDiff > 24 && v.status === 'Aguardando linha';
+        });
 
-    const stats = {
-        cavalosMecanicos: active.filter(v => v.type === 'Cavalo Mecânico').length,
-        carretas: active.filter(v => v.type === 'Carreta').length,
-        emManutencao: active.filter(v => v.status === 'Em manutenção').length,
-        liberados: liberated.length,
-        entreguesDiversos,
-        entreguesCorreios,
-        totalAtivos: active.length,
-        totalGeral: db.prepare('SELECT COUNT(*) as count FROM vehicles').get().count,
-        stalledVehicles: stalledVehicles.length,
-        stalledVehiclesList: stalledVehicles.map(v => ({ id: v.id, plate: v.plate, hours: Math.round((now - new Date(v.entryTime)) / (1000 * 60 * 60)) })),
-        lastUpdated: new Date().toISOString()
-    };
+        const stats = {
+            cavalosMecanicos: active.filter(v => v.type === 'Cavalo Mecânico').length,
+            carretas: active.filter(v => v.type === 'Carreta').length,
+            emManutencao: active.filter(v => v.status === 'Em manutenção').length,
+            liberados: liberated.length,
+            entreguesDiversos,
+            entreguesCorreios,
+            totalAtivos: active.length,
+            totalGeral: active.length + liberated.length,
+            stalledVehicles: stalledVehicles.length,
+            stalledVehiclesList: stalledVehicles.map(v => ({ 
+                id: v.id, 
+                plate: v.plate, 
+                hours: Math.round((now - new Date(v.entrytime)) / (1000 * 60 * 60)) 
+            })),
+            lastUpdated: new Date().toISOString()
+        };
 
-    res.json(stats);
+        res.json(stats);
+    } catch (err) {
+        console.error('Erro ao buscar estatísticas:', err);
+        res.status(500).json({ error: 'Erro ao buscar estatísticas' });
+    }
 });
 
-// 🔐 Rota de AUDITORIA - Apenas ADMIN
-app.get('/api/audit', requireAuth, requireRole(['admin']), (req, res) => {
+// ============ AUDITORIA ============
+app.get('/api/audit', requireAuth, requireRole(['admin']), async (req, res) => {
     const { limit = 100, offset = 0 } = req.query;
-    const logs = db.prepare(`
-        SELECT * FROM audit_log 
-        ORDER BY timestamp DESC 
-        LIMIT ? OFFSET ?
-    `).all(parseInt(limit), parseInt(offset));
+    
+    try {
+        const result = await pool.query(`
+            SELECT * FROM audit_log 
+            ORDER BY timestamp DESC 
+            LIMIT $1 OFFSET $2
+        `, [parseInt(limit), parseInt(offset)]);
 
-    res.json(logs);
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Erro ao buscar auditoria:', err);
+        res.status(500).json({ error: 'Erro ao buscar auditoria' });
+    }
 });
 
 // ============ IMPORTAR/EXPORTAR ============
-// 🔐 IMPORTAR - Apenas ADMIN
-app.post('/api/import', requireAuth, requireRole(['admin']), logAction('DATA_IMPORTED'), (req, res) => {
+app.post('/api/import', requireAuth, requireRole(['admin']), logAction('DATA_IMPORTED'), async (req, res) => {
     const { vehicles: importedVehicles, swaps: importedSwaps } = req.body;
     
     if (!Array.isArray(importedVehicles)) {
         return res.status(400).json({ error: 'Dados devem conter: {"vehicles": [...]} ' });
     }
 
-    const backupDir = path.join(__dirname, 'backups');
-    if (!fs.existsSync(backupDir)) {
-        fs.mkdirSync(backupDir, { recursive: true });
-    }
+    try {
+        // Backup antes de importar
+        const backup = {
+            vehicles: (await pool.query('SELECT * FROM vehicles')).rows,
+            swaps: (await pool.query('SELECT * FROM swaps')).rows,
+            exportedAt: new Date().toISOString(),
+            backedUpBy: req.session.user.username
+        };
+        
+        // Limpar dados existentes
+        await pool.query('DELETE FROM vehicles');
+        await pool.query('DELETE FROM swaps');
+        
+        let imported = 0;
+        let errors = 0;
 
-    const backup = {
-        vehicles: db.prepare('SELECT * FROM vehicles').all(),
-        swaps: db.prepare('SELECT * FROM swaps').all(),
-        exportedAt: new Date().toISOString(),
-        backedUpBy: req.session.user.username
-    };
-    
-    const backupFile = path.join(backupDir, `backup-pre-import-${Date.now()}.json`);
-    fs.writeFileSync(backupFile, JSON.stringify(backup, null, 2));
-    console.log(`💾 Backup criado antes da importação: ${backupFile}`);
-
-    db.exec('DELETE FROM vehicles');
-    db.exec('DELETE FROM swaps');
-    db.exec("DELETE FROM sqlite_sequence WHERE name='vehicles'");
-    db.exec("DELETE FROM sqlite_sequence WHERE name='swaps'");
-
-    let imported = 0;
-    let errors = 0;
-
-    const vehicleStmt = db.prepare(`
-        INSERT INTO vehicles (plate, type, yard, base, status, maintenance, keys, notes, entryTime, exitTime, updatedBy)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    importedVehicles.forEach(v => {
-        if (v.plate && v.type && v.yard) {
-            try {
-                vehicleStmt.run(
-                    v.plate.toUpperCase(),
-                    v.type,
-                    v.yard,
-                    v.base || 'Jaraguá-SP',
-                    v.status || 'Aguardando linha',
-                    v.maintenance ? 1 : 0,
-                    v.keys || '',
-                    v.notes || '',
-                    v.entryTime || new Date().toISOString(),
-                    v.exitTime || null,
-                    req.session.user.username
-                );
-                imported++;
-            } catch (e) {
+        for (const v of importedVehicles) {
+            if (v.plate && v.type && v.yard) {
+                try {
+                    await pool.query(`
+                        INSERT INTO vehicles (plate, type, yard, base, status, maintenance, keys, notes, entrytime, exittime, updatedby)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                    `, [
+                        v.plate.toUpperCase(),
+                        v.type,
+                        v.yard,
+                        v.base || 'Jaraguá-SP',
+                        v.status || 'Aguardando linha',
+                        v.maintenance || false,
+                        v.keys || '',
+                        v.notes || '',
+                        v.entryTime || new Date().toISOString(),
+                        v.exitTime || null,
+                        req.session.user.username
+                    ]);
+                    imported++;
+                } catch (e) {
+                    errors++;
+                }
+            } else {
                 errors++;
             }
-        } else {
-            errors++;
         }
-    });
 
-    if (Array.isArray(importedSwaps)) {
-        const swapStmt = db.prepare(`
-            INSERT INTO swaps (date, plateIn, plateOut, base, notes, updatedBy)
-            VALUES (?, ?, ?, ?, ?, ?)
-        `);
-
-        importedSwaps.forEach(s => {
-            if (s.plateOut) {
-                try {
-                    swapStmt.run(
-                        s.date || new Date().toISOString(),
-                        s.plateIn || '0000',
-                        s.plateOut,
-                        s.base || '',
-                        s.notes || '',
-                        req.session.user.username
-                    );
-                } catch (e) {}
+        if (Array.isArray(importedSwaps)) {
+            for (const s of importedSwaps) {
+                if (s.plateOut) {
+                    try {
+                        await pool.query(`
+                            INSERT INTO swaps (date, platein, plateout, base, notes, updatedby)
+                            VALUES ($1, $2, $3, $4, $5, $6)
+                        `, [
+                            s.date || new Date().toISOString(),
+                            s.plateIn || '0000',
+                            s.plateOut,
+                            s.base || '',
+                            s.notes || '',
+                            req.session.user.username
+                        ]);
+                    } catch (e) {}
+                }
             }
-        });
-    }
+        }
 
-    res.json({ 
-        success: true, 
-        imported, 
-        errors, 
-        message: `✅ ${imported} veículo(s) importado(s).`,
-        entityType: 'system',
-        entityId: 0
-    });
+        res.json({ 
+            success: true, 
+            imported, 
+            errors, 
+            message: `✅ ${imported} veículo(s) importado(s).`,
+            entityType: 'system',
+            entityId: 0
+        });
+    } catch (err) {
+        console.error('Erro ao importar:', err);
+        res.status(500).json({ error: 'Erro ao importar dados' });
+    }
 });
 
-// ✅ EXPORTAR - Admin e Operador podem
-app.get('/api/export', requireAuth, (req, res) => {
-    const data = {
-        vehicles: db.prepare('SELECT * FROM vehicles').all(),
-        swaps: db.prepare('SELECT * FROM swaps').all(),
-        exportedAt: new Date().toISOString(),
-        version: '4.0',
-        exportedBy: req.session.user.username
-    };
-    res.json(data);
+app.get('/api/export', requireAuth, async (req, res) => {
+    try {
+        const vehicles = (await pool.query('SELECT * FROM vehicles')).rows;
+        const swaps = (await pool.query('SELECT * FROM swaps')).rows;
+        
+        const data = {
+            vehicles,
+            swaps,
+            exportedAt: new Date().toISOString(),
+            version: '5.2-postgresql',
+            exportedBy: req.session.user.username
+        };
+        res.json(data);
+    } catch (err) {
+        console.error('Erro ao exportar:', err);
+        res.status(500).json({ error: 'Erro ao exportar dados' });
+    }
 });
 
 // ============ FUNÇÕES AUXILIARES ============
@@ -743,7 +771,6 @@ function formatDateBR(dateString) {
     
     const date = new Date(dateString);
     
-    // Corrigir fuso horário para Brasília (UTC-3)
     const options = {
         timeZone: 'America/Sao_Paulo',
         day: '2-digit',
@@ -774,19 +801,14 @@ function calculateTimeInYard(entryTime, exitTime) {
 // ============ INICIAR SERVIDOR ============
 app.listen(PORT, () => {
     console.log('\n' + '='.repeat(60));
-    console.log('🚚 CONTROLE DE PÁTIO PRINT - v4.0 (COM PERMISSÕES)');
+    console.log('🚚 CONTROLE DE PÁTIO PRINT - v5.2 (PostgreSQL)');
     console.log('='.repeat(60));
     console.log(`📍 Servidor rodando na porta ${PORT}`);
     console.log(`🌐 Acesse: http://localhost:${PORT}`);
     console.log('='.repeat(60));
-    console.log('🔐 CREDENCIAIS DE ACESSO:');
-    console.log(`   👑 Admin:    admin    / ${process.env.ADMIN_PASSWORD || 'Print@2026'}`);
-    console.log(`   👤 Operador: operador / ${process.env.OPERATOR_PASSWORD || 'Operador2026'}`);
+    console.log('🔐 Sistema iniciado. Consulte o administrador para credenciais.');
     console.log('='.repeat(60));
-    console.log('🔒 PERMISSÕES:');
-    console.log('   Admin:    Acesso TOTAL (criar, editar, excluir, importar, auditoria)');
-    console.log('   Operador: Acesso LIMITADO (criar, editar, NÃO pode excluir/importar)');
-    console.log('='.repeat(60));
-    console.log('💾 Banco de dados: ' + dbPath);
+    console.log('💾 Banco: PostgreSQL');
+    console.log('🕐 Fuso: America/Sao_Paulo (UTC-3)');
     console.log('='.repeat(60) + '\n');
 });
