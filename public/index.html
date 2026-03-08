@@ -126,6 +126,7 @@
         .history-item { border-left: 3px solid var(--print-blue); padding-left: 12px; margin-bottom: 12px; }
         .history-item.alert { border-left-color: #dc3545; background: #fff5f5; }
         .history-item.success { border-left-color: #198754; background: #d1e7dd; }
+        .history-item.info { border-left-color: #0d6efd; background: #e7f1ff; }
         @media (max-width: 768px) {
             .stat-card .count { font-size: 1.4rem; }
             .action-bar .btn { width: 100%; margin-right: 0; margin-bottom: 8px; min-width: auto; }
@@ -277,7 +278,72 @@
                     </div>
                 </div>
             </div>
-                        <!-- Tabela de Veículos -->
+
+            <div class="action-bar">
+                <div class="container-fluid px-3">
+                    <button class="btn btn-primary" onclick="openEntryModal()">
+                        <i class="bi bi-plus-lg"></i> Novo Veículo
+                    </button>
+                    <button class="btn btn-scan-exit" onclick="openScanExitModal()">
+                        <i class="bi bi-qr-code-scan"></i> Escanear Saída
+                    </button>
+                    <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#swapModal">
+                        <i class="bi bi-arrow-left-right"></i> Registrar Troca
+                    </button>
+                    <button class="btn btn-outline-success" onclick="exportToJSON()">
+                        <i class="bi bi-file-earmark-json"></i> Exportar JSON
+                    </button>
+                    <button class="btn btn-outline-success" onclick="exportToExcel()">
+                        <i class="bi bi-file-earmark-excel"></i> Exportar Excel
+                    </button>
+                    <button class="btn btn-outline-danger" onclick="exportToPDF()">
+                        <i class="bi bi-file-earmark-pdf"></i> Exportar PDF
+                    </button>
+                    <button class="btn btn-outline-info" id="btnImportJSON" data-bs-toggle="modal" data-bs-target="#importModal" style="display: inline-flex !important;">
+                        <i class="bi bi-file-earmark-arrow-up"></i> Importar JSON
+                    </button>
+                    <div class="vr mx-2"></div>
+                    <button class="btn btn-outline-warning" onclick="refreshData()">
+                        <i class="bi bi-arrow-clockwise"></i> Atualizar
+                    </button>
+                </div>
+            </div>
+
+            <div class="filter-bar">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                        <label class="form-label small text-muted">Buscar</label>
+                        <input type="text" class="form-control" id="searchInput" placeholder="Placa, tipo ou pátio..." onkeyup="filterTable()">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted">Filtrar por Pátio</label>
+                        <select class="form-select" id="yardFilter" onchange="filterTable()">
+                            <option value="">Todos os Pátios</option>
+                            <option value="Pátio Jaraguá">Pátio Jaraguá</option>
+                            <option value="Pátio Bandeirantes">Pátio Bandeirantes</option>
+                            <option value="Pátio Superior">Pátio Superior</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted">Filtrar por Status</label>
+                        <select class="form-select" id="statusFilter" onchange="filterTable()">
+                            <option value="">Todos os Status</option>
+                            <option value="Aguardando linha">Aguardando linha</option>
+                            <option value="Aguardando abastecimento">Aguardando abastecimento</option>
+                            <option value="Aguardando manutenção">Aguardando manutenção</option>
+                            <option value="Em manutenção">Em manutenção</option>
+                            <option value="Liberado">Liberado</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small text-muted">&nbsp;</label>
+                        <button class="btn btn-outline-secondary w-100" onclick="clearFilters()">
+                            <i class="bi bi-x-circle"></i> Limpar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <div class="vehicle-table">
                 <div class="table-responsive">
                     <table class="table table-hover mb-0">
@@ -303,7 +369,6 @@
                 </div>
             </div>
 
-            <!-- Trocas Recentes -->
             <div class="vehicle-table mt-4">
                 <div class="card-header bg-light py-3">
                     <h6 class="mb-0"><i class="bi bi-arrow-left-right me-2"></i>Trocas / Empréstimos</h6>
@@ -355,6 +420,9 @@
                                         </button>
                                     </div>
                                     <div id="scanStatusEntry" class="scan-status mt-2"></div>
+                                    <small class="text-muted d-block mt-2">
+                                        <i class="bi bi-info-circle"></i> Aponte para a placa do veículo
+                                    </small>
                                 </div>
                             </div>
                         </div>
@@ -462,7 +530,6 @@
                         </button>
                     </div>
                     <div id="scanStatusExit" class="scan-status mt-2"></div>
-                    
                     <div class="mt-3">
                         <label class="form-label">Ou digite a placa:</label>
                         <div class="input-group">
@@ -474,7 +541,6 @@
                             </button>
                         </div>
                     </div>
-                    
                     <div id="exitVehicleInfo" class="vehicle-history hidden mt-3">
                         <div id="exitVehicleContent"></div>
                         <button class="btn btn-success btn-lg w-100 mt-3" onclick="confirmExitVehicle()">
@@ -649,7 +715,8 @@
             </div>
         </div>
     </div>
-        <!-- Scripts -->
+
+    <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         const API_URL = '/api';
@@ -671,7 +738,6 @@
             try {
                 const res = await fetch(`${API_URL}/auth/me`);
                 const data = await res.json();
-                
                 if (data.authenticated) {
                     currentUser = data.user;
                     userPermissions = data.permissions || {};
@@ -692,13 +758,11 @@
         function showMainApp() {
             document.getElementById('loginScreen').classList.add('hidden');
             document.getElementById('mainApp').classList.remove('hidden');
-            
             document.getElementById('userName').textContent = currentUser.username;
             document.getElementById('userRole').textContent = currentUser.role === 'admin' ? 'Administrador' : 'Operador';
             document.getElementById('userAvatar').textContent = currentUser.username.charAt(0).toUpperCase();
             document.getElementById('userRoleBadge').textContent = currentUser.role.toUpperCase();
             document.getElementById('userRoleBadge').className = `role-badge ${currentUser.role === 'admin' ? 'bg-warning text-dark' : 'bg-secondary text-white'}`;
-            
             applyPermissions();
             loadStats();
             loadVehicles();
@@ -706,9 +770,10 @@
         }
 
         function applyPermissions() {
+            console.log('🔐 Role:', currentUser?.role);
             const importBtn = document.getElementById('btnImportJSON');
             if (importBtn) {
-                if (currentUser.role === 'admin') {
+                if (currentUser?.role === 'admin') {
                     importBtn.style.display = 'inline-flex';
                     importBtn.disabled = false;
                 } else {
@@ -723,9 +788,7 @@
             const username = document.getElementById('loginUsername').value.trim();
             const password = document.getElementById('loginPassword').value;
             const errorDiv = document.getElementById('loginError');
-            
             errorDiv.classList.add('hidden');
-            
             try {
                 const res = await fetch(`${API_URL}/auth/login`, {
                     method: 'POST',
@@ -733,7 +796,6 @@
                     body: JSON.stringify({ username, password })
                 });
                 const data = await res.json();
-                
                 if (data.success) {
                     currentUser = data.user;
                     showMainApp();
@@ -783,29 +845,14 @@
             const containerId = mode === 'entry' ? 'camera-container-entry' : 'camera-container-exit';
             const statusId = mode === 'entry' ? 'scanStatusEntry' : 'scanStatusExit';
             const statusDiv = document.getElementById(statusId);
-            
             statusDiv.innerHTML = '<i class="bi bi-hourglass-split"></i> Iniciando câmera...';
             statusDiv.className = 'scan-status scanning';
-            
             try {
                 html5QrcodeScanner = new Html5Qrcode(containerId);
-                
-                const config = { 
-                    fps: 10, 
-                    qrbox: { width: 250, height: 100 },
-                    aspectRatio: 2.0
-                };
-                
-                await html5QrcodeScanner.start(
-                    { facingMode: "environment" },
-                    config,
-                    onScanSuccess,
-                    onScanError
-                );
-                
+                const config = { fps: 10, qrbox: { width: 250, height: 100 }, aspectRatio: 2.0 };
+                await html5QrcodeScanner.start({ facingMode: "environment" }, config, onScanSuccess, onScanError);
                 statusDiv.innerHTML = '<i class="bi bi-camera-video"></i> Câmera ativa. Aponte para a placa.';
                 statusDiv.className = 'scan-status success';
-                
             } catch (err) {
                 statusDiv.innerHTML = '<i class="bi bi-exclamation-triangle"></i> Erro: ' + err.message;
                 statusDiv.className = 'scan-status error';
@@ -817,9 +864,7 @@
                 html5QrcodeScanner.stop().then(() => {
                     const statusId = mode === 'entry' ? 'scanStatusEntry' : 'scanStatusExit';
                     document.getElementById(statusId).innerHTML = '<i class="bi bi-camera-video-off"></i> Câmera desligada';
-                }).catch(err => {
-                    console.error('Erro ao parar câmera:', err);
-                });
+                }).catch(err => console.error('Erro ao parar câmera:', err));
             }
         }
 
@@ -843,17 +888,10 @@
         function onScanError(error) {}
 
         function extractPlate(text) {
-            const patterns = [
-                /[A-Z]{3}\d[A-Z]\d{2}/i,
-                /[A-Z]{3}\d{4}/i,
-                /[A-Z]{3}-\d{4}/i
-            ];
-            
+            const patterns = [/[A-Z]{3}\d[A-Z]\d{2}/i, /[A-Z]{3}\d{4}/i, /[A-Z]{3}-\d{4}/i];
             for (const pattern of patterns) {
                 const match = text.toUpperCase().match(pattern);
-                if (match) {
-                    return match[0].replace('-', '');
-                }
+                if (match) return match[0].replace('-', '');
             }
             return null;
         }
@@ -863,62 +901,44 @@
             document.getElementById('plate').focus();
         }
 
-        // ============ HISTÓRICO DO VEÍCULO ============
+        // ============ HISTÓRICO E AUTO-PREENCHIMENTO ============
         async function checkVehicleHistory(plate) {
             try {
                 const res = await fetch(`${API_URL}/vehicles`);
                 const vehicles = await res.json();
-                
-                const existingVehicle = vehicles.find(v => 
-                    v.plate.toUpperCase() === plate.toUpperCase() && 
-                    v.status !== 'Liberado'
-                );
-                
+                const existingVehicle = vehicles.find(v => v.plate.toUpperCase() === plate.toUpperCase() && v.status !== 'Liberado');
                 const historyDiv = document.getElementById('vehicleHistory');
                 const historyContent = document.getElementById('historyContent');
                 const plateAlert = document.getElementById('plateAlert');
-                
+
                 if (existingVehicle) {
-                    plateAlert.innerHTML = `
-                        <i class="bi bi-exclamation-triangle-fill"></i> 
-                        <strong>Veículo já está no pátio!</strong><br>
-                        📍 Local: ${existingVehicle.yard}<br>
-                        ⏱️ Entrada: ${existingVehicle.entryDate}<br>
-                        ⏳ Tempo: ${existingVehicle.timeInYard}
-                    `;
+                    // ⚠️ Veículo já está no pátio
+                    plateAlert.innerHTML = `<i class="bi bi-exclamation-triangle-fill"></i> <strong>Veículo já está no pátio!</strong><br>📍 Local: ${existingVehicle.yard}<br>⏱️ Entrada: ${existingVehicle.entryDate}<br>⏳ Tempo: ${existingVehicle.timeInYard}`;
                     plateAlert.classList.remove('hidden');
-                    
-                    document.getElementById('entryForm').querySelectorAll('input, select, textarea').forEach(el => {
-                        el.disabled = true;
-                    });
+                    document.getElementById('entryForm').querySelectorAll('input, select, textarea').forEach(el => el.disabled = true);
                     document.getElementById('plate').disabled = false;
-                    
                     historyDiv.classList.remove('hidden');
-                    historyContent.innerHTML = `
-                        <div class="history-item alert">
-                            <strong>⚠️ VEÍCULO JÁ ESTÁ NO PÁTIO</strong><br>
-                            <small>Não é possível cadastrar entrada duplicada</small>
-                        </div>
-                    `;
+                    historyContent.innerHTML = `<div class="history-item alert"><strong>⚠️ VEÍCULO JÁ ESTÁ NO PÁTIO</strong><br><small>Não é possível cadastrar entrada duplicada</small></div>`;
                 } else {
-                    const vehicleHistory = vehicles.filter(v => 
-                        v.plate.toUpperCase() === plate.toUpperCase()
-                    );
-                    
+                    // ✅ Verificar se veículo já existiu (retornou ao pátio)
+                    const vehicleHistory = vehicles.filter(v => v.plate.toUpperCase() === plate.toUpperCase());
                     plateAlert.classList.add('hidden');
-                    
-                    document.getElementById('entryForm').querySelectorAll('input, select, textarea').forEach(el => {
-                        el.disabled = false;
-                    });
-                    
+                    document.getElementById('entryForm').querySelectorAll('input, select, textarea').forEach(el => el.disabled = false);
+
                     if (vehicleHistory.length > 0) {
+                        // 🔄 Veículo conhecido - auto-preencher dados
+                        const lastRecord = vehicleHistory[0];
+                        document.getElementById('type').value = lastRecord.type || '';
+                        document.getElementById('base').value = lastRecord.base || 'Jaraguá-SP';
+                        document.getElementById('keys').value = lastRecord.keys || '';
+                        
                         historyDiv.classList.remove('hidden');
                         historyContent.innerHTML = `
-                            <div class="history-item success">
-                                <strong>✅ Veículo conhecido</strong><br>
-                                <small>${vehicleHistory.length} registro(s) encontrado(s)</small>
+                            <div class="history-item info">
+                                <strong>✅ Veículo conhecido - Dados preenchidos automaticamente</strong><br>
+                                <small>Tipo: ${lastRecord.type || '—'} | Base: ${lastRecord.base || '—'}</small>
                             </div>
-                            ${vehicleHistory.slice(0, 5).map(v => `
+                            ${vehicleHistory.slice(0, 3).map(v => `
                                 <div class="history-item">
                                     <div><strong>${v.entryDate}</strong> - ${v.yard}</div>
                                     <small class="text-muted">${v.type} • ${v.timeInYard || '—'}</small>
@@ -936,24 +956,14 @@
 
         async function checkPlateForExit(plate = null) {
             const plateInput = plate || document.getElementById('scanExitPlate').value.trim();
-            
-            if (!plateInput) {
-                showToast('⚠️ Digite ou escaneie uma placa', 'warning');
-                return;
-            }
-            
+            if (!plateInput) { showToast('⚠️ Digite ou escaneie uma placa', 'warning'); return; }
             try {
                 const res = await fetch(`${API_URL}/vehicles`);
                 const vehicles = await res.json();
-                
-                const vehicle = vehicles.find(v => 
-                    v.plate.toUpperCase() === plateInput.toUpperCase() && 
-                    v.status !== 'Liberado'
-                );
-                
+                const vehicle = vehicles.find(v => v.plate.toUpperCase() === plateInput.toUpperCase() && v.status !== 'Liberado');
                 const exitInfo = document.getElementById('exitVehicleInfo');
                 const exitContent = document.getElementById('exitVehicleContent');
-                
+
                 if (vehicle) {
                     vehicleToExit = vehicle;
                     exitInfo.classList.remove('hidden');
@@ -990,20 +1000,12 @@
         }
 
         async function confirmExitVehicle() {
-            if (!vehicleToExit) {
-                showToast('⚠️ Nenhum veículo para liberar', 'warning');
-                return;
-            }
-            
-            if (!confirm(`✅ Confirmar SAÍDA do veículo ${vehicleToExit.plate}?`)) {
-                return;
-            }
-            
+            if (!vehicleToExit) { showToast('⚠️ Nenhum veículo para liberar', 'warning'); return; }
+            if (!confirm(`✅ Confirmar SAÍDA do veículo ${vehicleToExit.plate}?`)) return;
             try {
                 await fetch(`${API_URL}/vehicles/${vehicleToExit.id}/exit`, { method: 'POST' });
-                
                 bootstrap.Modal.getInstance(document.getElementById('scanExitModal')).hide();
-                loadStats();
+                loadStats(); // 🔁 Atualiza contadores
                 loadVehicles();
                 showToast('🚪 Saída registrada com sucesso!', 'success');
             } catch (err) {
@@ -1016,7 +1018,6 @@
             try {
                 const res = await fetch(`${API_URL}/stats`);
                 const stats = await res.json();
-                
                 const cards = [
                     { icon: '🐎', label: 'Cavalos Mecânicos', value: stats.cavalosMecanicos, filterType: 'Cavalo Mecânico' },
                     { icon: '🚛', label: 'Carretas', value: stats.carretas, filterType: 'Carreta' },
@@ -1026,7 +1027,6 @@
                     { icon: '📮', label: 'Correios', value: stats.entreguesCorreios, filterNote: 'correios' },
                     { icon: '📊', label: 'Total Ativos', value: stats.totalAtivos, filterClear: true }
                 ];
-
                 document.getElementById('stats-cards').innerHTML = cards.map(card => `
                     <div class="col-6 col-md-3 col-lg-2">
                         <div class="stat-card card" onclick="filterByCard(${JSON.stringify(card).replace(/"/g, '&quot;')})">
@@ -1038,15 +1038,12 @@
                         </div>
                     </div>
                 `).join('');
-
                 if (stats.stalledVehicles > 0) {
                     document.getElementById('stalledAlert').classList.remove('hidden');
-                    document.getElementById('stalledList').textContent = 
-                        stats.stalledVehiclesList.map(v => `${v.plate} (${v.hours}h)`).join(', ');
+                    document.getElementById('stalledList').textContent = stats.stalledVehiclesList.map(v => `${v.plate} (${v.hours}h)`).join(', ');
                 } else {
                     document.getElementById('stalledAlert').classList.add('hidden');
                 }
-
             } catch (err) { console.error('Erro stats:', err); }
         }
 
@@ -1054,13 +1051,7 @@
             document.getElementById('searchInput').value = '';
             document.getElementById('yardFilter').value = '';
             document.getElementById('statusFilter').value = '';
-            
-            if (card.filterClear) {
-                filterTable();
-                showToast('📊 Filtros limpos', 'info');
-                return;
-            }
-            
+            if (card.filterClear) { filterTable(); showToast('📊 Filtros limpos', 'info'); return; }
             if (card.filterType) {
                 document.querySelectorAll('#vehicleTableBody tr').forEach(row => {
                     row.style.display = (row.dataset.type === card.filterType) ? '' : 'none';
@@ -1068,14 +1059,12 @@
                 showToast(`🔍 Filtrando: ${card.filterType}`, 'info');
                 return;
             }
-            
             if (card.filterStatus) {
                 document.getElementById('statusFilter').value = card.filterStatus;
                 filterTable();
                 showToast(`🔍 Filtrando: ${card.filterStatus}`, 'info');
                 return;
             }
-            
             if (card.filterNote) {
                 document.querySelectorAll('#vehicleTableBody tr').forEach(row => {
                     row.style.display = row.dataset.search.toLowerCase().includes(card.filterNote) ? '' : 'none';
@@ -1090,36 +1079,25 @@
                 const res = await fetch(`${API_URL}/vehicles`);
                 let vehicles = await res.json();
                 allVehicles = vehicles;
-                
                 vehicles.sort((a, b) => {
                     if (a.status === 'Liberado' && b.status !== 'Liberado') return 1;
                     if (a.status !== 'Liberado' && b.status === 'Liberado') return -1;
                     return new Date(b.entryTime) - new Date(a.entryTime);
                 });
-
                 const tbody = document.getElementById('vehicleTableBody');
                 const emptyMsg = document.getElementById('emptyMessage');
-                
                 if (vehicles.length === 0) {
                     tbody.innerHTML = '';
                     emptyMsg.style.display = 'block';
                     return;
                 }
                 emptyMsg.style.display = 'none';
-
                 tbody.innerHTML = vehicles.map(v => {
                     const statusClass = `status-${v.status.toLowerCase().replace(/ /g, '-').replace('ç','c').replace('ã','a')}`;
-                    const maintenanceBadge = v.maintenance 
-                        ? `<span class="text-danger"><i class="bi bi-exclamation-circle"></i> SIM</span>` 
-                        : '<span class="text-muted">Não</span>';
-
+                    const maintenanceBadge = v.maintenance ? `<span class="text-danger"><i class="bi bi-exclamation-circle"></i> SIM</span>` : '<span class="text-muted">Não</span>';
                     return `
-                        <tr data-yard="${v.yard}" data-status="${v.status}" data-type="${v.type}" 
-                            data-search="${v.plate} ${v.type} ${v.yard} ${v.base} ${v.notes || ''}" data-id="${v.id}">
-                            <td>
-                                <span class="vehicle-icon"><i class="bi bi-${getVehicleIcon(v.type)}"></i></span>
-                                <small class="d-md-none">${v.type}</small>
-                            </td>
+                        <tr data-yard="${v.yard}" data-status="${v.status}" data-type="${v.type}" data-search="${v.plate} ${v.type} ${v.yard} ${v.base} ${v.notes || ''}" data-id="${v.id}">
+                            <td><span class="vehicle-icon"><i class="bi bi-${getVehicleIcon(v.type)}"></i></span><small class="d-md-none">${v.type}</small></td>
                             <td><span class="plate-badge">${v.plate}</span></td>
                             <td><span class="date-badge">${v.entryDate}</span></td>
                             <td>${v.exitDate ? `<span class="date-badge text-success">${v.exitDate}</span>` : '—'}</td>
@@ -1151,7 +1129,6 @@
                 const res = await fetch(`${API_URL}/swaps`);
                 const swaps = await res.json();
                 const tbody = document.getElementById('swapsTableBody');
-                
                 tbody.innerHTML = swaps.slice(0, 20).map(s => `
                     <tr>
                         <td><small>${new Date(s.date).toLocaleDateString('pt-BR')}</small></td>
@@ -1167,46 +1144,39 @@
                 `).join('') || '<tr><td colspan="6" class="text-center text-muted py-3">Nenhuma troca</td></tr>';
             } catch (err) { console.error('Erro loadSwaps:', err); }
         }
-                // ============ AÇÕES DE VEÍCULOS ============
+
+        // ============ AÇÕES DE VEÍCULOS ============
         async function submitEntry() {
             const plate = document.getElementById('plate').value.trim();
             const plateAlert = document.getElementById('plateAlert');
-            
             if (!plateAlert.classList.contains('hidden')) {
                 alert('⚠️ Não é possível cadastrar. Veículo já está no pátio!');
                 return;
             }
-            
             const type = document.getElementById('type').value;
             const yard = document.getElementById('yard').value;
-            
             if (!plate || !type || !yard) {
                 alert('⚠️ Preencha: Placa, Tipo e Pátio');
                 return;
             }
-
             try {
                 await fetch(`${API_URL}/vehicles`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ 
-                        plate, 
-                        type, 
-                        yard, 
+                        plate, type, yard, 
                         entryDate: document.getElementById('entryDate').value,
                         base: document.getElementById('base').value,
                         keys: document.getElementById('keys').value,
                         notes: document.getElementById('notes').value
                     })
                 });
-                
                 stopCamera('entry');
                 bootstrap.Modal.getInstance(document.getElementById('entryModal')).hide();
                 document.getElementById('entryForm').reset();
                 document.getElementById('base').value = 'Jaraguá-SP';
                 document.getElementById('vehicleHistory').classList.add('hidden');
                 document.getElementById('plateAlert').classList.add('hidden');
-                
                 loadStats(); loadVehicles();
                 showToast('✅ Veículo registrado!', 'success');
             } catch (err) {
@@ -1218,24 +1188,16 @@
             document.getElementById('plate').value = '';
             document.getElementById('vehicleHistory').classList.add('hidden');
             document.getElementById('plateAlert').classList.add('hidden');
-            document.getElementById('entryForm').querySelectorAll('input, select, textarea').forEach(el => {
-                el.disabled = false;
-            });
+            document.getElementById('entryForm').querySelectorAll('input, select, textarea').forEach(el => el.disabled = false);
             stopCamera('entry');
         });
 
-        document.getElementById('entryModal').addEventListener('hide.bs.modal', () => {
-            stopCamera('entry');
-        });
-
-        document.getElementById('scanExitModal').addEventListener('hide.bs.modal', () => {
-            stopCamera('exit');
-        });
+        document.getElementById('entryModal').addEventListener('hide.bs.modal', () => stopCamera('entry'));
+        document.getElementById('scanExitModal').addEventListener('hide.bs.modal', () => stopCamera('exit'));
 
         async function openEditVehicle(id) {
             const v = allVehicles.find(x => x.id === id);
             if (!v) return;
-            
             document.getElementById('editVehicleId').value = v.id;
             document.getElementById('editPlate').value = v.plate;
             document.getElementById('editType').value = v.type;
@@ -1245,13 +1207,11 @@
             document.getElementById('editNotes').value = v.notes || '';
             document.getElementById('editStatus').value = v.status;
             document.getElementById('editMaintenance').checked = v.maintenance || false;
-            
             if (v.entryTime) {
                 const d = new Date(v.entryTime);
                 const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
                 document.getElementById('editEntryTime').value = local.toISOString().slice(0,16);
             }
-            
             new bootstrap.Modal(document.getElementById('editVehicleModal')).show();
         }
 
@@ -1267,10 +1227,8 @@
                 status: document.getElementById('editStatus').value,
                 maintenance: document.getElementById('editMaintenance').checked
             };
-            
             const entryTime = document.getElementById('editEntryTime').value;
             if (entryTime) updates.entryTime = new Date(entryTime).toISOString();
-
             try {
                 const res = await fetch(`${API_URL}/vehicles/${id}`, {
                     method: 'PUT',
@@ -1278,7 +1236,6 @@
                     body: JSON.stringify(updates)
                 });
                 const result = await res.json();
-                
                 if (result.success) {
                     bootstrap.Modal.getInstance(document.getElementById('editVehicleModal')).hide();
                     loadStats(); loadVehicles();
@@ -1321,7 +1278,6 @@
         async function submitSwap() {
             const plateOut = document.getElementById('swapPlateOut').value.trim();
             if (!plateOut) { alert('Placa que Sai é obrigatória'); return; }
-
             await fetch(`${API_URL}/swaps`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -1333,7 +1289,6 @@
                     notes: document.getElementById('swapNotes').value
                 })
             });
-            
             bootstrap.Modal.getInstance(document.getElementById('swapModal')).hide();
             document.getElementById('swapForm').reset();
             loadSwaps();
@@ -1345,19 +1300,16 @@
             const swaps = await res.json();
             const s = swaps.find(x => x.id === id);
             if (!s) return;
-            
             document.getElementById('editSwapId').value = s.id;
             document.getElementById('swapPlateIn').value = s.plateIn === '0000' ? '' : s.plateIn;
             document.getElementById('swapPlateOut').value = s.plateOut;
             document.getElementById('swapBase').value = s.base;
             document.getElementById('swapNotes').value = s.notes || '';
-            
             if (s.date) {
                 const d = new Date(s.date);
                 const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
                 document.getElementById('swapDate').value = local.toISOString().slice(0,16);
             }
-            
             new bootstrap.Modal(document.getElementById('swapModal')).show();
         }
 
@@ -1373,7 +1325,6 @@
             try {
                 const res = await fetch(`${API_URL}/export`);
                 const data = await res.json();
-                
                 const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -1391,30 +1342,19 @@
                 let csv = 'CONTROLE DE PÁTIO - TRANSPORTADORA PRINT\n';
                 csv += `Data de Exportação: ${new Date().toLocaleString('pt-BR')}\n`;
                 csv += `Total de Veículos: ${allVehicles.length}\n\n`;
-                
                 csv = 'ID;Placa;Tipo;Pátio;Base;Status;Manutenção;Entrada;Saída;Tempo no Pátio;Chaves;Observações\n';
-                
                 allVehicles.forEach(v => {
                     const row = [
-                        v.id,
-                        `"${v.plate}"`,
-                        `"${v.type}"`,
-                        `"${v.yard}"`,
-                        `"${v.base || ''}"`,
-                        `"${v.status}"`,
-                        v.maintenance ? 'Sim' : 'Não',
-                        `"${v.entryDate || ''}"`,
-                        `"${v.exitDate || ''}"`,
-                        `"${v.timeInYard || '—'}"`,
-                        `"${v.keys || ''}"`,
+                        v.id, `"${v.plate}"`, `"${v.type}"`, `"${v.yard}"`, `"${v.base || ''}"`,
+                        `"${v.status}"`, v.maintenance ? 'Sim' : 'Não',
+                        `"${v.entryDate || ''}"`, `"${v.exitDate || ''}"`,
+                        `"${v.timeInYard || '—'}"`, `"${v.keys || ''}"`,
                         `"${(v.notes || '').replace(/"/g, '""')}"`
                     ].join(';');
                     csv += row + '\n';
                 });
-                
                 csv += '\n\nRESUMO POR PÁTIO\n';
                 csv += 'Pátio;Total de Veículos;Em Manutenção;Liberados\n';
-                
                 const yards = ['Pátio Jaraguá', 'Pátio Bandeirantes', 'Pátio Superior'];
                 yards.forEach(yard => {
                     const total = allVehicles.filter(v => v.yard === yard).length;
@@ -1422,26 +1362,17 @@
                     const liberated = allVehicles.filter(v => v.yard === yard && v.status === 'Liberado').length;
                     csv += `"${yard}";${total};${maintenance};${liberated}\n`;
                 });
-                
                 csv += '\n\nRESUMO POR STATUS\n';
                 csv += 'Status;Quantidade\n';
-                
                 const statusCount = {};
-                allVehicles.forEach(v => {
-                    statusCount[v.status] = (statusCount[v.status] || 0) + 1;
-                });
-                
-                Object.entries(statusCount).forEach(([status, count]) => {
-                    csv += `"${status}";${count}\n`;
-                });
-                
+                allVehicles.forEach(v => { statusCount[v.status] = (statusCount[v.status] || 0) + 1; });
+                Object.entries(statusCount).forEach(([status, count]) => { csv += `"${status}";${count}\n`; });
                 const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
                 a.download = `print-patio-completo-${new Date().toISOString().slice(0,10)}.csv`;
                 a.click();
-                
                 showToast('📊 Excel exportado com sucesso!', 'success');
             } catch (err) {
                 console.error('Erro export Excel:', err);
@@ -1451,63 +1382,26 @@
 
         function exportToPDF() {
             try {
-                let html = `
-                    <!DOCTYPE html>
-                    <html>
-                    <head>
-                        <meta charset="utf-8">
-                        <title>Relatório de Pátio - Transportadora Print</title>
-                        <style>
-                            body { font-family: Arial, sans-serif; margin: 20px; }
-                            h1 { color: #1a3a5c; border-bottom: 3px solid #1a3a5c; padding-bottom: 10px; }
-                            h2 { color: #2c5282; margin-top: 30px; }
-                            table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-                            th { background-color: #1a3a5c; color: white; padding: 10px; text-align: left; }
-                            td { padding: 8px; border-bottom: 1px solid #ddd; }
-                            tr:nth-child(even) { background-color: #f2f2f2; }
-                            .header { background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-                            @media print { body { margin: 10px; } table { font-size: 10px; } }
-                        </style>
-                    </head>
-                    <body>
-                        <div class="header">
-                            <h1>🚚 CONTROLE DE PÁTIO - TRANSPORTADORA PRINT</h1>
-                            <p><strong>Data:</strong> ${new Date().toLocaleString('pt-BR')}</p>
-                            <p><strong>Total:</strong> ${allVehicles.length} veículos</p>
-                        </div>
-                        <h2>📋 TODAS AS MOVIMENTAÇÕES</h2>
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>ID</th><th>Placa</th><th>Tipo</th><th>Pátio</th>
-                                    <th>Status</th><th>Entrada</th><th>Saída</th><th>Tempo</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                `;
-                
+                let html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Relatório de Pátio - Transportadora Print</title>
+                <style>body{font-family:Arial,sans-serif;margin:20px;}h1{color:#1a3a5c;border-bottom:3px solid #1a3a5c;padding-bottom:10px;}
+                h2{color:#2c5282;margin-top:30px;}table{width:100%;border-collapse:collapse;margin:20px 0;}
+                th{background-color:#1a3a5c;color:white;padding:10px;text-align:left;}td{padding:8px;border-bottom:1px solid #ddd;}
+                tr:nth-child(even){background-color:#f2f2f2;}.header{background-color:#f8f9fa;padding:20px;border-radius:8px;margin-bottom:20px;}
+                @media print{body{margin:10px;}table{font-size:10px;}}</style></head><body>
+                <div class="header"><h1>🚚 CONTROLE DE PÁTIO - TRANSPORTADORA PRINT</h1>
+                <p><strong>Data:</strong> ${new Date().toLocaleString('pt-BR')}</p><p><strong>Total:</strong> ${allVehicles.length} veículos</p></div>
+                <h2>📋 TODAS AS MOVIMENTAÇÕES</h2><table><thead><tr><th>ID</th><th>Placa</th><th>Tipo</th><th>Pátio</th>
+                <th>Status</th><th>Entrada</th><th>Saída</th><th>Tempo</th></tr></thead><tbody>`;
                 allVehicles.forEach(v => {
-                    html += `
-                        <tr>
-                            <td>${v.id}</td><td><strong>${v.plate}</strong></td><td>${v.type}</td>
-                            <td>${v.yard}</td><td>${v.status}</td><td>${v.entryDate || '—'}</td>
-                            <td>${v.exitDate || '—'}</td><td>${v.timeInYard || '—'}</td>
-                        </tr>
-                    `;
+                    html += `<tr><td>${v.id}</td><td><strong>${v.plate}</strong></td><td>${v.type}</td>
+                    <td>${v.yard}</td><td>${v.status}</td><td>${v.entryDate || '—'}</td>
+                    <td>${v.exitDate || '—'}</td><td>${v.timeInYard || '—'}</td></tr>`;
                 });
-                
-                html += `
-                            </tbody>
-                        </table>
-                    </body>
-                    </html>
-                `;
-                
+                html += `</tbody></table></body></html>`;
                 const printWindow = window.open('', '_blank');
                 printWindow.document.write(html);
                 printWindow.document.close();
                 printWindow.print();
-                
                 showToast('📄 PDF gerado com sucesso!', 'success');
             } catch (err) {
                 console.error('Erro export PDF:', err);
@@ -1521,39 +1415,25 @@
                 alert('⚠️ Selecione um arquivo JSON');
                 return;
             }
-            
             const file = fileInput.files[0];
             const text = await file.text();
             const jsonData = JSON.parse(text);
-            
             if (!jsonData.vehicles || !Array.isArray(jsonData.vehicles)) {
                 alert('❌ Arquivo inválido');
                 return;
             }
-            
             if (!confirm(`🔄 Substituir TODOS os dados por ${jsonData.vehicles.length} veículo(s)?`)) return;
-            
             const res = await fetch(`${API_URL}/import`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ vehicles: jsonData.vehicles, swaps: jsonData.swaps || [] })
             });
             const result = await res.json();
-            
             if (res.status === 403) {
-                document.getElementById('importPreview').innerHTML = `
-                    <div class="alert alert-danger mt-3">🔒 Apenas administradores podem importar</div>
-                `;
+                document.getElementById('importPreview').innerHTML = `<div class="alert alert-danger mt-3">🔒 Apenas administradores podem importar</div>`;
                 return;
             }
-            
-            document.getElementById('importPreview').innerHTML = `
-                <div class="alert alert-success mt-3">
-                    ✅ <strong>Importação concluída!</strong><br>
-                    📥 ${result.imported} veículo(s) carregado(s)
-                </div>
-            `;
-            
+            document.getElementById('importPreview').innerHTML = `<div class="alert alert-success mt-3">✅ <strong>Importação concluída!</strong><br>📥 ${result.imported} veículo(s) carregado(s)</div>`;
             setTimeout(() => {
                 loadStats(); loadVehicles(); loadSwaps();
                 bootstrap.Modal.getInstance(document.getElementById('importModal')).hide();
@@ -1564,11 +1444,9 @@
 
         // ============ UTILITÁRIOS ============
         function getVehicleIcon(type) {
-            const icons = {
-                'Carreta': 'truck', 'Cavalo Mecânico': 'car-front', 'Vans': 'bus-front',
+            const icons = {'Carreta': 'truck', 'Cavalo Mecânico': 'car-front', 'Vans': 'bus-front',
                 'Caminhão Truck': 'truck', 'Caminhão Toco': 'truck',
-                'Veículo Visitante': 'person', 'Veículo Diretoria': 'star'
-            };
+                'Veículo Visitante': 'person', 'Veículo Diretoria': 'star'};
             return icons[type] || 'truck';
         }
 
@@ -1576,7 +1454,6 @@
             const search = document.getElementById('searchInput').value.toLowerCase();
             const yardFilter = document.getElementById('yardFilter').value;
             const statusFilter = document.getElementById('statusFilter').value;
-            
             document.querySelectorAll('#vehicleTableBody tr').forEach(row => {
                 const matches = (!search || row.dataset.search.toLowerCase().includes(search)) &&
                                (!yardFilter || row.dataset.yard === yardFilter) &&
@@ -1600,8 +1477,7 @@
 
         function updateClock() {
             const now = new Date();
-            document.getElementById('current-time').textContent = 
-                now.toLocaleDateString('pt-BR') + ' ' + now.toLocaleTimeString('pt-BR');
+            document.getElementById('current-time').textContent = now.toLocaleDateString('pt-BR') + ' ' + now.toLocaleTimeString('pt-BR');
         }
 
         function showToast(message, type = 'info') {
