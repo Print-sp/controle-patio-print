@@ -740,14 +740,21 @@ app.get('/api/export', requireAuth, (req, res) => {
 // ============ FUNÇÕES AUXILIARES ============
 function formatDateBR(dateString) {
     if (!dateString) return '—';
+    
     const date = new Date(dateString);
-    return date.toLocaleDateString('pt-BR', {
+    
+    // Corrigir fuso horário para Brasília (UTC-3)
+    const options = {
+        timeZone: 'America/Sao_Paulo',
         day: '2-digit',
         month: '2-digit', 
         year: 'numeric',
         hour: '2-digit',
-        minute: '2-digit'
-    });
+        minute: '2-digit',
+        hour12: false
+    };
+    
+    return date.toLocaleDateString('pt-BR', options);
 }
 
 function calculateTimeInYard(entryTime, exitTime) {
