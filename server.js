@@ -71,7 +71,6 @@ function mapPostgresRow(row) {
         maintenanceProblems: row.maintenanceproblems || [],
         keys: row.keys,
         notes: row.notes,
-        deliveryCategory: row.deliverycategory || '',
         entryTime: row.entrytime,
         exitTime: row.exittime,
         icon: row.icon,
@@ -111,7 +110,6 @@ function mapSwapRow(row) {
 async function initDatabase() {
     if (isProduction) {
         try {
-            // Criar tabela vehicles com deliveryCategory
             await pool.query(`
                 CREATE TABLE IF NOT EXISTS vehicles (
                     id SERIAL PRIMARY KEY,
@@ -124,7 +122,6 @@ async function initDatabase() {
                     maintenanceProblems JSONB DEFAULT '[]',
                     keys TEXT DEFAULT '',
                     notes TEXT DEFAULT '',
-                    deliveryCategory TEXT DEFAULT '',
                     entryTime TIMESTAMP NOT NULL,
                     exitTime TIMESTAMP,
                     icon TEXT DEFAULT 'default-truck',
@@ -168,13 +165,6 @@ async function initDatabase() {
                 CREATE INDEX IF NOT EXISTS idx_vehicles_yard ON vehicles(yard);
             `);
             
-            // Migração: adicionar deliveryCategory se não existir
-            await pool.query(`
-                ALTER TABLE vehicles 
-                ADD COLUMN IF NOT EXISTS "deliveryCategory" TEXT DEFAULT ''
-            `);
-            
-            // Criar usuários padrão se não existirem
             const adminExists = await pool.query('SELECT id FROM users WHERE username = $1', ['admin']);
             if (adminExists.rows.length === 0) {
                 const adminHash = bcrypt.hashSync(process.env.ADMIN_PASSWORD || 'Print@2026', 10);
@@ -189,7 +179,6 @@ async function initDatabase() {
         }
     } else {
         try {
-            // SQLite
             db.exec(`
                 CREATE TABLE IF NOT EXISTS vehicles (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -202,7 +191,6 @@ async function initDatabase() {
                     maintenanceProblems TEXT DEFAULT '[]',
                     keys TEXT DEFAULT '',
                     notes TEXT DEFAULT '',
-                    deliveryCategory TEXT DEFAULT '',
                     entryTime TEXT NOT NULL,
                     exitTime TEXT,
                     icon TEXT DEFAULT 'default-truck',
@@ -242,7 +230,6 @@ async function initDatabase() {
                 );
             `);
             
-            // Criar usuários padrão se não existirem
             const adminExists = db.prepare('SELECT id FROM users WHERE username = ?').get('admin');
             if (!adminExists) {
                 const adminHash = bcrypt.hashSync(process.env.ADMIN_PASSWORD || 'Print@2026', 10);
@@ -383,7 +370,7 @@ app.get('/api/vehicles', requireAuth, async (req, res) => {
 });
 
 app.post('/api/vehicles', requireAuth, async (req, res) => {
-    const { plate, type, yard, base, keys, notes, entryDate, deliveryCategory } = req.body;
+    const { plate, type, yard, base, keys, notes, entryDate } = req.body;
     
     if (!plate || !type || !yard) {
         return res.status(400).json({ error: 'Placa, tipo e pátio obrigatórios' });
@@ -392,8 +379,8 @@ app.post('/api/vehicles', requireAuth, async (req, res) => {
     try {
         if (isProduction) {
             const result = await pool.query(`
-                INSERT INTO vehicles (plate, type, yard, base, keys, notes, deliveryCategory, entryTime, updatedBy)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *
+                INSERT INTO vehicles (plate, type, yard, base, keys, notes, entryTime, updatedBy)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *
             `, [
                 plate.toUpperCase(), 
                 type, 
@@ -401,15 +388,14 @@ app.post('/api/vehicles', requireAuth, async (req, res) => {
                 base || 'Jaraguá-SP', 
                 keys || '', 
                 notes || '', 
-                deliveryCategory || '', 
                 entryDate ? new Date(entryDate).toISOString() : new Date().toISOString(), 
                 req.session.user.username
             ]);
             res.json(mapPostgresRow(result.rows[0]));
         } else {
             const stmt = db.prepare(`
-                INSERT INTO vehicles (plate, type, yard, base, keys, notes, deliveryCategory, entryTime, updatedBy)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO vehicles (plate, type, yard, base, keys, notes, entryTime, updatedBy)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             `);
             const result = stmt.run(
                 plate.toUpperCase(), 
@@ -418,7 +404,6 @@ app.post('/api/vehicles', requireAuth, async (req, res) => {
                 base || 'Jaraguá-SP', 
                 keys || '', 
                 notes || '',
-                deliveryCategory || '', 
                 entryDate ? new Date(entryDate).toISOString() : new Date().toISOString(), 
                 req.session.user.username
             );
@@ -450,11 +435,10 @@ app.put('/api/vehicles/:id', requireAuth, async (req, res) => {
                     status = COALESCE($5, status),
                     maintenance = COALESCE($6, maintenance), 
                     notes = COALESCE($7, notes),
-                    deliveryCategory = COALESCE($8, deliveryCategory),
-                    entryTime = COALESCE($9, entryTime),
+                    entryTime = COALESCE($8, entryTime),
                     updatedAt = CURRENT_TIMESTAMP, 
-                    updatedBy = $10
-                WHERE id = $11
+                    updatedBy = $9
+                WHERE id = $10
             `, [
                 updates.plate, 
                 updates.type, 
@@ -463,8 +447,7 @@ app.put('/api/vehicles/:id', requireAuth, async (req, res) => {
                 updates.status, 
                 updates.maintenance, 
                 updates.notes,
-                updates.deliveryCategory || '',
-                updates.entryTime,  // ← DATA RETROATIVA SALVA AQUI
+                updates.entryTime,
                 req.session.user.username, 
                 id
             ]);
@@ -473,7 +456,6 @@ app.put('/api/vehicles/:id', requireAuth, async (req, res) => {
                 UPDATE vehicles SET 
                     plate = ?, type = ?, yard = ?, base = ?, 
                     status = ?, maintenance = ?, notes = ?,
-                    deliveryCategory = ?,
                     entryTime = ?,
                     updatedAt = ?, updatedBy = ?
                 WHERE id = ?
@@ -485,8 +467,7 @@ app.put('/api/vehicles/:id', requireAuth, async (req, res) => {
                 updates.status, 
                 updates.maintenance, 
                 updates.notes,
-                updates.deliveryCategory || '',
-                updates.entryTime,  // ← DATA RETROATIVA SALVA AQUI
+                updates.entryTime,
                 new Date().toISOString(), 
                 req.session.user.username, 
                 id
@@ -714,11 +695,11 @@ app.post('/api/import', requireAuth, requireRole(['admin']), async (req, res) =>
             
             for (const v of importedVehicles) {
                 if (v.plate && v.type && v.yard) {
-                    await pool.query(`INSERT INTO vehicles (plate, type, yard, base, status, maintenance, keys, notes, deliveryCategory, entryTime, exitTime, updatedBy)
-                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`, [
+                    await pool.query(`INSERT INTO vehicles (plate, type, yard, base, status, maintenance, keys, notes, entryTime, exitTime, updatedBy)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`, [
                         v.plate.toUpperCase(), v.type, v.yard, v.base || 'Jaraguá-SP',
                         v.status || 'Aguardando linha', v.maintenance || false, v.keys || '', v.notes || '',
-                        v.deliveryCategory || '', v.entryTime || new Date().toISOString(), v.exitTime || null, req.session.user.username
+                        v.entryTime || new Date().toISOString(), v.exitTime || null, req.session.user.username
                     ]);
                 }
             }
@@ -728,14 +709,14 @@ app.post('/api/import', requireAuth, requireRole(['admin']), async (req, res) =>
             db.exec("DELETE FROM sqlite_sequence WHERE name='vehicles'");
             db.exec("DELETE FROM sqlite_sequence WHERE name='swaps'");
             
-            const vehicleStmt = db.prepare(`INSERT INTO vehicles (plate, type, yard, base, status, maintenance, keys, notes, deliveryCategory, entryTime, exitTime, updatedBy)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+            const vehicleStmt = db.prepare(`INSERT INTO vehicles (plate, type, yard, base, status, maintenance, keys, notes, entryTime, exitTime, updatedBy)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
             for (const v of importedVehicles) {
                 if (v.plate && v.type && v.yard) {
                     vehicleStmt.run(
                         v.plate.toUpperCase(), v.type, v.yard, v.base || 'Jaraguá-SP',
                         v.status || 'Aguardando linha', v.maintenance ? 1 : 0, v.keys || '', v.notes || '',
-                        v.deliveryCategory || '', v.entryTime || new Date().toISOString(), v.exitTime || null, req.session.user.username
+                        v.entryTime || new Date().toISOString(), v.exitTime || null, req.session.user.username
                     );
                 }
             }
