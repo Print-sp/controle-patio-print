@@ -217,9 +217,14 @@
             </form>
             <div id="loginError" class="alert alert-danger mt-3 hidden"></div>
             <div class="mt-4 text-muted small">
-                <i class="bi bi-shield-lock"></i> Acesso restrito a usuários autorizados<br>
-                <small>Sistema de Controle de Pátio - Uso Interno</small>
-            </div>
+    <i class="bi bi-shield-lock"></i> Acesso restrito a usuários autorizados<br>
+    <small>Sistema de Controle de Pátio - Uso Interno</small>
+    <hr class="my-2">
+    <small class="text-primary">
+        <i class="bi bi-code-slash"></i> Sistema desenvolvido e mantido por<br>
+        <strong>Ramalho Sistemas e Software</strong>
+    </small>
+</div>
         </div>
     </div>
 
@@ -271,7 +276,19 @@
             </div>
             
             <div class="row g-3 mb-4" id="stats-cards"></div>
+            
+/* Ícones dos cards */
+.stat-card img {
+    width: 48px !important;
+    height: 48px !important;
+    object-fit: contain;
+    margin-bottom: 8px;
+    transition: transform 0.2s;
+}
 
+.stat-card:hover img {
+    transform: scale(1.1);
+}
             <div class="row g-3 mb-4">
                 <div class="col-6 col-md-3">
                     <div class="quick-action-card" onclick="openEntryModal()">
@@ -1226,27 +1243,90 @@
 
         // ============ CARREGAR DADOS ============
         async function loadStats() {
-            try {
-                const res = await fetch(`${API_URL}/stats`);
-                const stats = await res.json();
-                const cards = [
-                    { icon: '🐎', label: 'Cavalos Mecânicos', value: stats.cavalosMecanicos, filterType: 'Cavalo Mecânico' },
-                    { icon: '🚛', label: 'Carretas', value: stats.carretas, filterType: 'Carreta' },
-                    { icon: '🔧', label: 'Em Manutenção', value: stats.emManutencao, filterStatus: 'Em manutenção' },
-                    { icon: '✅', label: 'Liberados', value: stats.liberados, filterStatus: 'Liberado' },
-                    { icon: '📦', label: 'Diversos', value: stats.entreguesDiversos, filterNote: 'diversos' },
-                    { icon: '📮', label: 'Correios', value: stats.entreguesCorreios, filterNote: 'correios' },
-                    { icon: '📊', label: 'Total Ativos', value: stats.totalAtivos, filterClear: true }
-                ];
-                document.getElementById('stats-cards').innerHTML = cards.map(card => `<div class="col-6 col-md-3 col-lg-2"><div class="stat-card card" onclick="filterByCard(${JSON.stringify(card).replace(/"/g, '&quot;')})"><div class="card-body"><div class="icon-placeholder">${card.icon}</div><div class="count">${card.value}</div><div class="label">${card.label}</div></div></div></div>`).join('');
-                if (stats.stalledVehicles > 0) {
-                    document.getElementById('stalledAlert').classList.remove('hidden');
-                    document.getElementById('stalledList').textContent = stats.stalledVehiclesList.map(v => `${v.plate} (${v.hours}h)`).join(', ');
-                } else {
-                    document.getElementById('stalledAlert').classList.add('hidden');
-                }
-            } catch (err) { console.error('Erro stats:', err); }
+    try {
+        const res = await fetch(`${API_URL}/stats`);
+        const stats = await res.json();
+        
+        const cards = [
+            { 
+                icon: '/images/cavalo-mecanico.png',
+                label: 'Cavalos Mecânicos', 
+                value: stats.cavalosMecanicos, 
+                filterType: 'Cavalo Mecânico',
+                isImage: true
+            },
+            { 
+                icon: '/images/carreta.png',
+                label: 'Carretas', 
+                value: stats.carretas, 
+                filterType: 'Carreta',
+                isImage: true
+            },
+            { 
+                icon: '/images/manutencao.png',
+                label: 'Em Manutenção', 
+                value: stats.emManutencao, 
+                filterStatus: 'Em manutenção',
+                isImage: true
+            },
+            { 
+                icon: '/images/liberado.png',
+                label: 'Liberados', 
+                value: stats.liberados, 
+                filterStatus: 'Liberado',
+                isImage: true
+            },
+            { 
+                icon: '/images/diversos.png',
+                label: 'Diversos', 
+                value: stats.entreguesDiversos, 
+                filterNote: 'diversos',
+                isImage: true
+            },
+            { 
+                icon: '/images/correios.png',
+                label: 'Correios', 
+                value: stats.entreguesCorreios, 
+                filterNote: 'correios',
+                isImage: true
+            },
+            { 
+                icon: 'bar-chart',
+                label: 'Total Ativos', 
+                value: stats.totalAtivos, 
+                filterClear: true,
+                isImage: false
+            }
+        ];
+
+        document.getElementById('stats-cards').innerHTML = cards.map(card => {
+            const iconHtml = card.isImage 
+                ? `<img src="${card.icon}" alt="${card.label}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><text y=%22.9em%22 font-size=%2214%22>📦</text></svg>'">`
+                : `<i class="bi bi-${card.icon}"></i>`;
+            
+            return `
+                <div class="col-6 col-md-3 col-lg-2">
+                    <div class="stat-card card" onclick="filterByCard(${JSON.stringify(card).replace(/"/g, '&quot;')})">
+                        <div class="card-body">
+                            <div class="icon-placeholder">
+                                ${iconHtml}
+                            </div>
+                            <div class="count">${card.value}</div>
+                            <div class="label">${card.label}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        if (stats.stalledVehicles > 0) {
+            document.getElementById('stalledAlert').classList.remove('hidden');
+            document.getElementById('stalledList').textContent = stats.stalledVehiclesList.map(v => `${v.plate} (${v.hours}h)`).join(', ');
+        } else {
+            document.getElementById('stalledAlert').classList.add('hidden');
         }
+    } catch (err) { console.error('Erro stats:', err); }
+}
 
         function filterByCard(card) {
             document.getElementById('searchInput').value = '';
