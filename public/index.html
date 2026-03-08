@@ -60,6 +60,11 @@
             display: flex; align-items: center; justify-content: center;
             margin: 0 auto 8px; font-size: 1.5rem; color: var(--print-blue);
         }
+        .stat-card .icon-placeholder img {
+            width: 48px;
+            height: 48px;
+            object-fit: contain;
+        }
         .stat-card .count { font-size: 1.8rem; font-weight: 700; color: var(--print-blue); line-height: 1; }
         .stat-card .label { font-size: 0.85rem; color: #666; margin-top: 4px; }
         .action-bar, .filter-bar {
@@ -217,14 +222,14 @@
             </form>
             <div id="loginError" class="alert alert-danger mt-3 hidden"></div>
             <div class="mt-4 text-muted small">
-    <i class="bi bi-shield-lock"></i> Acesso restrito a usuários autorizados<br>
-    <small>Sistema de Controle de Pátio - Uso Interno</small>
-    <hr class="my-2">
-    <small class="text-primary">
-        <i class="bi bi-code-slash"></i> Sistema desenvolvido e mantido por<br>
-        <strong>Ramalho Sistemas e Software</strong>
-    </small>
-</div>
+                <i class="bi bi-shield-lock"></i> Acesso restrito a usuários autorizados<br>
+                <small>Sistema de Controle de Pátio - Uso Interno</small>
+                <hr class="my-2">
+                <small class="text-primary">
+                    <i class="bi bi-code-slash"></i> Sistema desenvolvido e mantido por<br>
+                    <strong>Ramalho Sistemas e Software</strong>
+                </small>
+            </div>
         </div>
     </div>
 
@@ -240,12 +245,7 @@
                         <img src="/images/logo-print.png" alt="Transportadora Print" onerror="this.style.display='none'">
                         <div>
                             <h1 style="font-size: 1.3rem; margin: 0;">Controle de Pátio</h1>
-                            <small>
-                                <i class="bi bi-geo-alt me-1"></i>
-                                <span id="current-yard-filter">Todos os Pátios</span> 
-                                • <i class="bi bi-clock me-1"></i>
-                                <span id="current-time"></span>
-                            </small>
+                            <small><i class="bi bi-geo-alt me-1"></i><span id="current-yard-filter">Todos os Pátios</span> • <i class="bi bi-clock me-1"></i><span id="current-time"></span></small>
                         </div>
                     </div>
                     <div class="d-flex align-items-center gap-3">
@@ -256,9 +256,7 @@
                                 <small class="text-white-50"><span id="userRole">Administrador</span> <span class="role-badge" id="userRoleBadge">ADMIN</span></small>
                             </div>
                         </div>
-                        <button class="btn btn-light btn-sm" onclick="logout()" title="Sair">
-                            <i class="bi bi-box-arrow-right"></i>
-                        </button>
+                        <button class="btn btn-light btn-sm" onclick="logout()" title="Sair"><i class="bi bi-box-arrow-right"></i></button>
                     </div>
                 </div>
             </div>
@@ -268,88 +266,47 @@
             <div id="stalledAlert" class="alert-stalled hidden">
                 <div class="d-flex align-items-center">
                     <i class="bi bi-exclamation-triangle-fill text-danger fs-4 me-3"></i>
-                    <div>
-                        <strong class="text-danger">⚠️ Veículos parados há mais de 24h</strong>
-                        <p class="mb-0 mt-1" id="stalledList"></p>
-                    </div>
+                    <div><strong class="text-danger">⚠️ Veículos parados há mais de 24h</strong><p class="mb-0 mt-1" id="stalledList"></p></div>
                 </div>
             </div>
             
             <div class="row g-3 mb-4" id="stats-cards"></div>
-            
-/* Ícones dos cards */
-.stat-card img {
-    width: 48px !important;
-    height: 48px !important;
-    object-fit: contain;
-    margin-bottom: 8px;
-    transition: transform 0.2s;
-}
 
-.stat-card:hover img {
-    transform: scale(1.1);
-}
             <div class="row g-3 mb-4">
                 <div class="col-6 col-md-3">
                     <div class="quick-action-card" onclick="openEntryModal()">
-                        <i class="bi bi-plus-circle"></i>
-                        <div><strong>Nova Entrada</strong></div>
-                        <small>Cadastrar veículo</small>
+                        <i class="bi bi-plus-circle"></i><div><strong>Nova Entrada</strong></div><small>Cadastrar veículo</small>
                     </div>
                 </div>
                 <div class="col-6 col-md-3">
                     <div class="quick-action-card" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);" onclick="openScanExitModal()">
-                        <i class="bi bi-qr-code-scan"></i>
-                        <div><strong>Escanear Saída</strong></div>
-                        <small>Liberar veículo</small>
+                        <i class="bi bi-qr-code-scan"></i><div><strong>Escanear Saída</strong></div><small>Liberar veículo</small>
                     </div>
                 </div>
                 <div class="col-6 col-md-3">
                     <div class="quick-action-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);" onclick="exportToPDF()">
-                        <i class="bi bi-file-earmark-pdf"></i>
-                        <div><strong>Exportar PDF</strong></div>
-                        <small>Relatório completo</small>
+                        <i class="bi bi-file-earmark-pdf"></i><div><strong>Exportar PDF</strong></div><small>Relatório completo</small>
                     </div>
                 </div>
                 <div class="col-6 col-md-3">
                     <div class="quick-action-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);" onclick="exportToExcel()">
-                        <i class="bi bi-file-earmark-excel"></i>
-                        <div><strong>Exportar Excel</strong></div>
-                        <small>Planilha CSV</small>
+                        <i class="bi bi-file-earmark-excel"></i><div><strong>Exportar Excel</strong></div><small>Planilha CSV</small>
                     </div>
                 </div>
             </div>
 
             <div class="action-bar">
                 <div class="container-fluid px-3">
-                    <button class="btn btn-primary" onclick="openDashboard()">
-                        <i class="bi bi-graph-up me-1"></i> Dashboard
-                    </button>
-                    <button class="btn btn-primary" onclick="openEntryModal()">
-                        <i class="bi bi-plus-lg"></i> Novo Veículo
-                    </button>
-                    <button class="btn btn-scan-exit" onclick="openScanExitModal()">
-                        <i class="bi bi-qr-code-scan"></i> Escanear Saída
-                    </button>
-                    <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#swapModal">
-                        <i class="bi bi-arrow-left-right"></i> Registrar Troca
-                    </button>
-                    <button class="btn btn-outline-success" onclick="exportToJSON()">
-                        <i class="bi bi-file-earmark-json"></i> Exportar JSON
-                    </button>
-                    <button class="btn btn-outline-success" onclick="exportToExcel()">
-                        <i class="bi bi-file-earmark-excel"></i> Exportar Excel
-                    </button>
-                    <button class="btn btn-outline-danger" onclick="exportToPDF()">
-                        <i class="bi bi-file-earmark-pdf"></i> Exportar PDF
-                    </button>
-                    <button class="btn btn-outline-info" id="btnImportJSON" data-bs-toggle="modal" data-bs-target="#importModal" style="display: inline-flex !important;">
-                        <i class="bi bi-file-earmark-arrow-up"></i> Importar JSON
-                    </button>
+                    <button class="btn btn-primary" onclick="openDashboard()"><i class="bi bi-graph-up me-1"></i> Dashboard</button>
+                    <button class="btn btn-primary" onclick="openEntryModal()"><i class="bi bi-plus-lg"></i> Novo Veículo</button>
+                    <button class="btn btn-scan-exit" onclick="openScanExitModal()"><i class="bi bi-qr-code-scan"></i> Escanear Saída</button>
+                    <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#swapModal"><i class="bi bi-arrow-left-right"></i> Registrar Troca</button>
+                    <button class="btn btn-outline-success" onclick="exportToJSON()"><i class="bi bi-file-earmark-json"></i> Exportar JSON</button>
+                    <button class="btn btn-outline-success" onclick="exportToExcel()"><i class="bi bi-file-earmark-excel"></i> Exportar Excel</button>
+                    <button class="btn btn-outline-danger" onclick="exportToPDF()"><i class="bi bi-file-earmark-pdf"></i> Exportar PDF</button>
+                    <button class="btn btn-outline-info" id="btnImportJSON" data-bs-toggle="modal" data-bs-target="#importModal" style="display: inline-flex !important;"><i class="bi bi-file-earmark-arrow-up"></i> Importar JSON</button>
                     <div class="vr mx-2"></div>
-                    <button class="btn btn-outline-warning" onclick="refreshData()">
-                        <i class="bi bi-arrow-clockwise"></i> Atualizar
-                    </button>
+                    <button class="btn btn-outline-warning" onclick="refreshData()"><i class="bi bi-arrow-clockwise"></i> Atualizar</button>
                 </div>
             </div>
 
@@ -381,9 +338,7 @@
                     </div>
                     <div class="col-md-2">
                         <label class="form-label small text-muted">&nbsp;</label>
-                        <button class="btn btn-outline-secondary w-100" onclick="clearFilters()">
-                            <i class="bi bi-x-circle"></i> Limpar
-                        </button>
+                        <button class="btn btn-outline-secondary w-100" onclick="clearFilters()"><i class="bi bi-x-circle"></i> Limpar</button>
                     </div>
                 </div>
             </div>
@@ -392,24 +347,13 @@
                 <div class="table-responsive">
                     <table class="table table-hover mb-0">
                         <thead>
-                            <tr>
-                                <th>Tipo</th>
-                                <th>Placa</th>
-                                <th>Entrada</th>
-                                <th>Saída</th>
-                                <th>Tempo</th>
-                                <th>Local</th>
-                                <th>Manutenção</th>
-                                <th>Status</th>
-                                <th>Ações</th>
-                            </tr>
+                            <tr><th>Tipo</th><th>Placa</th><th>Entrada</th><th>Saída</th><th>Tempo</th><th>Local</th><th>Manutenção</th><th>Status</th><th>Ações</th></tr>
                         </thead>
                         <tbody id="vehicleTableBody"></tbody>
                     </table>
                 </div>
                 <div class="p-3 text-center text-muted" id="emptyMessage">
-                    <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-                    Nenhum veículo cadastrado. Clique em "Novo Veículo" para começar.
+                    <i class="bi bi-inbox fs-1 d-block mb-2"></i>Nenhum veículo cadastrado. Clique em "Novo Veículo" para começar.
                 </div>
             </div>
 
@@ -420,14 +364,7 @@
                 <div class="table-responsive">
                     <table class="table table-sm mb-0">
                         <thead class="table-light">
-                            <tr>
-                                <th>Data</th>
-                                <th>Entra</th>
-                                <th>Sai</th>
-                                <th>Base</th>
-                                <th>Observações</th>
-                                <th>Ações</th>
-                            </tr>
+                            <tr><th>Data</th><th>Entra</th><th>Sai</th><th>Base</th><th>Observações</th><th>Ações</th></tr>
                         </thead>
                         <tbody id="swapsTableBody"></tbody>
                     </table>
@@ -474,15 +411,13 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
-                    <button type="button" class="btn btn-primary" onclick="updateDashboard()">
-                        <i class="bi bi-arrow-clockwise me-1"></i>Atualizar
-                    </button>
+                    <button type="button" class="btn btn-primary" onclick="updateDashboard()"><i class="bi bi-arrow-clockwise me-1"></i>Atualizar</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Modal: Nova Entrada COM CÂMERA -->
+    <!-- Modais restantes (Entry, Scan Exit, Edit, Import, Swap) -->
     <div class="modal fade" id="entryModal" tabindex="-1">
         <div class="modal-dialog modal-xl">
             <div class="modal-content">
@@ -495,24 +430,16 @@
                         <div class="col-lg-5">
                             <div class="card border-0 shadow-sm">
                                 <div class="card-body text-center">
-                                    <h6 class="card-title mb-3">
-                                        <i class="bi bi-camera me-2"></i>Escanear Placa
-                                    </h6>
+                                    <h6 class="card-title mb-3"><i class="bi bi-camera me-2"></i>Escanear Placa</h6>
                                     <div id="camera-container-entry" class="scan-overlay">
                                         <video id="camera-video-entry" autoplay playsinline></video>
                                     </div>
                                     <div class="btn-group w-100 mt-3">
-                                        <button class="btn btn-camera" onclick="startCamera('entry')">
-                                            <i class="bi bi-camera-video me-2"></i>Iniciar
-                                        </button>
-                                        <button class="btn btn-outline-secondary" onclick="stopCamera('entry')">
-                                            <i class="bi bi-camera-video-off me-2"></i>Parar
-                                        </button>
+                                        <button class="btn btn-camera" onclick="startCamera('entry')"><i class="bi bi-camera-video me-2"></i>Iniciar</button>
+                                        <button class="btn btn-outline-secondary" onclick="stopCamera('entry')"><i class="bi bi-camera-video-off me-2"></i>Parar</button>
                                     </div>
                                     <div id="scanStatusEntry" class="scan-status mt-2"></div>
-                                    <small class="text-muted d-block mt-2">
-                                        <i class="bi bi-info-circle"></i> Aponte para a placa do veículo
-                                    </small>
+                                    <small class="text-muted d-block mt-2"><i class="bi bi-info-circle"></i> Aponte para a placa do veículo</small>
                                 </div>
                             </div>
                         </div>
@@ -522,12 +449,8 @@
                                     <div class="col-12">
                                         <label class="form-label">Placa *</label>
                                         <div class="input-group">
-                                            <input type="text" class="form-control form-control-lg" id="plate" 
-                                                   placeholder="ABC-1D23" maxlength="9" required 
-                                                   style="text-transform:uppercase; font-family:monospace; font-weight:600; font-size: 1.2rem;">
-                                            <button class="btn btn-outline-secondary" type="button" onclick="manualPlateEntry()">
-                                                <i class="bi bi-keyboard"></i>
-                                            </button>
+                                            <input type="text" class="form-control form-control-lg" id="plate" placeholder="ABC-1D23" maxlength="9" required style="text-transform:uppercase; font-family:monospace; font-weight:600; font-size: 1.2rem;">
+                                            <button class="btn btn-outline-secondary" type="button" onclick="manualPlateEntry()"><i class="bi bi-keyboard"></i></button>
                                         </div>
                                         <div id="plateAlert" class="alert alert-danger mt-2 hidden"></div>
                                     </div>
@@ -591,15 +514,12 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-primary btn-lg" onclick="submitEntry()">
-                        <i class="bi bi-check-circle me-1"></i> Confirmar Entrada
-                    </button>
+                    <button type="button" class="btn btn-primary btn-lg" onclick="submitEntry()"><i class="bi bi-check-circle me-1"></i> Confirmar Entrada</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Modal: Escanear para Saída Rápida -->
     <div class="modal fade" id="scanExitModal" tabindex="-1">
         <div class="modal-dialog modal-md">
             <div class="modal-content">
@@ -612,30 +532,20 @@
                         <video id="camera-video-exit" autoplay playsinline></video>
                     </div>
                     <div class="btn-group w-100 mt-3">
-                        <button class="btn btn-scan-exit" onclick="startCamera('exit')">
-                            <i class="bi bi-camera-video me-2"></i>Iniciar Câmera
-                        </button>
-                        <button class="btn btn-outline-secondary" onclick="stopCamera('exit')">
-                            <i class="bi bi-camera-video-off me-2"></i>Parar
-                        </button>
+                        <button class="btn btn-scan-exit" onclick="startCamera('exit')"><i class="bi bi-camera-video me-2"></i>Iniciar Câmera</button>
+                        <button class="btn btn-outline-secondary" onclick="stopCamera('exit')"><i class="bi bi-camera-video-off me-2"></i>Parar</button>
                     </div>
                     <div id="scanStatusExit" class="scan-status mt-2"></div>
                     <div class="mt-3">
                         <label class="form-label">Ou digite a placa:</label>
                         <div class="input-group">
-                            <input type="text" class="form-control form-control-lg" id="scanExitPlate" 
-                                   placeholder="ABC-1D23" maxlength="9" 
-                                   style="text-transform:uppercase; font-family:monospace; font-weight:600;">
-                            <button class="btn btn-outline-secondary" type="button" onclick="checkPlateForExit()">
-                                <i class="bi bi-search"></i>
-                            </button>
+                            <input type="text" class="form-control form-control-lg" id="scanExitPlate" placeholder="ABC-1D23" maxlength="9" style="text-transform:uppercase; font-family:monospace; font-weight:600;">
+                            <button class="btn btn-outline-secondary" type="button" onclick="checkPlateForExit()"><i class="bi bi-search"></i></button>
                         </div>
                     </div>
                     <div id="exitVehicleInfo" class="vehicle-history hidden mt-3">
                         <div id="exitVehicleContent"></div>
-                        <button class="btn btn-success btn-lg w-100 mt-3" onclick="confirmExitVehicle()">
-                            <i class="bi bi-check-circle me-2"></i>Confirmar Saída
-                        </button>
+                        <button class="btn btn-success btn-lg w-100 mt-3" onclick="confirmExitVehicle()"><i class="bi bi-check-circle me-2"></i>Confirmar Saída</button>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -645,7 +555,6 @@
         </div>
     </div>
 
-    <!-- Modal: Editar Veículo -->
     <div class="modal fade" id="editVehicleModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
@@ -711,9 +620,7 @@
                             <div class="col-12">
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" id="editMaintenance">
-                                    <label class="form-check-label" for="editMaintenance">
-                                        <strong>Em Manutenção?</strong>
-                                    </label>
+                                    <label class="form-check-label" for="editMaintenance"><strong>Em Manutenção?</strong></label>
                                 </div>
                             </div>
                         </div>
@@ -721,15 +628,12 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-warning" onclick="saveVehicleEdit()">
-                        <i class="bi bi-save me-1"></i> Salvar Alterações
-                    </button>
+                    <button type="button" class="btn btn-warning" onclick="saveVehicleEdit()"><i class="bi bi-save me-1"></i> Salvar Alterações</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Modal: Importar JSON -->
     <div class="modal fade" id="importModal" tabindex="-1">
         <div class="modal-dialog modal-md">
             <div class="modal-content">
@@ -739,8 +643,7 @@
                 </div>
                 <div class="modal-body">
                     <div class="alert alert-warning">
-                        <i class="bi bi-exclamation-triangle me-2"></i>
-                        <strong>Atenção:</strong> Importar um arquivo irá <u>substituir todos os dados atuais</u> do sistema.
+                        <i class="bi bi-exclamation-triangle me-2"></i><strong>Atenção:</strong> Importar um arquivo irá <u>substituir todos os dados atuais</u> do sistema.
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold">Selecione o arquivo JSON de backup</label>
@@ -751,15 +654,12 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-info text-white" onclick="processImport()">
-                        <i class="bi bi-upload me-1"></i> Importar e Substituir
-                    </button>
+                    <button type="button" class="btn btn-info text-white" onclick="processImport()"><i class="bi bi-upload me-1"></i> Importar e Substituir</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Modal: Registrar Troca -->
     <div class="modal fade" id="swapModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -799,9 +699,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-primary" onclick="submitSwap()">
-                        <i class="bi bi-check-circle me-1"></i> <span id="swapBtnText">Registrar</span>
-                    </button>
+                    <button type="button" class="btn btn-primary" onclick="submitSwap()"><i class="bi bi-check-circle me-1"></i> <span id="swapBtnText">Registrar</span></button>
                 </div>
             </div>
         </div>
@@ -1243,90 +1141,97 @@
 
         // ============ CARREGAR DADOS ============
         async function loadStats() {
-    try {
-        const res = await fetch(`${API_URL}/stats`);
-        const stats = await res.json();
-        
-        const cards = [
-            { 
-                icon: '/images/cavalo-mecanico.png',
-                label: 'Cavalos Mecânicos', 
-                value: stats.cavalosMecanicos, 
-                filterType: 'Cavalo Mecânico',
-                isImage: true
-            },
-            { 
-                icon: '/images/carreta.png',
-                label: 'Carretas', 
-                value: stats.carretas, 
-                filterType: 'Carreta',
-                isImage: true
-            },
-            { 
-                icon: '/images/manutencao.png',
-                label: 'Em Manutenção', 
-                value: stats.emManutencao, 
-                filterStatus: 'Em manutenção',
-                isImage: true
-            },
-            { 
-                icon: '/images/liberado.png',
-                label: 'Liberados', 
-                value: stats.liberados, 
-                filterStatus: 'Liberado',
-                isImage: true
-            },
-            { 
-                icon: '/images/diversos.png',
-                label: 'Diversos', 
-                value: stats.entreguesDiversos, 
-                filterNote: 'diversos',
-                isImage: true
-            },
-            { 
-                icon: '/images/correios.png',
-                label: 'Correios', 
-                value: stats.entreguesCorreios, 
-                filterNote: 'correios',
-                isImage: true
-            },
-            { 
-                icon: 'bar-chart',
-                label: 'Total Ativos', 
-                value: stats.totalAtivos, 
-                filterClear: true,
-                isImage: false
-            }
-        ];
+            try {
+                const res = await fetch(`${API_URL}/stats`);
+                const stats = await res.json();
+                
+                const cards = [
+                    { 
+                        icon: '/images/cavalo-mecanico.png',
+                        label: 'Cavalos Mecânicos', 
+                        value: stats.cavalosMecanicos, 
+                        filterType: 'Cavalo Mecânico',
+                        isImage: true
+                    },
+                    { 
+                        icon: '/images/carreta.png',
+                        label: 'Carretas', 
+                        value: stats.carretas, 
+                        filterType: 'Carreta',
+                        isImage: true
+                    },
+                    { 
+                        icon: '/images/conjunto-montado.png',
+                        label: 'Conjuntos Montados', 
+                        value: stats.conjuntosMontados || 0, 
+                        filterType: 'Conjunto Montado',
+                        isImage: true
+                    },
+                    { 
+                        icon: '/images/manutencao.png',
+                        label: 'Em Manutenção', 
+                        value: stats.emManutencao, 
+                        filterStatus: 'Em manutenção',
+                        isImage: true
+                    },
+                    { 
+                        icon: '/images/liberado.png',
+                        label: 'Liberados', 
+                        value: stats.liberados, 
+                        filterStatus: 'Liberado',
+                        isImage: true
+                    },
+                    { 
+                        icon: '/images/diversos.png',
+                        label: 'Entregues para Diversos', 
+                        value: stats.entreguesDiversos, 
+                        filterNote: 'diversos',
+                        isImage: true
+                    },
+                    { 
+                        icon: '/images/correios.png',
+                        label: 'Entregues para Correios', 
+                        value: stats.entreguesCorreios, 
+                        filterNote: 'correios',
+                        isImage: true
+                    },
+                    { 
+                        icon: 'bar-chart',
+                        label: 'Total Ativos', 
+                        value: stats.totalAtivos, 
+                        filterClear: true,
+                        isImage: false
+                    }
+                ];
 
-        document.getElementById('stats-cards').innerHTML = cards.map(card => {
-            const iconHtml = card.isImage 
-                ? `<img src="${card.icon}" alt="${card.label}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><text y=%22.9em%22 font-size=%2214%22>📦</text></svg>'">`
-                : `<i class="bi bi-${card.icon}"></i>`;
-            
-            return `
-                <div class="col-6 col-md-3 col-lg-2">
-                    <div class="stat-card card" onclick="filterByCard(${JSON.stringify(card).replace(/"/g, '&quot;')})">
-                        <div class="card-body">
-                            <div class="icon-placeholder">
-                                ${iconHtml}
+                document.getElementById('stats-cards').innerHTML = cards.map(card => {
+                    const iconHtml = card.isImage 
+                        ? `<img src="${card.icon}" alt="${card.label}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><text y=%22.9em%22 font-size=%2214%22>📦</text></svg>'">`
+                        : `<i class="bi bi-${card.icon}"></i>`;
+                    
+                    return `
+                        <div class="col-6 col-md-3 col-lg-2">
+                            <div class="stat-card card" onclick="filterByCard(${JSON.stringify(card).replace(/"/g, '&quot;')})">
+                                <div class="card-body">
+                                    <div class="icon-placeholder">
+                                        ${iconHtml}
+                                    </div>
+                                    <div class="count">${card.value}</div>
+                                    <div class="label">${card.label}</div>
+                                </div>
                             </div>
-                            <div class="count">${card.value}</div>
-                            <div class="label">${card.label}</div>
                         </div>
-                    </div>
-                </div>
-            `;
-        }).join('');
-        
-        if (stats.stalledVehicles > 0) {
-            document.getElementById('stalledAlert').classList.remove('hidden');
-            document.getElementById('stalledList').textContent = stats.stalledVehiclesList.map(v => `${v.plate} (${v.hours}h)`).join(', ');
-        } else {
-            document.getElementById('stalledAlert').classList.add('hidden');
+                    `;
+                }).join('');
+                
+                if (stats.stalledVehicles > 0) {
+                    document.getElementById('stalledAlert').classList.remove('hidden');
+                    document.getElementById('stalledList').textContent = stats.stalledVehiclesList.map(v => `${v.plate} (${v.hours}h)`).join(', ');
+                } else {
+                    document.getElementById('stalledAlert').classList.add('hidden');
+                }
+            } catch (err) { console.error('Erro stats:', err); }
         }
-    } catch (err) { console.error('Erro stats:', err); }
-}
 
         function filterByCard(card) {
             document.getElementById('searchInput').value = '';
