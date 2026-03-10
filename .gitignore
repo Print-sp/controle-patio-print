@@ -1,18 +1,20 @@
-# Node modules
+# Dependências
 node_modules/
+npm-debug.log*
 
-# Banco de dados (não subir dados reais)
-database/*.db
+# Banco de dados local (SQLite)
+database/patio.db
+database/*.db-shm
+database/*.db-wal
 
-# Backups
-backups/*.json
-
-# Variáveis de ambiente (CONTÉM SENHAS!)
+# Variáveis de ambiente
 .env
+.env.local
+.env.*.local
 
 # Logs
+logs/
 *.log
-npm-debug.log*
 
 # Sistema operacional
 .DS_Store
@@ -21,3 +23,10 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+*.swp
+*.swo
+
+# Build/Output
+dist/
+build/
+public/dist/

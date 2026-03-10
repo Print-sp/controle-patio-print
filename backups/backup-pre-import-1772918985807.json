@@ -1,0 +1,24 @@
+{
+  "vehicles": [
+    {
+      "id": 2,
+      "plate": "TMC6H65",
+      "type": "Carreta",
+      "yard": "Pátio Jaraguá",
+      "base": "Jaraguá-SP",
+      "status": "Aguardando linha",
+      "maintenance": 0,
+      "maintenanceProblems": "[]",
+      "keys": "",
+      "notes": "",
+      "entryTime": "2026-03-07T21:29:00.000Z",
+      "exitTime": null,
+      "icon": "default-truck",
+      "createdAt": "2026-03-07 21:29:17",
+      "updatedAt": "2026-03-07 21:29:17",
+      "updatedBy": "admin"
+    }
+  ],
+  "swaps": [],
+  "exportedAt": "2026-03-07T21:29:45.807Z"
+}

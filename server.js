@@ -1,3 +1,6 @@
+// 🚛 Controle de Pátio - Transportadora Print
+// Sistema desenvolvido e mantido por Ramalho Sistemas e Software
+
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -71,6 +74,8 @@ function mapPostgresRow(row) {
         maintenanceProblems: row.maintenanceproblems || [],
         keys: row.keys,
         notes: row.notes,
+        entregarDiversos: row.entregar_diversos || false,
+        entregarCorreios: row.entregar_correios || false,
         entryTime: row.entrytime,
         exitTime: row.exittime,
         icon: row.icon,
@@ -87,6 +92,7 @@ function mapUserRow(row) {
         username: row.username,
         passwordHash: row.passwordhash || row.password_hash,
         role: row.role,
+        yards: row.yards ? (typeof row.yards === 'string' ? JSON.parse(row.yards) : row.yards) : [],
         createdAt: row.createdat,
         lastLogin: row.lastlogin
     };
@@ -106,6 +112,25 @@ function mapSwapRow(row) {
     };
 }
 
+// ============ PERMISSÕES POR USUÁRIO ============
+const userYardPermissions = {
+    admin: ['Pátio Jaraguá', 'Pátio Bandeirantes', 'Pátio Superior', 'Pátio Cajamar'],
+    cajamar: ['Pátio Cajamar'],
+    bandeirantes: ['Pátio Bandeirantes'],
+    jaragua: ['Pátio Jaraguá', 'Pátio Superior']
+};
+
+function getUserAllowedYards(username) {
+    const userKey = username.toLowerCase();
+    return userYardPermissions[userKey] || [];
+}
+
+function filterVehiclesByUserYards(vehicles, username) {
+    const allowedYards = getUserAllowedYards(username);
+    if (allowedYards.length === 0) return vehicles;
+    return vehicles.filter(v => allowedYards.includes(v.yard));
+}
+
 // ============ INICIALIZAR BANCO ============
 async function initDatabase() {
     if (isProduction) {
@@ -122,6 +147,8 @@ async function initDatabase() {
                     maintenanceProblems JSONB DEFAULT '[]',
                     keys TEXT DEFAULT '',
                     notes TEXT DEFAULT '',
+                    entregar_diversos BOOLEAN DEFAULT false,
+                    entregar_correios BOOLEAN DEFAULT false,
                     entryTime TIMESTAMP NOT NULL,
                     exitTime TIMESTAMP,
                     icon TEXT DEFAULT 'default-truck',
@@ -146,6 +173,7 @@ async function initDatabase() {
                     username TEXT UNIQUE NOT NULL,
                     passwordHash TEXT NOT NULL,
                     role TEXT DEFAULT 'operator',
+                    yards JSONB DEFAULT '[]',
                     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     lastLogin TIMESTAMP
                 );
@@ -165,14 +193,28 @@ async function initDatabase() {
                 CREATE INDEX IF NOT EXISTS idx_vehicles_yard ON vehicles(yard);
             `);
             
-            const adminExists = await pool.query('SELECT id FROM users WHERE username = $1', ['admin']);
-            if (adminExists.rows.length === 0) {
-                const adminHash = bcrypt.hashSync(process.env.ADMIN_PASSWORD || 'Print@2026', 10);
-                const operatorHash = bcrypt.hashSync(process.env.OPERATOR_PASSWORD || 'Operador2026', 10);
-                await pool.query('INSERT INTO users (username, passwordHash, role) VALUES ($1, $2, $3)', ['admin', adminHash, 'admin']);
-                await pool.query('INSERT INTO users (username, passwordHash, role) VALUES ($1, $2, $3)', ['operador', operatorHash, 'operator']);
-                console.log('✅ Usuários padrão criados (PostgreSQL)');
+            await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS entregar_diversos BOOLEAN DEFAULT false`);
+            await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS entregar_correios BOOLEAN DEFAULT false`);
+            await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS yards JSONB DEFAULT '[]'`);
+            
+            // Criar usuários com permissões
+            const users = [
+                { username: 'admin', password: process.env.ADMIN_PASSWORD || 'Print@2026', role: 'admin', yards: ['Pátio Jaraguá', 'Pátio Bandeirantes', 'Pátio Superior', 'Pátio Cajamar'] },
+                { username: 'cajamar', password: process.env.CAJAMAR_PASSWORD || 'Cajamar2026', role: 'operator', yards: ['Pátio Cajamar'] },
+                { username: 'bandeirantes', password: process.env.BANDEIRANTES_PASSWORD || 'Bandeirantes2026', role: 'operator', yards: ['Pátio Bandeirantes'] },
+                { username: 'jaragua', password: process.env.JARAGUA_PASSWORD || 'Jaragua2026', role: 'operator', yards: ['Pátio Jaraguá', 'Pátio Superior'] }
+            ];
+            
+            for (const user of users) {
+                const exists = await pool.query('SELECT id FROM users WHERE username = $1', [user.username]);
+                if (exists.rows.length === 0) {
+                    const hash = bcrypt.hashSync(user.password, 10);
+                    await pool.query('INSERT INTO users (username, passwordHash, role, yards) VALUES ($1, $2, $3, $4)', 
+                        [user.username, hash, user.role, JSON.stringify(user.yards)]);
+                    console.log(`✅ Usuário criado: ${user.username} (${user.yards.join(', ')})`);
+                }
             }
+            
             console.log('✅ PostgreSQL inicializado');
         } catch (err) {
             console.error('❌ Erro PostgreSQL:', err.message);
@@ -191,6 +233,8 @@ async function initDatabase() {
                     maintenanceProblems TEXT DEFAULT '[]',
                     keys TEXT DEFAULT '',
                     notes TEXT DEFAULT '',
+                    entregar_diversos INTEGER DEFAULT 0,
+                    entregar_correios INTEGER DEFAULT 0,
                     entryTime TEXT NOT NULL,
                     exitTime TEXT,
                     icon TEXT DEFAULT 'default-truck',
@@ -215,6 +259,7 @@ async function initDatabase() {
                     username TEXT UNIQUE NOT NULL,
                     passwordHash TEXT NOT NULL,
                     role TEXT DEFAULT 'operator',
+                    yards TEXT DEFAULT '[]',
                     createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
                     lastLogin TEXT
                 );
@@ -230,14 +275,27 @@ async function initDatabase() {
                 );
             `);
             
-            const adminExists = db.prepare('SELECT id FROM users WHERE username = ?').get('admin');
-            if (!adminExists) {
-                const adminHash = bcrypt.hashSync(process.env.ADMIN_PASSWORD || 'Print@2026', 10);
-                const operatorHash = bcrypt.hashSync(process.env.OPERATOR_PASSWORD || 'Operador2026', 10);
-                db.prepare('INSERT INTO users (username, passwordHash, role) VALUES (?, ?, ?)').run('admin', adminHash, 'admin');
-                db.prepare('INSERT INTO users (username, passwordHash, role) VALUES (?, ?, ?)').run('operador', operatorHash, 'operator');
-                console.log('✅ Usuários padrão criados (SQLite)');
+            try { db.exec('ALTER TABLE vehicles ADD COLUMN entregar_diversos INTEGER DEFAULT 0'); } catch(e) {}
+            try { db.exec('ALTER TABLE vehicles ADD COLUMN entregar_correios INTEGER DEFAULT 0'); } catch(e) {}
+            
+            // Criar usuários com permissões
+            const users = [
+                { username: 'admin', password: process.env.ADMIN_PASSWORD || 'Print@2026', role: 'admin', yards: ['Pátio Jaraguá', 'Pátio Bandeirantes', 'Pátio Superior', 'Pátio Cajamar'] },
+                { username: 'cajamar', password: process.env.CAJAMAR_PASSWORD || 'Cajamar2026', role: 'operator', yards: ['Pátio Cajamar'] },
+                { username: 'bandeirantes', password: process.env.BANDEIRANTES_PASSWORD || 'Bandeirantes2026', role: 'operator', yards: ['Pátio Bandeirantes'] },
+                { username: 'jaragua', password: process.env.JARAGUA_PASSWORD || 'Jaragua2026', role: 'operator', yards: ['Pátio Jaraguá', 'Pátio Superior'] }
+            ];
+            
+            for (const user of users) {
+                const exists = db.prepare('SELECT id FROM users WHERE username = ?').get(user.username);
+                if (!exists) {
+                    const hash = bcrypt.hashSync(user.password, 10);
+                    db.prepare('INSERT INTO users (username, passwordHash, role, yards) VALUES (?, ?, ?, ?)')
+                        .run(user.username, hash, user.role, JSON.stringify(user.yards));
+                    console.log(`✅ Usuário criado: ${user.username} (${user.yards.join(', ')})`);
+                }
             }
+            
             console.log('✅ SQLite inicializado');
         } catch (err) {
             console.error('❌ Erro SQLite:', err.message);
@@ -295,6 +353,9 @@ app.post('/api/auth/login', async (req, res) => {
             user = mapUserRow(result.rows[0]);
         } else {
             user = db.prepare('SELECT * FROM users WHERE username = ?').get(username.toLowerCase());
+            if (user && user.yards) {
+                user.yards = typeof user.yards === 'string' ? JSON.parse(user.yards) : user.yards;
+            }
         }
         
         if (!user) {
@@ -307,11 +368,21 @@ app.post('/api/auth/login', async (req, res) => {
             return res.status(401).json({ error: 'Usuário ou senha inválidos' });
         }
 
-        req.session.user = { id: user.id, username: user.username, role: user.role };
+        const allowedYards = getUserAllowedYards(user.username);
+        req.session.user = { 
+            id: user.id, 
+            username: user.username, 
+            role: user.role,
+            yards: allowedYards
+        };
 
         res.json({ 
             success: true, 
-            user: { username: user.username, role: user.role },
+            user: { 
+                username: user.username, 
+                role: user.role,
+                yards: allowedYards
+            },
             message: `Bem-vindo, ${user.username}!`
         });
 
@@ -357,6 +428,10 @@ app.get('/api/vehicles', requireAuth, async (req, res) => {
             vehicles = vehicles.map(v => ({ ...v, maintenanceProblems: JSON.parse(v.maintenanceProblems || '[]') }));
         }
         
+        // ✅ FILTRAR POR PÁTIO DO USUÁRIO
+        const username = req.session.user.username;
+        vehicles = filterVehiclesByUserYards(vehicles, username);
+        
         res.json(vehicles.map(v => ({
             ...v,
             entryDate: formatDateBR(v.entryTime),
@@ -370,7 +445,13 @@ app.get('/api/vehicles', requireAuth, async (req, res) => {
 });
 
 app.post('/api/vehicles', requireAuth, async (req, res) => {
-    const { plate, type, yard, base, keys, notes, entryDate } = req.body;
+    const { plate, type, yard, base, keys, notes, entryDate, entregarDiversos, entregarCorreios } = req.body;
+    
+    // ✅ VALIDAR SE USUÁRIO PODE ACESSAR ESTE PÁTIO
+    const allowedYards = getUserAllowedYards(req.session.user.username);
+    if (allowedYards.length > 0 && !allowedYards.includes(yard)) {
+        return res.status(403).json({ error: 'Você não tem permissão para este pátio' });
+    }
     
     if (!plate || !type || !yard) {
         return res.status(400).json({ error: 'Placa, tipo e pátio obrigatórios' });
@@ -379,23 +460,25 @@ app.post('/api/vehicles', requireAuth, async (req, res) => {
     try {
         if (isProduction) {
             const result = await pool.query(`
-                INSERT INTO vehicles (plate, type, yard, base, keys, notes, entryTime, updatedBy)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *
+                INSERT INTO vehicles (plate, type, yard, base, keys, notes, entregar_diversos, entregar_correios, entryTime, updatedBy)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *
             `, [
                 plate.toUpperCase(), 
                 type, 
                 yard, 
                 base || 'Jaraguá-SP', 
                 keys || '', 
-                notes || '', 
+                notes || '',
+                entregarDiversos ? true : false,
+                entregarCorreios ? true : false,
                 entryDate ? new Date(entryDate).toISOString() : new Date().toISOString(), 
                 req.session.user.username
             ]);
             res.json(mapPostgresRow(result.rows[0]));
         } else {
             const stmt = db.prepare(`
-                INSERT INTO vehicles (plate, type, yard, base, keys, notes, entryTime, updatedBy)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO vehicles (plate, type, yard, base, keys, notes, entregar_diversos, entregar_correios, entryTime, updatedBy)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `);
             const result = stmt.run(
                 plate.toUpperCase(), 
@@ -404,6 +487,8 @@ app.post('/api/vehicles', requireAuth, async (req, res) => {
                 base || 'Jaraguá-SP', 
                 keys || '', 
                 notes || '',
+                entregarDiversos ? 1 : 0,
+                entregarCorreios ? 1 : 0,
                 entryDate ? new Date(entryDate).toISOString() : new Date().toISOString(), 
                 req.session.user.username
             );
@@ -416,13 +501,17 @@ app.post('/api/vehicles', requireAuth, async (req, res) => {
     }
 });
 
-// 🔧 CORREÇÃO DATA RETROATIVA - PUT agora aceita e salva entryTime
 app.put('/api/vehicles/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
     const updates = req.body;
     
-    console.log('🔧 Atualizando veículo:', id);
-    console.log('📅 EntryTime recebido:', updates.entryTime);
+    // ✅ VALIDAR SE USUÁRIO PODE ACESSAR ESTE PÁTIO
+    if (updates.yard) {
+        const allowedYards = getUserAllowedYards(req.session.user.username);
+        if (allowedYards.length > 0 && !allowedYards.includes(updates.yard)) {
+            return res.status(403).json({ error: 'Você não tem permissão para este pátio' });
+        }
+    }
     
     try {
         if (isProduction) {
@@ -435,10 +524,12 @@ app.put('/api/vehicles/:id', requireAuth, async (req, res) => {
                     status = COALESCE($5, status),
                     maintenance = COALESCE($6, maintenance), 
                     notes = COALESCE($7, notes),
-                    entryTime = COALESCE($8, entryTime),
+                    entregar_diversos = COALESCE($8, entregar_diversos),
+                    entregar_correios = COALESCE($9, entregar_correios),
+                    entryTime = COALESCE($10, entryTime),
                     updatedAt = CURRENT_TIMESTAMP, 
-                    updatedBy = $9
-                WHERE id = $10
+                    updatedBy = $11
+                WHERE id = $12
             `, [
                 updates.plate, 
                 updates.type, 
@@ -447,6 +538,8 @@ app.put('/api/vehicles/:id', requireAuth, async (req, res) => {
                 updates.status, 
                 updates.maintenance, 
                 updates.notes,
+                updates.entregarDiversos ? true : false,
+                updates.entregarCorreios ? true : false,
                 updates.entryTime,
                 req.session.user.username, 
                 id
@@ -456,6 +549,7 @@ app.put('/api/vehicles/:id', requireAuth, async (req, res) => {
                 UPDATE vehicles SET 
                     plate = ?, type = ?, yard = ?, base = ?, 
                     status = ?, maintenance = ?, notes = ?,
+                    entregar_diversos = ?, entregar_correios = ?,
                     entryTime = ?,
                     updatedAt = ?, updatedBy = ?
                 WHERE id = ?
@@ -467,6 +561,8 @@ app.put('/api/vehicles/:id', requireAuth, async (req, res) => {
                 updates.status, 
                 updates.maintenance, 
                 updates.notes,
+                updates.entregarDiversos ? 1 : 0,
+                updates.entregarCorreios ? 1 : 0,
                 updates.entryTime,
                 new Date().toISOString(), 
                 req.session.user.username, 
@@ -486,13 +582,18 @@ app.put('/api/vehicles/:id/status', requireAuth, async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
     
+    const validStatuses = ['Aguardando linha', 'Aguardando abastecimento', 'Aguardando manutenção', 'Em manutenção', 'Borracharia', 'Liberado'];
+    if (!validStatuses.includes(status)) {
+        return res.status(400).json({ error: 'Status inválido' });
+    }
+    
     try {
         if (isProduction) {
             await pool.query(`UPDATE vehicles SET status = $1, maintenance = $2, updatedAt = CURRENT_TIMESTAMP WHERE id = $3`,
-                [status, status === 'Em manutenção', id]);
+                [status, status === 'Em manutenção' || status === 'Borracharia', id]);
         } else {
             db.prepare(`UPDATE vehicles SET status = ?, maintenance = ?, updatedAt = ? WHERE id = ?`)
-                .run(status, status === 'Em manutenção' ? 1 : 0, new Date().toISOString(), id);
+                .run(status, (status === 'Em manutenção' || status === 'Borracharia') ? 1 : 0, new Date().toISOString(), id);
         }
         res.json({ success: true });
     } catch (err) {
@@ -629,28 +730,24 @@ app.delete('/api/swaps/:id', requireAuth, requireRole(['admin']), async (req, re
 // ============ ESTATÍSTICAS ============
 app.get('/api/stats', requireAuth, async (req, res) => {
     try {
-        let active, liberated;
+        let allVehicles;
         if (isProduction) {
-            const activeRes = await pool.query("SELECT * FROM vehicles WHERE status != 'Liberado'");
-            const liberatedRes = await pool.query("SELECT * FROM vehicles WHERE status = 'Liberado'");
-            active = activeRes.rows.map(mapPostgresRow);
-            liberated = liberatedRes.rows.map(mapPostgresRow);
+            const result = await pool.query('SELECT * FROM vehicles');
+            allVehicles = result.rows.map(mapPostgresRow);
         } else {
-            active = db.prepare("SELECT * FROM vehicles WHERE status != 'Liberado'").all();
-            liberated = db.prepare("SELECT * FROM vehicles WHERE status = 'Liberado'").all();
-            active = active.map(v => ({ ...v, maintenanceProblems: JSON.parse(v.maintenanceProblems || '[]') }));
-            liberated = liberated.map(v => ({ ...v, maintenanceProblems: JSON.parse(v.maintenanceProblems || '[]') }));
+            allVehicles = db.prepare('SELECT * FROM vehicles').all();
+            allVehicles = allVehicles.map(v => ({ ...v, maintenanceProblems: JSON.parse(v.maintenanceProblems || '[]') }));
         }
+        
+        // ✅ FILTRAR POR PÁTIO DO USUÁRIO
+        const username = req.session.user.username;
+        const vehicles = filterVehiclesByUserYards(allVehicles, username);
+        
+        const active = vehicles.filter(v => v.status !== 'Liberado');
+        const liberated = vehicles.filter(v => v.status === 'Liberado');
 
-        const entreguesDiversos = liberated.filter(v => {
-            const notes = (v.notes || '').toLowerCase();
-            return !notes.includes('correios') && !notes.includes('ect');
-        }).length;
-
-        const entreguesCorreios = liberated.filter(v => {
-            const notes = (v.notes || '').toLowerCase();
-            return notes.includes('correios') || notes.includes('ect');
-        }).length;
+        const entreguesDiversos = liberated.filter(v => v.entregarDiversos).length;
+        const entreguesCorreios = liberated.filter(v => v.entregarCorreios).length;
 
         const now = new Date();
         const stalledVehicles = active.filter(v => {
@@ -663,6 +760,7 @@ app.get('/api/stats', requireAuth, async (req, res) => {
             cavalosMecanicos: active.filter(v => v.type === 'Cavalo Mecânico').length,
             carretas: active.filter(v => v.type === 'Carreta').length,
             emManutencao: active.filter(v => v.status === 'Em manutenção').length,
+            emBorracharia: active.filter(v => v.status === 'Borracharia').length,
             liberados: liberated.length,
             entreguesDiversos,
             entreguesCorreios,
@@ -695,36 +793,80 @@ app.post('/api/import', requireAuth, requireRole(['admin']), async (req, res) =>
             
             for (const v of importedVehicles) {
                 if (v.plate && v.type && v.yard) {
-                    await pool.query(`INSERT INTO vehicles (plate, type, yard, base, status, maintenance, keys, notes, entryTime, exitTime, updatedBy)
-                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`, [
+                    await pool.query(`INSERT INTO vehicles (plate, type, yard, base, status, maintenance, keys, notes, entregar_diversos, entregar_correios, entryTime, exitTime, updatedBy)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`, [
                         v.plate.toUpperCase(), v.type, v.yard, v.base || 'Jaraguá-SP',
                         v.status || 'Aguardando linha', v.maintenance || false, v.keys || '', v.notes || '',
+                        v.entregarDiversos || false, v.entregarCorreios || false,
                         v.entryTime || new Date().toISOString(), v.exitTime || null, req.session.user.username
                     ]);
                 }
             }
+            
+            if (Array.isArray(importedSwaps) && importedSwaps.length > 0) {
+                for (const s of importedSwaps) {
+                    if (s.plateOut) {
+                        await pool.query(`INSERT INTO swaps (date, plateIn, plateOut, base, notes, updatedBy)
+                            VALUES ($1, $2, $3, $4, $5, $6)`, [
+                            s.date || new Date().toISOString(),
+                            s.plateIn || '0000',
+                            s.plateOut,
+                            s.base || '',
+                            s.notes || '',
+                            req.session.user.username
+                        ]);
+                    }
+                }
+            }
+            
         } else {
             db.exec('DELETE FROM vehicles');
             db.exec('DELETE FROM swaps');
             db.exec("DELETE FROM sqlite_sequence WHERE name='vehicles'");
             db.exec("DELETE FROM sqlite_sequence WHERE name='swaps'");
             
-            const vehicleStmt = db.prepare(`INSERT INTO vehicles (plate, type, yard, base, status, maintenance, keys, notes, entryTime, exitTime, updatedBy)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+            const vehicleStmt = db.prepare(`INSERT INTO vehicles (plate, type, yard, base, status, maintenance, keys, notes, entregar_diversos, entregar_correios, entryTime, exitTime, updatedBy)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
             for (const v of importedVehicles) {
                 if (v.plate && v.type && v.yard) {
                     vehicleStmt.run(
                         v.plate.toUpperCase(), v.type, v.yard, v.base || 'Jaraguá-SP',
                         v.status || 'Aguardando linha', v.maintenance ? 1 : 0, v.keys || '', v.notes || '',
+                        v.entregarDiversos ? 1 : 0, v.entregarCorreios ? 1 : 0,
                         v.entryTime || new Date().toISOString(), v.exitTime || null, req.session.user.username
                     );
                 }
             }
+            
+            if (Array.isArray(importedSwaps) && importedSwaps.length > 0) {
+                const swapStmt = db.prepare(`INSERT INTO swaps (date, plateIn, plateOut, base, notes, updatedBy)
+                    VALUES (?, ?, ?, ?, ?, ?)`);
+                for (const s of importedSwaps) {
+                    if (s.plateOut) {
+                        swapStmt.run(
+                            s.date || new Date().toISOString(),
+                            s.plateIn || '0000',
+                            s.plateOut,
+                            s.base || '',
+                            s.notes || '',
+                            req.session.user.username
+                        );
+                    }
+                }
+            }
         }
         
-        res.json({ success: true, imported: importedVehicles.length, message: '✅ Importação concluída' });
+        const swapsCount = Array.isArray(importedSwaps) ? importedSwaps.length : 0;
+        res.json({ 
+            success: true, 
+            imported: importedVehicles.length,
+            swapsImported: swapsCount,
+            message: `✅ Importação concluída: ${importedVehicles.length} veículo(s) e ${swapsCount} troca(s)`
+        });
+        
     } catch (err) {
-        res.status(500).json({ error: 'Erro ao importar' });
+        console.error('❌ Erro ao importar:', err);
+        res.status(500).json({ error: 'Erro ao importar: ' + err.message });
     }
 });
 
@@ -740,7 +882,7 @@ app.get('/api/export', requireAuth, async (req, res) => {
             vehicles = db.prepare('SELECT * FROM vehicles').all();
             swaps = db.prepare('SELECT * FROM swaps').all();
         }
-        res.json({ vehicles, swaps, exportedAt: new Date().toISOString(), version: '5.3', exportedBy: req.session.user.username });
+        res.json({ vehicles, swaps, exportedAt: new Date().toISOString(), version: '5.5', exportedBy: req.session.user.username });
     } catch (err) {
         res.status(500).json({ error: 'Erro ao exportar' });
     }
@@ -773,7 +915,7 @@ function calculateTimeInYard(entryTime, exitTime) {
 // ============ INICIAR SERVIDOR ============
 app.listen(PORT, () => {
     console.log('\n' + '='.repeat(60));
-    console.log('🚚 CONTROLE DE PÁTIO PRINT - v5.3');
+    console.log('🚚 CONTROLE DE PÁTIO PRINT - v5.5');
     console.log('='.repeat(60));
     console.log(`📍 Servidor rodando na porta ${PORT}`);
     console.log(`🌐 Acesse: http://localhost:${PORT}`);
@@ -782,5 +924,12 @@ app.listen(PORT, () => {
     console.log('='.repeat(60));
     console.log(`💾 Banco: ${isProduction ? 'PostgreSQL' : 'SQLite'}`);
     console.log('🕐 Fuso: America/Sao_Paulo (UTC-3)');
+    console.log('='.repeat(60) + '\n');
+    
+    console.log('👥 USUÁRIOS DISPONÍVEIS:');
+    console.log('   👑 admin / Print@2026 (Todos os pátios)');
+    console.log('   📍 cajamar / Cajamar2026 (Apenas Cajamar)');
+    console.log('   📍 bandeirantes / Bandeirantes2026 (Apenas Bandeirantes)');
+    console.log('   📍 jaragua / Jaragua2026 (Jaraguá + Superior)');
     console.log('='.repeat(60) + '\n');
 });

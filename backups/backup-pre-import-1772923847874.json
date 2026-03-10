@@ -1,0 +1,90 @@
+{
+  "vehicles": [
+    {
+      "id": 1,
+      "plate": "DAE1D39",
+      "type": "Carreta",
+      "yard": "Pátio Jaraguá",
+      "base": "Jaraguá-SP",
+      "status": "Aguardando linha",
+      "maintenance": 0,
+      "maintenanceProblems": "[]",
+      "keys": "",
+      "notes": "",
+      "entryTime": "2026-03-07T20:15:00.000Z",
+      "exitTime": null,
+      "icon": "default-truck",
+      "createdAt": "2026-03-07 21:29:45",
+      "updatedAt": "2026-03-07 21:29:45",
+      "updatedBy": "admin"
+    },
+    {
+      "id": 2,
+      "plate": "DSM7E12",
+      "type": "Cavalo Mecânico",
+      "yard": "Pátio Jaraguá",
+      "base": "Jaraguá-SP",
+      "status": "Em manutenção",
+      "maintenance": 1,
+      "maintenanceProblems": "[]",
+      "keys": "",
+      "notes": "[urgente]",
+      "entryTime": "2026-03-07T20:16:00.000Z",
+      "exitTime": null,
+      "icon": "default-truck",
+      "createdAt": "2026-03-07 21:29:45",
+      "updatedAt": "2026-03-07T22:08:30.556Z",
+      "updatedBy": "admin"
+    },
+    {
+      "id": 3,
+      "plate": "DSS1D11",
+      "type": "Cavalo Mecânico",
+      "yard": "Pátio Bandeirantes",
+      "base": "Jaraguá-SP",
+      "status": "Aguardando manutenção",
+      "maintenance": 0,
+      "maintenanceProblems": "[]",
+      "keys": "",
+      "notes": "",
+      "entryTime": "2026-03-07T20:17:00.000Z",
+      "exitTime": null,
+      "icon": "default-truck",
+      "createdAt": "2026-03-07 21:29:45",
+      "updatedAt": "2026-03-07T22:07:57.964Z",
+      "updatedBy": "admin"
+    },
+    {
+      "id": 5,
+      "plate": "TLU6F49",
+      "type": "Carreta",
+      "yard": "Pátio Bandeirantes",
+      "base": "Rio de Janeiro",
+      "status": "Em manutenção",
+      "maintenance": 1,
+      "maintenanceProblems": "[]",
+      "keys": "",
+      "notes": "",
+      "entryTime": "2026-03-07T22:03:00.000Z",
+      "exitTime": null,
+      "icon": "default-truck",
+      "createdAt": "2026-03-07 22:03:43",
+      "updatedAt": "2026-03-07T22:17:54.147Z",
+      "updatedBy": "admin"
+    }
+  ],
+  "swaps": [
+    {
+      "id": 1,
+      "date": "2026-03-07T22:05:00.000Z",
+      "plateIn": "TLU6F49",
+      "plateOut": "DAE1D39",
+      "base": "Jaraguá-SP",
+      "notes": "Carreta trocada para o Diversos 3",
+      "createdAt": "2026-03-07 22:05:02",
+      "updatedBy": "admin"
+    }
+  ],
+  "exportedAt": "2026-03-07T22:50:47.874Z",
+  "backedUpBy": "admin"
+}
