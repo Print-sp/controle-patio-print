@@ -5,7 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1a3a5c">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Pátio Print">
 <title>Controle de Pátio - Transportadora Print</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/images/icon-192.png">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
@@ -791,6 +796,19 @@ placeholder="Senha" required autocomplete="current-password">
 </div>
 </div>
 
+<!-- 📱 PWA - Prompt de Instalação -->
+<div id="installPrompt" class="alert alert-primary position-fixed bottom-0 start-0 end-0 m-3 d-none" style="z-index: 9999; max-width: 400px; margin-left: auto; margin-right: auto;">
+<div class="d-flex align-items-center">
+<i class="bi bi-download fs-4 me-3"></i>
+<div class="flex-grow-1">
+<strong>📱 Instalar Controle de Pátio?</strong>
+<p class="mb-0 small">Adicione à tela inicial para acesso rápido</p>
+</div>
+<button class="btn btn-sm btn-primary ms-2" id="btnInstall">Instalar</button>
+<button class="btn btn-sm btn-outline-secondary ms-1" id="btnDismiss">✕</button>
+</div>
+</div>
+
 <!-- Scripts -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
@@ -803,6 +821,7 @@ let cameraStream = null;
 let currentCameraMode = null;
 let vehicleToExit = null;
 let statusChart, yardChart, typeChart, timeChart;
+let deferredPrompt;
 
 console.log('🚀 Sistema iniciado');
 console.log('📦 Tesseract disponível:', typeof Tesseract !== 'undefined');
@@ -813,7 +832,67 @@ updateClock();
 setInterval(updateClock, 1000);
 setTimeout(checkStalledVehicles, 3000);
 setInterval(checkStalledVehicles, 5 * 60 * 1000);
+registerServiceWorker();
+setupInstallPrompt();
 });
+
+// 📱 PWA - Registrar Service Worker
+function registerServiceWorker() {
+if ('serviceWorker' in navigator) {
+window.addEventListener('load', () => {
+navigator.serviceWorker.register('/sw.js')
+.then((registration) => {
+console.log('✅ [PWA] Service Worker registrado:', registration.scope);
+})
+.catch((err) => {
+console.error('❌ [PWA] Erro ao registrar SW:', err);
+});
+});
+}
+}
+
+// 📱 PWA - Prompt de Instalação
+function setupInstallPrompt() {
+const installPrompt = document.getElementById('installPrompt');
+const btnInstall = document.getElementById('btnInstall');
+const btnDismiss = document.getElementById('btnDismiss');
+
+window.addEventListener('beforeinstallprompt', (e) => {
+console.log('📱 [PWA] beforeinstallprompt disparado');
+e.preventDefault();
+deferredPrompt = e;
+setTimeout(() => {
+if (!localStorage.getItem('pwa-install-dismissed')) {
+installPrompt.classList.remove('d-none');
+}
+}, 3000);
+});
+
+btnInstall?.addEventListener('click', async () => {
+if (!deferredPrompt) return;
+console.log('📱 [PWA] Usuário clicou em instalar');
+deferredPrompt.prompt();
+const { outcome } = await deferredPrompt.userChoice;
+console.log(`📱 [PWA] Resultado: ${outcome}`);
+deferredPrompt = null;
+installPrompt.classList.add('d-none');
+if (outcome === 'accepted') {
+showToast('🎉 App instalado com sucesso!', 'success');
+}
+});
+
+btnDismiss?.addEventListener('click', () => {
+console.log('📱 [PWA] Usuário dispensou instalação');
+installPrompt.classList.add('d-none');
+localStorage.setItem('pwa-install-dismissed', 'true');
+});
+
+window.addEventListener('appinstalled', () => {
+console.log('📱 [PWA] App instalado');
+installPrompt.classList.add('d-none');
+localStorage.removeItem('pwa-install-dismissed');
+});
+}
 
 async function checkAuth() {
 try {
@@ -846,7 +925,6 @@ document.getElementById('userAvatar').textContent = currentUser.username.charAt(
 document.getElementById('userRoleBadge').textContent = currentUser.role.toUpperCase();
 document.getElementById('userRoleBadge').className = `role-badge ${currentUser.role === 'admin' ? 'bg-warning text-dark' : 'bg-secondary text-white'}`;
 
-// ✅ ARMAZENAR PÁTIOS DO USUÁRIO
 userYards = currentUser.yards || [];
 console.log('📍 Pátios permitidos:', userYards);
 
