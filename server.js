@@ -69,9 +69,12 @@ function mapPostgresRow(row) {
         type: row.type,
         yard: row.yard,
         base: row.base,
+        manager: row.manager,
+        chassis: row.chassis,
         status: row.status,
         maintenance: row.maintenance,
-        maintenanceProblems: row.maintenanceproblems || [],
+        hasAccident: row.hasaccident || false,
+        sascarStatus: row.sascarstatus || 'pendente',
         keys: row.keys,
         notes: row.notes,
         entregarDiversos: row.entregar_diversos || false,
@@ -141,10 +144,13 @@ async function initDatabase() {
                     plate TEXT NOT NULL,
                     type TEXT NOT NULL,
                     yard TEXT NOT NULL,
-                    base TEXT DEFAULT 'Jaraguá-SP',
+                    base TEXT DEFAULT 'Jaraguá-SP (Nacional)',
+                    manager TEXT DEFAULT '',
+                    chassis TEXT DEFAULT '',
                     status TEXT DEFAULT 'Aguardando linha',
                     maintenance BOOLEAN DEFAULT false,
-                    maintenanceProblems JSONB DEFAULT '[]',
+                    hasAccident BOOLEAN DEFAULT false,
+                    sascarStatus TEXT DEFAULT 'pendente',
                     keys TEXT DEFAULT '',
                     notes TEXT DEFAULT '',
                     entregar_diversos BOOLEAN DEFAULT false,
@@ -193,6 +199,11 @@ async function initDatabase() {
                 CREATE INDEX IF NOT EXISTS idx_vehicles_yard ON vehicles(yard);
             `);
             
+            // Migração: adicionar colunas se não existirem
+            await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS manager TEXT DEFAULT ''`);
+            await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS chassis TEXT DEFAULT ''`);
+            await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS hasAccident BOOLEAN DEFAULT false`);
+            await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS sascarStatus TEXT DEFAULT 'pendente'`);
             await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS entregar_diversos BOOLEAN DEFAULT false`);
             await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS entregar_correios BOOLEAN DEFAULT false`);
             await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS yards JSONB DEFAULT '[]'`);
@@ -227,10 +238,13 @@ async function initDatabase() {
                     plate TEXT NOT NULL,
                     type TEXT NOT NULL,
                     yard TEXT NOT NULL,
-                    base TEXT DEFAULT 'Jaraguá-SP',
+                    base TEXT DEFAULT 'Jaraguá-SP (Nacional)',
+                    manager TEXT DEFAULT '',
+                    chassis TEXT DEFAULT '',
                     status TEXT DEFAULT 'Aguardando linha',
                     maintenance INTEGER DEFAULT 0,
-                    maintenanceProblems TEXT DEFAULT '[]',
+                    hasAccident INTEGER DEFAULT 0,
+                    sascarStatus TEXT DEFAULT 'pendente',
                     keys TEXT DEFAULT '',
                     notes TEXT DEFAULT '',
                     entregar_diversos INTEGER DEFAULT 0,
@@ -275,6 +289,11 @@ async function initDatabase() {
                 );
             `);
             
+            // Migração: adicionar colunas se não existirem
+            try { db.exec('ALTER TABLE vehicles ADD COLUMN manager TEXT DEFAULT ""'); } catch(e) {}
+            try { db.exec('ALTER TABLE vehicles ADD COLUMN chassis TEXT DEFAULT ""'); } catch(e) {}
+            try { db.exec('ALTER TABLE vehicles ADD COLUMN hasAccident INTEGER DEFAULT 0'); } catch(e) {}
+            try { db.exec('ALTER TABLE vehicles ADD COLUMN sascarStatus TEXT DEFAULT "pendente"'); } catch(e) {}
             try { db.exec('ALTER TABLE vehicles ADD COLUMN entregar_diversos INTEGER DEFAULT 0'); } catch(e) {}
             try { db.exec('ALTER TABLE vehicles ADD COLUMN entregar_correios INTEGER DEFAULT 0'); } catch(e) {}
             
@@ -425,7 +444,6 @@ app.get('/api/vehicles', requireAuth, async (req, res) => {
             vehicles = result.rows.map(mapPostgresRow);
         } else {
             vehicles = db.prepare('SELECT * FROM vehicles ORDER BY entryTime DESC').all();
-            vehicles = vehicles.map(v => ({ ...v, maintenanceProblems: JSON.parse(v.maintenanceProblems || '[]') }));
         }
         
         // ✅ FILTRAR POR PÁTIO DO USUÁRIO
@@ -445,7 +463,7 @@ app.get('/api/vehicles', requireAuth, async (req, res) => {
 });
 
 app.post('/api/vehicles', requireAuth, async (req, res) => {
-    const { plate, type, yard, base, keys, notes, entryDate, entregarDiversos, entregarCorreios } = req.body;
+    const { plate, type, yard, base, manager, chassis, keys, notes, entryDate, entregarDiversos, entregarCorreios, hasAccident, sascarStatus } = req.body;
     
     // ✅ VALIDAR SE USUÁRIO PODE ACESSAR ESTE PÁTIO
     const allowedYards = getUserAllowedYards(req.session.user.username);
@@ -453,47 +471,58 @@ app.post('/api/vehicles', requireAuth, async (req, res) => {
         return res.status(403).json({ error: 'Você não tem permissão para este pátio' });
     }
     
-    if (!plate || !type || !yard) {
-        return res.status(400).json({ error: 'Placa, tipo e pátio obrigatórios' });
+    if (!plate && !chassis) {
+        return res.status(400).json({ error: 'Placa ou Chassi obrigatórios' });
+    }
+    if (!type || !yard) {
+        return res.status(400).json({ error: 'Tipo e pátio obrigatórios' });
     }
 
     try {
         if (isProduction) {
             const result = await pool.query(`
-                INSERT INTO vehicles (plate, type, yard, base, keys, notes, entregar_diversos, entregar_correios, entryTime, updatedBy)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *
+                INSERT INTO vehicles (plate, type, yard, base, manager, chassis, keys, notes, entregar_diversos, entregar_correios, hasAccident, sascarStatus, entryTime, updatedBy)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *
             `, [
-                plate.toUpperCase(), 
+                plate ? plate.toUpperCase() : '',
                 type, 
                 yard, 
-                base || 'Jaraguá-SP', 
+                base || 'Jaraguá-SP (Nacional)', 
+                manager || '',
+                chassis || '',
                 keys || '', 
                 notes || '',
                 entregarDiversos ? true : false,
                 entregarCorreios ? true : false,
+                hasAccident ? true : false,
+                sascarStatus || 'pendente',
                 entryDate ? new Date(entryDate).toISOString() : new Date().toISOString(), 
                 req.session.user.username
             ]);
             res.json(mapPostgresRow(result.rows[0]));
         } else {
             const stmt = db.prepare(`
-                INSERT INTO vehicles (plate, type, yard, base, keys, notes, entregar_diversos, entregar_correios, entryTime, updatedBy)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO vehicles (plate, type, yard, base, manager, chassis, keys, notes, entregar_diversos, entregar_correios, hasAccident, sascarStatus, entryTime, updatedBy)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `);
             const result = stmt.run(
-                plate.toUpperCase(), 
+                plate ? plate.toUpperCase() : '',
                 type, 
                 yard, 
-                base || 'Jaraguá-SP', 
+                base || 'Jaraguá-SP (Nacional)', 
+                manager || '',
+                chassis || '',
                 keys || '', 
                 notes || '',
                 entregarDiversos ? 1 : 0,
                 entregarCorreios ? 1 : 0,
+                hasAccident ? 1 : 0,
+                sascarStatus || 'pendente',
                 entryDate ? new Date(entryDate).toISOString() : new Date().toISOString(), 
                 req.session.user.username
             );
             const vehicle = db.prepare('SELECT * FROM vehicles WHERE id = ?').get(result.lastInsertRowid);
-            res.json({ ...vehicle, maintenanceProblems: JSON.parse(vehicle.maintenanceProblems || '[]') });
+            res.json({ ...vehicle });
         }
     } catch (err) {
         console.error('Erro ao criar veículo:', err);
@@ -501,9 +530,17 @@ app.post('/api/vehicles', requireAuth, async (req, res) => {
     }
 });
 
+// 🔧 CORREÇÃO: Edição de datas apenas para admin/bandeirantes + SASCAR
 app.put('/api/vehicles/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
     const updates = req.body;
+    
+    console.log('🔧 Atualizando veículo:', id);
+    
+    // ✅ VALIDAR PERMISSÃO PARA EDITAR DATAS
+    const canEditDates = req.session.user.role === 'admin' || 
+                        req.session.user.username?.toLowerCase() === 'bandeirantes' ||
+                        (req.session.user.yards || []).includes('Pátio Bandeirantes');
     
     // ✅ VALIDAR SE USUÁRIO PODE ACESSAR ESTE PÁTIO
     if (updates.yard) {
@@ -521,36 +558,46 @@ app.put('/api/vehicles/:id', requireAuth, async (req, res) => {
                     type = COALESCE($2, type),
                     yard = COALESCE($3, yard), 
                     base = COALESCE($4, base),
-                    status = COALESCE($5, status),
-                    maintenance = COALESCE($6, maintenance), 
-                    notes = COALESCE($7, notes),
-                    entregar_diversos = COALESCE($8, entregar_diversos),
-                    entregar_correios = COALESCE($9, entregar_correios),
-                    entryTime = COALESCE($10, entryTime),
+                    manager = COALESCE($5, manager),
+                    chassis = COALESCE($6, chassis),
+                    status = COALESCE($7, status),
+                    maintenance = COALESCE($8, maintenance),
+                    hasAccident = COALESCE($9, hasAccident),
+                    sascarStatus = COALESCE($10, sascarStatus),
+                    notes = COALESCE($11, notes),
+                    entregar_diversos = COALESCE($12, entregar_diversos),
+                    entregar_correios = COALESCE($13, entregar_correios),
+                    entryTime = CASE WHEN $14 IS NOT NULL AND ${canEditDates} THEN $14 ELSE entryTime END,
+                    exitTime = CASE WHEN $15 IS NOT NULL AND ${canEditDates} THEN $15 ELSE exitTime END,
                     updatedAt = CURRENT_TIMESTAMP, 
-                    updatedBy = $11
-                WHERE id = $12
+                    updatedBy = $16
+                WHERE id = $17
             `, [
                 updates.plate, 
                 updates.type, 
                 updates.yard, 
                 updates.base,
+                updates.manager || '',
+                updates.chassis || '',
                 updates.status, 
-                updates.maintenance, 
+                updates.maintenance,
+                updates.hasAccident,
+                updates.sascarStatus || 'pendente',
                 updates.notes,
-                updates.entregarDiversos ? true : false,
-                updates.entregarCorreios ? true : false,
-                updates.entryTime,
+                updates.entregarDiversos,
+                updates.entregarCorreios,
+                canEditDates ? updates.entryTime : null,
+                canEditDates ? updates.exitTime : null,
                 req.session.user.username, 
                 id
             ]);
         } else {
             db.prepare(`
                 UPDATE vehicles SET 
-                    plate = ?, type = ?, yard = ?, base = ?, 
-                    status = ?, maintenance = ?, notes = ?,
+                    plate = ?, type = ?, yard = ?, base = ?, manager = ?, chassis = ?,
+                    status = ?, maintenance = ?, hasAccident = ?, sascarStatus = ?, notes = ?,
                     entregar_diversos = ?, entregar_correios = ?,
-                    entryTime = ?,
+                    entryTime = ?, exitTime = ?,
                     updatedAt = ?, updatedBy = ?
                 WHERE id = ?
             `).run(
@@ -558,12 +605,17 @@ app.put('/api/vehicles/:id', requireAuth, async (req, res) => {
                 updates.type, 
                 updates.yard, 
                 updates.base,
+                updates.manager || '',
+                updates.chassis || '',
                 updates.status, 
-                updates.maintenance, 
+                updates.maintenance ? 1 : 0,
+                updates.hasAccident ? 1 : 0,
+                updates.sascarStatus || 'pendente',
                 updates.notes,
                 updates.entregarDiversos ? 1 : 0,
                 updates.entregarCorreios ? 1 : 0,
-                updates.entryTime,
+                canEditDates ? updates.entryTime : null,
+                canEditDates ? updates.exitTime : null,
                 new Date().toISOString(), 
                 req.session.user.username, 
                 id
@@ -582,7 +634,7 @@ app.put('/api/vehicles/:id/status', requireAuth, async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
     
-    const validStatuses = ['Aguardando linha', 'Aguardando abastecimento', 'Aguardando manutenção', 'Em manutenção', 'Borracharia', 'Liberado'];
+    const validStatuses = ['Aguardando linha', 'Aguardando abastecimento', 'Aguardando manutenção', 'Em manutenção', 'Borracharia', 'Liberado', 'Sinistro'];
     if (!validStatuses.includes(status)) {
         return res.status(400).json({ error: 'Status inválido' });
     }
@@ -590,7 +642,7 @@ app.put('/api/vehicles/:id/status', requireAuth, async (req, res) => {
     try {
         if (isProduction) {
             await pool.query(`UPDATE vehicles SET status = $1, maintenance = $2, updatedAt = CURRENT_TIMESTAMP WHERE id = $3`,
-                [status, status === 'Em manutenção' || status === 'Borracharia', id]);
+                [status, status === 'Em manutenção' || status === 'Borracharia' ? true : false, id]);
         } else {
             db.prepare(`UPDATE vehicles SET status = ?, maintenance = ?, updatedAt = ? WHERE id = ?`)
                 .run(status, (status === 'Em manutenção' || status === 'Borracharia') ? 1 : 0, new Date().toISOString(), id);
@@ -736,7 +788,6 @@ app.get('/api/stats', requireAuth, async (req, res) => {
             allVehicles = result.rows.map(mapPostgresRow);
         } else {
             allVehicles = db.prepare('SELECT * FROM vehicles').all();
-            allVehicles = allVehicles.map(v => ({ ...v, maintenanceProblems: JSON.parse(v.maintenanceProblems || '[]') }));
         }
         
         // ✅ FILTRAR POR PÁTIO DO USUÁRIO
@@ -746,8 +797,10 @@ app.get('/api/stats', requireAuth, async (req, res) => {
         const active = vehicles.filter(v => v.status !== 'Liberado');
         const liberated = vehicles.filter(v => v.status === 'Liberado');
 
+        // ✅ CONTAR POR CATEGORIA DE ENTREGA
         const entreguesDiversos = liberated.filter(v => v.entregarDiversos).length;
         const entreguesCorreios = liberated.filter(v => v.entregarCorreios).length;
+        const comSinistro = vehicles.filter(v => v.hasAccident).length;
 
         const now = new Date();
         const stalledVehicles = active.filter(v => {
@@ -764,6 +817,7 @@ app.get('/api/stats', requireAuth, async (req, res) => {
             liberados: liberated.length,
             entreguesDiversos,
             entreguesCorreios,
+            comSinistro,
             totalAtivos: active.length,
             totalGeral: active.length + liberated.length,
             stalledVehicles: stalledVehicles.length,
@@ -792,11 +846,12 @@ app.post('/api/import', requireAuth, requireRole(['admin']), async (req, res) =>
             await pool.query('DELETE FROM swaps');
             
             for (const v of importedVehicles) {
-                if (v.plate && v.type && v.yard) {
-                    await pool.query(`INSERT INTO vehicles (plate, type, yard, base, status, maintenance, keys, notes, entregar_diversos, entregar_correios, entryTime, exitTime, updatedBy)
-                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`, [
-                        v.plate.toUpperCase(), v.type, v.yard, v.base || 'Jaraguá-SP',
-                        v.status || 'Aguardando linha', v.maintenance || false, v.keys || '', v.notes || '',
+                if (v.plate || v.chassis) {
+                    await pool.query(`INSERT INTO vehicles (plate, type, yard, base, manager, chassis, status, maintenance, hasAccident, sascarStatus, keys, notes, entregar_diversos, entregar_correios, entryTime, exitTime, updatedBy)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`, [
+                        v.plate ? v.plate.toUpperCase() : '', v.type, v.yard, v.base || 'Jaraguá-SP (Nacional)', v.manager || '', v.chassis || '',
+                        v.status || 'Aguardando linha', v.maintenance || false, v.hasAccident || false, v.sascarStatus || 'pendente',
+                        v.keys || '', v.notes || '',
                         v.entregarDiversos || false, v.entregarCorreios || false,
                         v.entryTime || new Date().toISOString(), v.exitTime || null, req.session.user.username
                     ]);
@@ -825,13 +880,14 @@ app.post('/api/import', requireAuth, requireRole(['admin']), async (req, res) =>
             db.exec("DELETE FROM sqlite_sequence WHERE name='vehicles'");
             db.exec("DELETE FROM sqlite_sequence WHERE name='swaps'");
             
-            const vehicleStmt = db.prepare(`INSERT INTO vehicles (plate, type, yard, base, status, maintenance, keys, notes, entregar_diversos, entregar_correios, entryTime, exitTime, updatedBy)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+            const vehicleStmt = db.prepare(`INSERT INTO vehicles (plate, type, yard, base, manager, chassis, status, maintenance, hasAccident, sascarStatus, keys, notes, entregar_diversos, entregar_correios, entryTime, exitTime, updatedBy)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
             for (const v of importedVehicles) {
-                if (v.plate && v.type && v.yard) {
+                if (v.plate || v.chassis) {
                     vehicleStmt.run(
-                        v.plate.toUpperCase(), v.type, v.yard, v.base || 'Jaraguá-SP',
-                        v.status || 'Aguardando linha', v.maintenance ? 1 : 0, v.keys || '', v.notes || '',
+                        v.plate ? v.plate.toUpperCase() : '', v.type, v.yard, v.base || 'Jaraguá-SP (Nacional)', v.manager || '', v.chassis || '',
+                        v.status || 'Aguardando linha', v.maintenance ? 1 : 0, v.hasAccident ? 1 : 0, v.sascarStatus || 'pendente',
+                        v.keys || '', v.notes || '',
                         v.entregarDiversos ? 1 : 0, v.entregarCorreios ? 1 : 0,
                         v.entryTime || new Date().toISOString(), v.exitTime || null, req.session.user.username
                     );
@@ -882,7 +938,7 @@ app.get('/api/export', requireAuth, async (req, res) => {
             vehicles = db.prepare('SELECT * FROM vehicles').all();
             swaps = db.prepare('SELECT * FROM swaps').all();
         }
-        res.json({ vehicles, swaps, exportedAt: new Date().toISOString(), version: '5.5', exportedBy: req.session.user.username });
+        res.json({ vehicles, swaps, exportedAt: new Date().toISOString(), version: '5.6', exportedBy: req.session.user.username });
     } catch (err) {
         res.status(500).json({ error: 'Erro ao exportar' });
     }
@@ -915,7 +971,7 @@ function calculateTimeInYard(entryTime, exitTime) {
 // ============ INICIAR SERVIDOR ============
 app.listen(PORT, () => {
     console.log('\n' + '='.repeat(60));
-    console.log('🚚 CONTROLE DE PÁTIO PRINT - v5.5');
+    console.log('🚚 CONTROLE DE PÁTIO PRINT - v5.6');
     console.log('='.repeat(60));
     console.log(`📍 Servidor rodando na porta ${PORT}`);
     console.log(`🌐 Acesse: http://localhost:${PORT}`);
@@ -929,7 +985,7 @@ app.listen(PORT, () => {
     console.log('👥 USUÁRIOS DISPONÍVEIS:');
     console.log('   👑 admin / Print@2026 (Todos os pátios)');
     console.log('   📍 cajamar / Cajamar2026 (Apenas Cajamar)');
-    console.log('   📍 bandeirantes / Bandeirantes2026 (Apenas Bandeirantes)');
+    console.log('   📍 bandeirantes / Bandeirantes2026 (Apenas Bandeirantes + editar datas)');
     console.log('   📍 jaragua / Jaragua2026 (Jaraguá + Superior)');
     console.log('='.repeat(60) + '\n');
 });
