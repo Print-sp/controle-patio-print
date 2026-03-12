@@ -26,6 +26,10 @@
 --status-em-manutencao: #6f42c1;
 --status-borracharia: #fd7e14;
 --status-liberado: #198754;
+--status-sinistro: #dc3545;
+--sascar-pendente: #ffc107;
+--sascar-instalado: #198754;
+--sascar-manutencao: #fd7e14;
 }
 body {
 background-color: #f4f6f9;
@@ -153,6 +157,7 @@ padding: 4px 10px; background: #e9ecef; border-radius: 6px;
 .status-em-manutencao { background: #e2d5f1; color: #5a2d82; }
 .status-borracharia { background: #ffe5d0; color: #fd7e14; }
 .status-liberado { background: #d1e7dd; color: #0f5132; }
+.status-sinistro { background: #ffe5e5; color: #dc3545; border: 1px solid #dc3545; }
 .time-badge {
 background: #e7f1ff; color: #0d6efd; font-size: 0.8rem;
 padding: 3px 8px; border-radius: 4px; font-weight: 500;
@@ -192,6 +197,78 @@ padding: 15px; margin-top: 15px; max-height: 300px; overflow-y: auto;
 .history-item.alert { border-left-color: #dc3545; background: #fff5f5; }
 .history-item.success { border-left-color: #198754; background: #d1e7dd; }
 .history-item.info { border-left-color: #0d6efd; background: #e7f1ff; }
+.history-item.sinistro { border-left-color: #dc3545; background: #fff5f5; }
+
+/* 🆕 DROPDOWN DE AÇÕES */
+.actions-dropdown {
+position: relative;
+display: inline-block;
+}
+.actions-dropdown-menu {
+display: none;
+position: absolute;
+right: 0;
+top: 100%;
+z-index: 1000;
+min-width: 200px;
+background: white;
+border-radius: 8px;
+box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+border: 1px solid #dee2e6;
+margin-top: 4px;
+}
+.actions-dropdown-menu.show {
+display: block;
+}
+.actions-dropdown-menu .dropdown-item {
+padding: 8px 12px;
+display: flex;
+align-items: center;
+gap: 8px;
+color: #212529;
+text-decoration: none;
+cursor: pointer;
+border: none;
+background: none;
+width: 100%;
+text-align: left;
+font-size: 0.85rem;
+}
+.actions-dropdown-menu .dropdown-item:hover {
+background-color: #f8f9fa;
+}
+.actions-dropdown-menu .dropdown-divider {
+margin: 4px 0;
+border-top: 1px solid #dee2e6;
+}
+.actions-dropdown-toggle {
+background: #6c757d;
+color: white;
+border: none;
+padding: 4px 10px;
+border-radius: 4px;
+cursor: pointer;
+font-size: 0.8rem;
+display: flex;
+align-items: center;
+gap: 4px;
+}
+.actions-dropdown-toggle:hover {
+background: #5a6268;
+}
+
+/* 🆕 BADGE SASCAR */
+.sascar-badge {
+padding: 3px 8px;
+border-radius: 12px;
+font-size: 0.7rem;
+font-weight: 600;
+display: inline-block;
+}
+.sascar-pendente { background: #fff3cd; color: #856404; }
+.sascar-instalado { background: #d1e7dd; color: #0f5132; }
+.sascar-manutencao { background: #ffe5d0; color: #fd7e14; }
+
 @media (max-width: 768px) {
 .stat-card .count { font-size: 1.4rem; }
 .action-bar .btn { width: 100%; margin-right: 0; margin-bottom: 8px; min-width: auto; }
@@ -247,6 +324,10 @@ display: flex; flex-direction: column; justify-content: center; align-items: cen
 }
 .quick-action-card:hover { transform: scale(1.02); }
 .quick-action-card i { font-size: 2.5rem; margin-bottom: 10px; }
+.badge-sinistro {
+background: #dc3545; color: white; font-size: 0.7rem; padding: 2px 6px;
+border-radius: 4px; font-weight: 600; margin-left: 4px;
+}
 </style>
 </head>
 <body>
@@ -370,7 +451,7 @@ placeholder="Senha" required autocomplete="current-password">
 <div class="row g-3 align-items-end">
 <div class="col-md-4">
 <label class="form-label small text-muted">Buscar</label>
-<input type="text" class="form-control" id="searchInput" placeholder="Placa, tipo ou pátio..." onkeyup="filterTable()">
+<input type="text" class="form-control" id="searchInput" placeholder="Placa, tipo, pátio ou gestor..." onkeyup="filterTable()">
 </div>
 <div class="col-md-3">
 <label class="form-label small text-muted">Filtrar por Pátio</label>
@@ -392,6 +473,7 @@ placeholder="Senha" required autocomplete="current-password">
 <option value="Em manutenção">Em manutenção</option>
 <option value="Borracharia">Borracharia</option>
 <option value="Liberado">Liberado</option>
+<option value="Sinistro">🚨 Com Sinistro</option>
 </select>
 </div>
 <div class="col-md-2">
@@ -405,7 +487,7 @@ placeholder="Senha" required autocomplete="current-password">
 <div class="table-responsive">
 <table class="table table-hover mb-0">
 <thead>
-<tr><th>Tipo</th><th>Placa</th><th>Entrada</th><th>Saída</th><th>Tempo</th><th>Local</th><th>Manutenção</th><th>Status</th><th>Ações</th></tr>
+<tr><th>Tipo</th><th>Placa</th><th>Chassi</th><th>Entrada</th><th>Saída</th><th>Tempo</th><th>Local</th><th>Gestor</th><th>Sascar</th><th>Sinistro</th><th>Status</th><th>Ações</th></tr>
 </thead>
 <tbody id="vehicleTableBody"></tbody>
 </table>
@@ -547,11 +629,32 @@ placeholder="Senha" required autocomplete="current-password">
 </div>
 <div class="col-md-6">
 <label class="form-label">Base de Origem</label>
-<input type="text" class="form-control" id="base" value="Jaraguá-SP">
+<select class="form-select" id="base" required>
+<option value="Jaraguá-SP (Nacional)">Jaraguá-SP (Nacional)</option>
+<option value="Belém-PA">Belém-PA</option>
+<option value="Campo Grande-MS">Campo Grande-MS</option>
+<option value="Vitória da Conquista-BA">Vitória da Conquista-BA</option>
+<option value="Salvador-BA">Salvador-BA</option>
+<option value="Vitória-ES">Vitória-ES</option>
+<option value="Recife-PE">Recife-PE</option>
+<option value="Fortaleza-CE">Fortaleza-CE</option>
+<option value="São Paulo-SP">São Paulo-SP</option>
+<option value="Rio de Janeiro-RJ">Rio de Janeiro-RJ</option>
+<option value="Curitiba-PR">Curitiba-PR</option>
+<option value="Porto Alegre-RS">Porto Alegre-RS</option>
+</select>
+</div>
+<div class="col-md-6">
+<label class="form-label">Gestor da Base de Origem</label>
+<input type="text" class="form-control" id="manager" placeholder="Nome do gestor responsável">
 </div>
 <div class="col-md-6">
 <label class="form-label">Responsável pelas Chaves</label>
 <input type="text" class="form-control" id="keys" placeholder="ex: Frotas, Motorista...">
+</div>
+<div class="col-md-6">
+<label class="form-label">Número do Chassi (0km)</label>
+<input type="text" class="form-control" id="chassis" placeholder="Apenas para veículos sem placa">
 </div>
 <div class="col-12">
 <label class="form-label">Entregar para:</label>
@@ -568,6 +671,23 @@ placeholder="Senha" required autocomplete="current-password">
 <label class="form-check-label" for="entregarCorreios">📮 Entregar para Correios/ECT</label>
 </div>
 </div>
+</div>
+</div>
+<div class="col-md-6">
+<label class="form-label">Status Sascar</label>
+<select class="form-select" id="sascarStatus">
+<option value="pendente">⏳ Pendente Instalação</option>
+<option value="instalado">✅ Instalado</option>
+<option value="manutencao">🔧 Pendente Manutenção</option>
+<option value="nao_aplicavel">➖ Não Aplicável</option>
+</select>
+</div>
+<div class="col-12">
+<div class="form-check">
+<input class="form-check-input" type="checkbox" id="hasAccident">
+<label class="form-check-label text-danger" for="hasAccident">
+<i class="bi bi-exclamation-triangle"></i> <strong>Veículo com Sinistro/Acidente</strong>
+</label>
 </div>
 </div>
 <div class="col-12">
@@ -661,9 +781,14 @@ placeholder="Senha" required autocomplete="current-password">
 </select>
 </div>
 <div class="col-md-6">
-<label class="form-label">Data de Entrada <span id="dateEditBadge" class="badge bg-warning text-dark ms-1">Admin</span></label>
+<label class="form-label">Data de Entrada <span id="dateEditBadge" class="badge bg-warning text-dark ms-1">Admin/Bandeirantes</span></label>
 <input type="datetime-local" class="form-control" id="editEntryTime">
-<small class="text-muted" id="dateEditHelp">Apenas administradores podem alterar</small>
+<small class="text-muted" id="dateEditHelp">Apenas admin e Bandeirantes podem alterar</small>
+</div>
+<div class="col-md-6">
+<label class="form-label">Data de Saída <span id="exitDateBadge" class="badge bg-warning text-dark ms-1">Admin/Bandeirantes</span></label>
+<input type="datetime-local" class="form-control" id="editExitTime">
+<small class="text-muted" id="exitDateHelp">Apenas admin e Bandeirantes podem alterar</small>
 </div>
 <div class="col-md-6">
 <label class="form-label">Status</label>
@@ -678,11 +803,41 @@ placeholder="Senha" required autocomplete="current-password">
 </div>
 <div class="col-md-6">
 <label class="form-label">Base</label>
-<input type="text" class="form-control" id="editBase">
+<select class="form-select" id="editBase">
+<option value="Jaraguá-SP (Nacional)">Jaraguá-SP (Nacional)</option>
+<option value="Belém-PA">Belém-PA</option>
+<option value="Campo Grande-MS">Campo Grande-MS</option>
+<option value="Vitória da Conquista-BA">Vitória da Conquista-BA</option>
+<option value="Salvador-BA">Salvador-BA</option>
+<option value="Vitória-ES">Vitória-ES</option>
+<option value="Recife-PE">Recife-PE</option>
+<option value="Fortaleza-CE">Fortaleza-CE</option>
+<option value="São Paulo-SP">São Paulo-SP</option>
+<option value="Rio de Janeiro-RJ">Rio de Janeiro-RJ</option>
+<option value="Curitiba-PR">Curitiba-PR</option>
+<option value="Porto Alegre-RS">Porto Alegre-RS</option>
+</select>
+</div>
+<div class="col-md-6">
+<label class="form-label">Gestor da Base</label>
+<input type="text" class="form-control" id="editManager">
 </div>
 <div class="col-md-6">
 <label class="form-label">Chaves com</label>
 <input type="text" class="form-control" id="editKeys">
+</div>
+<div class="col-md-6">
+<label class="form-label">Número do Chassi</label>
+<input type="text" class="form-control" id="editChassis">
+</div>
+<div class="col-md-6">
+<label class="form-label">Status Sascar</label>
+<select class="form-select" id="editSascarStatus">
+<option value="pendente">⏳ Pendente Instalação</option>
+<option value="instalado">✅ Instalado</option>
+<option value="manutencao">🔧 Pendente Manutenção</option>
+<option value="nao_aplicavel">➖ Não Aplicável</option>
+</select>
 </div>
 <div class="col-12">
 <label class="form-label">Entregar para:</label>
@@ -699,6 +854,14 @@ placeholder="Senha" required autocomplete="current-password">
 <label class="form-check-label" for="editEntregarCorreios">📮 Entregar para Correios/ECT</label>
 </div>
 </div>
+</div>
+</div>
+<div class="col-12">
+<div class="form-check">
+<input class="form-check-input" type="checkbox" id="editHasAccident">
+<label class="form-check-label text-danger" for="editHasAccident">
+<i class="bi bi-exclamation-triangle"></i> <strong>Veículo com Sinistro/Acidente</strong>
+</label>
 </div>
 </div>
 <div class="col-12">
@@ -775,11 +938,18 @@ placeholder="Senha" required autocomplete="current-password">
 <div class="mb-3">
 <label class="form-label">Base/Local</label>
 <select class="form-select" id="swapBase" required>
-<option value="Jaraguá-SP">Jaraguá-SP</option>
-<option value="Pátio Jaraguá">Pátio Jaraguá</option>
-<option value="Pátio Bandeirantes">Pátio Bandeirantes</option>
-<option value="Pátio Superior">Pátio Superior</option>
-<option value="Pátio Cajamar">Pátio Cajamar</option>
+<option value="Jaraguá-SP (Nacional)">Jaraguá-SP (Nacional)</option>
+<option value="Belém-PA">Belém-PA</option>
+<option value="Campo Grande-MS">Campo Grande-MS</option>
+<option value="Vitória da Conquista-BA">Vitória da Conquista-BA</option>
+<option value="Salvador-BA">Salvador-BA</option>
+<option value="Vitória-ES">Vitória-ES</option>
+<option value="Recife-PE">Recife-PE</option>
+<option value="Fortaleza-CE">Fortaleza-CE</option>
+<option value="São Paulo-SP">São Paulo-SP</option>
+<option value="Rio de Janeiro-RJ">Rio de Janeiro-RJ</option>
+<option value="Curitiba-PR">Curitiba-PR</option>
+<option value="Porto Alegre-RS">Porto Alegre-RS</option>
 </select>
 </div>
 <div class="mb-3">
@@ -1075,8 +1245,10 @@ return `<span class="placa-container ${classe}"><span class="placa-texto">${plac
 // ============ CÂMERA / OCR ============
 function openEntryModal() {
 document.getElementById('plate').value = '';
+document.getElementById('chassis').value = '';
 document.getElementById('entregarDiversos').checked = false;
 document.getElementById('entregarCorreios').checked = false;
+document.getElementById('hasAccident').checked = false;
 document.getElementById('vehicleHistory').classList.add('hidden');
 document.getElementById('plateAlert').classList.add('hidden');
 document.getElementById('entryForm').querySelectorAll('input, select, textarea').forEach(el => el.disabled = false);
@@ -1244,7 +1416,7 @@ document.getElementById('entryForm').querySelectorAll('input, select, textarea')
 if (vehicleHistory.length > 0) {
 const lastRecord = vehicleHistory[0];
 document.getElementById('type').value = lastRecord.type || '';
-document.getElementById('base').value = lastRecord.base || 'Jaraguá-SP';
+document.getElementById('base').value = lastRecord.base || 'Jaraguá-SP (Nacional)';
 document.getElementById('keys').value = lastRecord.keys || '';
 historyDiv.classList.remove('hidden');
 historyContent.innerHTML = `<div class="history-item info"><strong>✅ Veículo conhecido - Dados preenchidos automaticamente</strong><br><small>Tipo: ${lastRecord.type || '—'} | Base: ${lastRecord.base || '—'}</small></div>${vehicleHistory.slice(0, 3).map(v => `<div class="history-item"><div><strong>${v.entryDate}</strong> - ${v.yard}</div><small class="text-muted">${v.type} • ${v.timeInYard || '—'}</small></div>`).join('')}`;
@@ -1446,6 +1618,13 @@ filterCorreios: true,
 isImage: true
 },
 {
+icon: 'bi bi-exclamation-triangle',
+label: 'Com Sinistro',
+value: stats.comSinistro || 0,
+filterSinistro: true,
+isImage: false
+},
+{
 icon: 'bar-chart',
 label: 'Total Ativos',
 value: stats.totalAtivos,
@@ -1457,7 +1636,7 @@ isImage: false
 document.getElementById('stats-cards').innerHTML = cards.map(card => {
 const iconHtml = card.isImage
 ? `<img src="${card.icon}" alt="${card.label}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><text y=%22.9em%22 font-size=%2214%22>📦</text></svg>'">`
-: `<i class="bi bi-${card.icon}"></i>`;
+: `<i class="bi ${card.icon}"></i>`;
 return `
 <div class="col-6 col-md-3 col-lg-2">
 <div class="stat-card card" onclick="filterByCard(${JSON.stringify(card).replace(/"/g, '&quot;')})">
@@ -1521,6 +1700,14 @@ row.style.display = matches ? '' : 'none';
 showToast('🔍 Filtrando: Correios', 'info');
 return;
 }
+if (card.filterSinistro) {
+document.querySelectorAll('#vehicleTableBody tr').forEach(row => {
+const matches = row.dataset.hasAccident === 'true';
+row.style.display = matches ? '' : 'none';
+});
+showToast('🔍 Filtrando: Com Sinistro', 'info');
+return;
+}
 }
 
 async function loadVehicles() {
@@ -1549,49 +1736,63 @@ const maintenanceBadge = v.maintenance ? `<span class="text-danger"><i class="bi
 const placaHtml = renderPlaca(v.plate);
 const entregarDiversos = v.entregarDiversos ? 'true' : 'false';
 const entregarCorreios = v.entregarCorreios ? 'true' : 'false';
-return `<tr data-yard="${v.yard}" data-status="${v.status}" data-type="${v.type}" data-search="${v.plate} ${v.type} ${v.yard} ${v.base} ${v.notes || ''}" data-entregar-diversos="${entregarDiversos}" data-entregar-correios="${entregarCorreios}" data-id="${v.id}">
+const hasAccident = v.hasAccident ? 'true' : 'false';
+const sascarStatus = v.sascarStatus || 'pendente';
+const sascarClass = `sascar-${sascarStatus}`;
+const sascarLabel = sascarStatus === 'pendente' ? '⏳ Pendente' : sascarStatus === 'instalado' ? '✅ Instalado' : sascarStatus === 'manutencao' ? '🔧 Manutenção' : '➖ N/A';
+const sinistroBadge = v.hasAccident ? `<span class="badge-sinistro">🚨 Sinistro</span>` : '';
+return `<tr data-yard="${v.yard}" data-status="${v.status}" data-type="${v.type}" data-search="${v.plate} ${v.type} ${v.yard} ${v.base} ${v.notes || ''} ${v.manager || ''}" data-entregar-diversos="${entregarDiversos}" data-entregar-correios="${entregarCorreios}" data-has-accident="${hasAccident}" data-sascar="${sascarStatus}" data-id="${v.id}">
 <td><span class="vehicle-icon"><i class="bi bi-${getVehicleIcon(v.type)}"></i></span><small class="d-md-none">${v.type}</small></td>
-<td>${placaHtml}</td>
+<td>${placaHtml}${sinistroBadge}</td>
+<td><small>${v.chassis || '—'}</small></td>
 <td><span class="date-badge">${v.entryDate}</span></td>
 <td>${v.exitDate ? `<span class="date-badge text-success">${v.exitDate}</span>` : '—'}</td>
 <td><span class="time-badge">${v.timeInYard}</span></td>
 <td><small class="text-primary"><i class="bi bi-pin me-1"></i>${v.yard}</small></td>
-<td>${maintenanceBadge}</td>
+<td><small>${v.manager || '—'}</small></td>
+<td><span class="sascar-badge ${sascarClass}">${sascarLabel}</span></td>
+<td>${v.hasAccident ? '<span class="text-danger"><i class="bi bi-exclamation-triangle"></i></span>' : '<span class="text-muted">—</span>'}</td>
 <td><span class="status-badge ${statusClass}">${v.status}</span></td>
 <td>
-<div class="btn-group btn-group-sm flex-wrap">
+<div class="actions-dropdown">
+<button class="actions-dropdown-toggle" onclick="toggleActionsDropdown(this)">
+<i class="bi bi-three-dots-vertical"></i> Ações
+</button>
+<div class="actions-dropdown-menu">
 ${v.status !== 'Liberado' ? `
-<button class="btn btn-outline-warning action-btn" onclick="updateStatus(${v.id}, 'Aguardando linha')" title="Veículo aguardando para entrar na linha de carga/descarga">
-<i class="bi bi-hourglass-split"></i>
-</button>
-<button class="btn btn-outline-info action-btn" onclick="updateStatus(${v.id}, 'Aguardando abastecimento')" title="Veículo aguardando para ser abastecido">
-<i class="bi bi-fuel-pump"></i>
-</button>
-<button class="btn btn-outline-danger action-btn" onclick="updateStatus(${v.id}, 'Aguardando manutenção')" title="Veículo aguardando manutenção preventiva/corretiva">
-<i class="bi bi-tools"></i>
-</button>
-<button class="btn btn-outline-purple action-btn" style="border-color:#6f42c1;color:#6f42c1" onclick="updateStatus(${v.id}, 'Em manutenção')" title="Veículo está em manutenção no momento">
-<i class="bi bi-wrench"></i>
-</button>
-<button class="btn btn-outline-warning action-btn" style="border-color:#fd7e14;color:#fd7e14" onclick="updateStatus(${v.id}, 'Borracharia')" title="Veículo está na borracharia para troca de pneus">
-<i class="bi bi-circle"></i>
-</button>
-<button class="btn btn-success action-btn" onclick="exitVehicle(${v.id})" title="Liberar veículo para saída do pátio">
-<i class="bi bi-check-lg"></i>
-</button>
-` : '<span class="text-success"><i class="bi bi-check-circle"></i></span>'}
-<button class="btn btn-outline-secondary action-btn" onclick="openEditVehicle(${v.id})" title="Editar informações do veículo">
-<i class="bi bi-pencil"></i>
-</button>
-<button class="btn btn-outline-danger action-btn" onclick="deleteVehicle(${v.id})" title="Excluir veículo do sistema (apenas admin)">
-<i class="bi bi-trash"></i>
-</button>
+<button class="dropdown-item" onclick="updateStatus(${v.id}, 'Aguardando linha')"><i class="bi bi-hourglass-split"></i> Aguardando linha</button>
+<button class="dropdown-item" onclick="updateStatus(${v.id}, 'Aguardando abastecimento')"><i class="bi bi-fuel-pump"></i> Aguardando abastecimento</button>
+<button class="dropdown-item" onclick="updateStatus(${v.id}, 'Aguardando manutenção')"><i class="bi bi-tools"></i> Aguardando manutenção</button>
+<button class="dropdown-item" onclick="updateStatus(${v.id}, 'Em manutenção')"><i class="bi bi-wrench"></i> Em manutenção</button>
+<button class="dropdown-item" onclick="updateStatus(${v.id}, 'Borracharia')"><i class="bi bi-disc"></i> Borracharia</button>
+<button class="dropdown-item" onclick="exitVehicle(${v.id})"><i class="bi bi-check-lg"></i> Liberar saída</button>
+<div class="dropdown-divider"></div>
+` : '<button class="dropdown-item" disabled><i class="bi bi-check-circle"></i> Veículo liberado</button><div class="dropdown-divider"></div>'}
+<button class="dropdown-item" onclick="openEditVehicle(${v.id})"><i class="bi bi-pencil"></i> Editar veículo</button>
+<button class="dropdown-item text-danger" onclick="deleteVehicle(${v.id})"><i class="bi bi-trash"></i> Excluir</button>
+</div>
 </div>
 </td>
 </tr>`;
 }).join('');
 } catch (err) { console.error('Erro loadVehicles:', err); }
 }
+
+// 🆕 Função para toggle do dropdown de ações
+function toggleActionsDropdown(button) {
+const dropdown = button.nextElementSibling;
+const allDropdowns = document.querySelectorAll('.actions-dropdown-menu');
+allDropdowns.forEach(d => {
+if (d !== dropdown) d.classList.remove('show');
+});
+dropdown.classList.toggle('show');
+event.stopPropagation();
+}
+
+// Fechar dropdowns ao clicar fora
+document.addEventListener('click', () => {
+document.querySelectorAll('.actions-dropdown-menu').forEach(d => d.classList.remove('show'));
+});
 
 async function loadSwaps() {
 try {
@@ -1609,7 +1810,8 @@ const plateAlert = document.getElementById('plateAlert');
 if (!plateAlert.classList.contains('hidden')) { alert('⚠️ Não é possível cadastrar. Veículo já está no pátio!'); return; }
 const type = document.getElementById('type').value;
 const yard = document.getElementById('yard').value;
-if (!plate || !type || !yard) { alert('⚠️ Preencha: Placa, Tipo e Pátio'); return; }
+if (!plate && !document.getElementById('chassis').value) { alert('⚠️ Preencha: Placa ou Chassi'); return; }
+if (!type || !yard) { alert('⚠️ Preencha: Tipo e Pátio'); return; }
 try {
 await fetch(`${API_URL}/vehicles`, {
 method: 'POST',
@@ -1620,16 +1822,20 @@ type,
 yard,
 entryDate: document.getElementById('entryDate').value,
 base: document.getElementById('base').value,
+manager: document.getElementById('manager').value,
+chassis: document.getElementById('chassis').value,
 keys: document.getElementById('keys').value,
 notes: document.getElementById('notes').value,
 entregarDiversos: document.getElementById('entregarDiversos').checked ? 1 : 0,
-entregarCorreios: document.getElementById('entregarCorreios').checked ? 1 : 0
+entregarCorreios: document.getElementById('entregarCorreios').checked ? 1 : 0,
+hasAccident: document.getElementById('hasAccident').checked ? 1 : 0,
+sascarStatus: document.getElementById('sascarStatus').value
 })
 });
 stopCamera('entry');
 bootstrap.Modal.getInstance(document.getElementById('entryModal')).hide();
 document.getElementById('entryForm').reset();
-document.getElementById('base').value = 'Jaraguá-SP';
+document.getElementById('base').value = 'Jaraguá-SP (Nacional)';
 document.getElementById('vehicleHistory').classList.add('hidden');
 document.getElementById('plateAlert').classList.add('hidden');
 loadStats(); loadVehicles();
@@ -1659,12 +1865,18 @@ document.getElementById('editPlate').value = v.plate;
 document.getElementById('editType').value = v.type;
 document.getElementById('editYard').value = v.yard;
 document.getElementById('editBase').value = v.base || '';
+document.getElementById('editManager').value = v.manager || '';
+document.getElementById('editChassis').value = v.chassis || '';
 document.getElementById('editKeys').value = v.keys || '';
 document.getElementById('editNotes').value = v.notes || '';
 document.getElementById('editStatus').value = v.status;
 document.getElementById('editMaintenance').checked = v.maintenance || false;
 document.getElementById('editEntregarDiversos').checked = v.entregarDiversos == 1 || v.entregarDiversos === true;
 document.getElementById('editEntregarCorreios').checked = v.entregarCorreios == 1 || v.entregarCorreios === true;
+document.getElementById('editHasAccident').checked = v.hasAccident == 1 || v.hasAccident === true;
+document.getElementById('editSascarStatus').value = v.sascarStatus || 'pendente';
+
+// ✅ CARREGAR DATA DE ENTRADA
 if (v.entryTime) {
 const d = new Date(v.entryTime);
 const year = d.getFullYear();
@@ -1674,35 +1886,74 @@ const hours = String(d.getHours()).padStart(2, '0');
 const minutes = String(d.getMinutes()).padStart(2, '0');
 document.getElementById('editEntryTime').value = `${year}-${month}-${day}T${hours}:${minutes}`;
 }
+
+// ✅ CARREGAR DATA DE SAÍDA
+if (v.exitTime) {
+const d = new Date(v.exitTime);
+const year = d.getFullYear();
+const month = String(d.getMonth() + 1).padStart(2, '0');
+const day = String(d.getDate()).padStart(2, '0');
+const hours = String(d.getHours()).padStart(2, '0');
+const minutes = String(d.getMinutes()).padStart(2, '0');
+document.getElementById('editExitTime').value = `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+// ✅ VALIDAR PERMISSÃO PARA EDITAR DATAS
 const dateField = document.getElementById('editEntryTime');
+const exitDateField = document.getElementById('editExitTime');
 const dateBadge = document.getElementById('dateEditBadge');
+const exitDateBadge = document.getElementById('exitDateBadge');
 const dateHelp = document.getElementById('dateEditHelp');
-const isAdmin = currentUser?.role?.toLowerCase() === 'admin';
-console.log('✅ É admin?', isAdmin);
-if (isAdmin) {
+const exitDateHelp = document.getElementById('exitDateHelp');
+
+// ✅ ADMIN OU BANDEIRANTES PODEM EDITAR DATAS
+const canEditDates = currentUser?.role === 'admin' || 
+currentUser?.username?.toLowerCase() === 'bandeirantes' ||
+userYards?.includes('Pátio Bandeirantes');
+
+if (canEditDates) {
 dateField.disabled = false;
 dateField.readOnly = false;
+exitDateField.disabled = false;
+exitDateField.readOnly = false;
 if (dateBadge) dateBadge.style.display = 'inline-block';
+if (exitDateBadge) exitDateBadge.style.display = 'inline-block';
 if (dateHelp) {
 dateHelp.style.display = 'block';
-dateHelp.textContent = '✅ Administrador - Pode editar a data';
+dateHelp.textContent = '✅ Você pode editar a data de entrada';
 dateHelp.classList.remove('text-danger');
 dateHelp.classList.add('text-success');
+}
+if (exitDateHelp) {
+exitDateHelp.style.display = 'block';
+exitDateHelp.textContent = '✅ Você pode editar a data de saída';
+exitDateHelp.classList.remove('text-danger');
+exitDateHelp.classList.add('text-success');
 }
 } else {
 dateField.disabled = true;
 dateField.readOnly = true;
+exitDateField.disabled = true;
+exitDateField.readOnly = true;
 if (dateBadge) dateBadge.style.display = 'none';
+if (exitDateBadge) exitDateBadge.style.display = 'none';
 if (dateHelp) {
 dateHelp.style.display = 'block';
-dateHelp.textContent = '🔒 Campo disponível apenas para administradores';
+dateHelp.textContent = '🔒 Apenas admin e Bandeirantes podem alterar';
 dateHelp.classList.add('text-danger');
 dateHelp.classList.remove('text-success');
 }
+if (exitDateHelp) {
+exitDateHelp.style.display = 'block';
+exitDateHelp.textContent = '🔒 Apenas admin e Bandeirantes podem alterar';
+exitDateHelp.classList.add('text-danger');
+exitDateHelp.classList.remove('text-success');
 }
+}
+
 setTimeout(() => {
 console.log('📅 Campo data disabled:', dateField.disabled);
-console.log('📅 Campo data value:', dateField.value);
+console.log('📅 Campo exitDate disabled:', exitDateField.disabled);
 }, 500);
 new bootstrap.Modal(document.getElementById('editVehicleModal')).show();
 }
@@ -1714,17 +1965,34 @@ plate: document.getElementById('editPlate').value.toUpperCase(),
 type: document.getElementById('editType').value,
 yard: document.getElementById('editYard').value,
 base: document.getElementById('editBase').value,
+manager: document.getElementById('editManager').value,
+chassis: document.getElementById('editChassis').value,
 keys: document.getElementById('editKeys').value,
 notes: document.getElementById('editNotes').value,
 status: document.getElementById('editStatus').value,
 maintenance: document.getElementById('editMaintenance').checked ? 1 : 0,
 entregarDiversos: document.getElementById('editEntregarDiversos').checked ? 1 : 0,
-entregarCorreios: document.getElementById('editEntregarCorreios').checked ? 1 : 0
+entregarCorreios: document.getElementById('editEntregarCorreios').checked ? 1 : 0,
+hasAccident: document.getElementById('editHasAccident').checked ? 1 : 0,
+sascarStatus: document.getElementById('editSascarStatus').value
 };
+
+// ✅ ENVIAR DATA DE ENTRADA (ADMIN/BANDEIRANTES)
 const entryTime = document.getElementById('editEntryTime').value;
-if (entryTime && currentUser?.role?.toLowerCase() === 'admin') {
+const canEditDates = currentUser?.role === 'admin' || 
+currentUser?.username?.toLowerCase() === 'bandeirantes' ||
+userYards?.includes('Pátio Bandeirantes');
+
+if (entryTime && canEditDates) {
 updates.entryTime = new Date(entryTime).toISOString();
 }
+
+// ✅ ENVIAR DATA DE SAÍDA (ADMIN/BANDEIRANTES)
+const exitTime = document.getElementById('editExitTime').value;
+if (exitTime && canEditDates) {
+updates.exitTime = new Date(exitTime).toISOString();
+}
+
 console.log('💾 Salvando edição:', updates);
 try {
 const res = await fetch(`${API_URL}/vehicles/${id}`, {
@@ -1830,9 +2098,10 @@ csv += `Data de Exportação: ${new Date().toLocaleString('pt-BR')}\n`;
 csv += `Total de Veículos: ${allVehicles.length}\n`;
 csv += `Veículos Ativos: ${allVehicles.filter(v => v.status !== 'Liberado').length}\n`;
 csv += `Veículos Liberados: ${allVehicles.filter(v => v.status === 'Liberado').length}\n\n`;
-csv = 'ID;Placa;Tipo;Pátio;Base;Status;Manutenção;Entrada;Saída;Tempo no Pátio;Chaves;Observações;Diversos;Correios\n';
+csv = 'ID;Placa;Chassi;Tipo;Pátio;Base;Gestor;Status;Manutenção;Sinistro;Sascar;Entrada;Saída;Tempo no Pátio;Chaves;Observações;Diversos;Correios\n';
 allVehicles.forEach(v => {
-const row = [v.id, `"${v.plate}"`, `"${v.type}"`, `"${v.yard}"`, `"${v.base || ''}"`, `"${v.status}"`, v.maintenance ? 'Sim' : 'Não', `"${v.entryDate || ''}"`, `"${v.exitDate || ''}"`, `"${v.timeInYard || '—'}"`, `"${v.keys || ''}"`, `"${(v.notes || '').replace(/"/g, '""')}"`, v.entregarDiversos ? 'Sim' : 'Não', v.entregarCorreios ? 'Sim' : 'Não'].join(';');
+const sascarLabel = v.sascarStatus === 'pendente' ? 'Pendente' : v.sascarStatus === 'instalado' ? 'Instalado' : v.sascarStatus === 'manutencao' ? 'Manutenção' : 'N/A';
+const row = [v.id, `"${v.plate}"`, `"${v.chassis || ''}"`, `"${v.type}"`, `"${v.yard}"`, `"${v.base || ''}"`, `"${v.manager || ''}"`, `"${v.status}"`, v.maintenance ? 'Sim' : 'Não', v.hasAccident ? 'Sim' : 'Não', sascarLabel, `"${v.entryDate || ''}"`, `"${v.exitDate || ''}"`, `"${v.timeInYard || '—'}"`, `"${v.keys || ''}"`, `"${(v.notes || '').replace(/"/g, '""')}"`, v.entregarDiversos ? 'Sim' : 'Não', v.entregarCorreios ? 'Sim' : 'Não'].join(';');
 csv += row + '\n';
 });
 csv += '\n\nRESUMO POR PÁTIO\n';
@@ -1868,12 +2137,13 @@ showToast('❌ Erro ao exportar Excel', 'danger');
 
 function exportToPDF() {
 try {
-let html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Relatório de Pátio - Transportadora Print</title><style>body{font-family:Arial,sans-serif;margin:20px;}h1{color:#1a3a5c;border-bottom:3px solid #1a3a5c;padding-bottom:10px;}h2{color:#2c5282;margin-top:30px;}table{width:100%;border-collapse:collapse;margin:20px 0;}th{background-color:#1a3a5c;color:white;padding:10px;text-align:left;}td{padding:8px;border-bottom:1px solid #ddd;}tr:nth-child(even){background-color:#f2f2f2;}.header{background-color:#f8f9fa;padding:20px;border-radius:8px;margin-bottom:20px;}@media print{body{margin:10px;}table{font-size:10px;}}</style></head><body><div class="header"><h1>🚚 CONTROLE DE PÁTIO - TRANSPORTADORA PRINT</h1><p><strong>Data:</strong> ${new Date().toLocaleString('pt-BR')}</p><p><strong>Total:</strong> ${allVehicles.length} veículos</p></div><h2>📋 VEÍCULOS CADASTRADOS</h2><table><thead><tr><th>ID</th><th>Placa</th><th>Tipo</th><th>Pátio</th><th>Status</th><th>Entrada</th><th>Saída</th><th>Tempo</th><th>Entrega</th></tr></thead><tbody>`;
+let html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Relatório de Pátio - Transportadora Print</title><style>body{font-family:Arial,sans-serif;margin:20px;}h1{color:#1a3a5c;border-bottom:3px solid #1a3a5c;padding-bottom:10px;}h2{color:#2c5282;margin-top:30px;}table{width:100%;border-collapse:collapse;margin:20px 0;}th{background-color:#1a3a5c;color:white;padding:10px;text-align:left;}td{padding:8px;border-bottom:1px solid #ddd;}tr:nth-child(even){background-color:#f2f2f2;}.header{background-color:#f8f9fa;padding:20px;border-radius:8px;margin-bottom:20px;}@media print{body{margin:10px;}table{font-size:10px;}}</style></head><body><div class="header"><h1>🚚 CONTROLE DE PÁTIO - TRANSPORTADORA PRINT</h1><p><strong>Data:</strong> ${new Date().toLocaleString('pt-BR')}</p><p><strong>Total:</strong> ${allVehicles.length} veículos</p></div><h2>📋 VEÍCULOS CADASTRADOS</h2><table><thead><tr><th>ID</th><th>Placa</th><th>Tipo</th><th>Pátio</th><th>Status</th><th>Entrada</th><th>Saída</th><th>Tempo</th><th>Entrega</th><th>Sascar</th><th>Sinistro</th></tr></thead><tbody>`;
 allVehicles.forEach(v => {
 const entrega = [];
 if (v.entregarDiversos) entrega.push('📦 Diversos');
 if (v.entregarCorreios) entrega.push('📮 Correios');
-html += `<tr><td>${v.id}</td><td><strong>${v.plate}</strong></td><td>${v.type}</td><td>${v.yard}</td><td>${v.status}</td><td>${v.entryDate || '—'}</td><td>${v.exitDate || '—'}</td><td>${v.timeInYard || '—'}</td><td>${entrega.join(', ') || '—'}</td></tr>`;
+const sascarLabel = v.sascarStatus === 'pendente' ? '⏳ Pendente' : v.sascarStatus === 'instalado' ? '✅ Instalado' : v.sascarStatus === 'manutencao' ? '🔧 Manutenção' : '➖ N/A';
+html += `<tr><td>${v.id}</td><td><strong>${v.plate}</strong></td><td>${v.type}</td><td>${v.yard}</td><td>${v.status}</td><td>${v.entryDate || '—'}</td><td>${v.exitDate || '—'}</td><td>${v.timeInYard || '—'}</td><td>${entrega.join(', ') || '—'}</td><td>${sascarLabel}</td><td>${v.hasAccident ? '🚨 Sim' : '—'}</td></tr>`;
 });
 html += `</tbody></table>`;
 fetch(`${API_URL}/swaps`).then(res => res.json()).then(swaps => {
@@ -1931,7 +2201,15 @@ const search = document.getElementById('searchInput').value.toLowerCase();
 const yardFilter = document.getElementById('yardFilter').value;
 const statusFilter = document.getElementById('statusFilter').value;
 document.querySelectorAll('#vehicleTableBody tr').forEach(row => {
-const matches = (!search || row.dataset.search.toLowerCase().includes(search)) && (!yardFilter || row.dataset.yard === yardFilter) && (!statusFilter || row.dataset.status === statusFilter);
+let matches = (!search || row.dataset.search.toLowerCase().includes(search)) && 
+(!yardFilter || row.dataset.yard === yardFilter);
+
+if (statusFilter === 'Sinistro') {
+matches = matches && row.dataset.hasAccident === 'true';
+} else if (statusFilter) {
+matches = matches && row.dataset.status === statusFilter;
+}
+
 row.style.display = matches ? '' : 'none';
 });
 }
