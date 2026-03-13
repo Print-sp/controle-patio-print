@@ -5,7 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1a3a5c">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Pátio Print">
 <title>Controle de Pátio - Transportadora Print</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/images/icon-192.png">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
@@ -21,6 +26,10 @@
 --status-em-manutencao: #6f42c1;
 --status-borracharia: #fd7e14;
 --status-liberado: #198754;
+--status-sinistro: #dc3545;
+--sascar-pendente: #ffc107;
+--sascar-instalado: #198754;
+--sascar-manutencao: #fd7e14;
 }
 body {
 background-color: #f4f6f9;
@@ -88,7 +97,6 @@ vertical-align: middle; border-bottom: 1px solid #eee;
 }
 .vehicle-table tr:hover { background-color: #f8f9ff; }
 
-/* 🆕 ESTILOS PARA PLACAS */
 .placa-container {
 display: inline-block;
 padding: 3px 6px;
@@ -127,7 +135,7 @@ letter-spacing: 2px;
 text-shadow: 0 0 1px rgba(0,0,0,0.3);
 }
 .placa-mercosul::after {
-content: '';
+content: 'BR';
 position: absolute;
 bottom: 2px;
 left: 6px;
@@ -148,6 +156,8 @@ padding: 4px 10px; background: #e9ecef; border-radius: 6px;
 .status-em-manutencao { background: #e2d5f1; color: #5a2d82; }
 .status-borracharia { background: #ffe5d0; color: #fd7e14; }
 .status-liberado { background: #d1e7dd; color: #0f5132; }
+.status-sinistro { background: #ffe5e5; color: #dc3545; border: 1px solid #dc3545; }
+.status-entregue { background: #cfe2ff; color: #084298; border: 1px solid #9ec5fe; }
 .time-badge {
 background: #e7f1ff; color: #0d6efd; font-size: 0.8rem;
 padding: 3px 8px; border-radius: 4px; font-weight: 500;
@@ -187,6 +197,180 @@ padding: 15px; margin-top: 15px; max-height: 300px; overflow-y: auto;
 .history-item.alert { border-left-color: #dc3545; background: #fff5f5; }
 .history-item.success { border-left-color: #198754; background: #d1e7dd; }
 .history-item.info { border-left-color: #0d6efd; background: #e7f1ff; }
+.history-item.sinistro { border-left-color: #dc3545; background: #fff5f5; }
+
+.actions-dropdown {
+position: relative;
+display: inline-block;
+}
+.actions-dropdown-menu {
+display: none;
+position: absolute;
+right: 0;
+top: 100%;
+z-index: 1000;
+min-width: 220px;
+background: white;
+border-radius: 8px;
+box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+border: 1px solid #dee2e6;
+margin-top: 4px;
+}
+.actions-dropdown-menu.show {
+display: block;
+}
+.actions-dropdown-menu .dropdown-item {
+padding: 8px 12px;
+display: flex;
+align-items: center;
+gap: 8px;
+color: #212529;
+text-decoration: none;
+cursor: pointer;
+border: none;
+background: none;
+width: 100%;
+text-align: left;
+font-size: 0.85rem;
+}
+.actions-dropdown-menu .dropdown-item:hover {
+background-color: #f8f9fa;
+}
+.actions-dropdown-menu .dropdown-divider {
+margin: 4px 0;
+border-top: 1px solid #dee2e6;
+}
+.actions-dropdown-toggle {
+background: #6c757d;
+color: white;
+border: none;
+padding: 4px 10px;
+border-radius: 4px;
+cursor: pointer;
+font-size: 0.8rem;
+display: flex;
+align-items: center;
+gap: 4px;
+}
+.actions-dropdown-toggle:hover {
+background: #5a6268;
+}
+
+.sascar-badge {
+padding: 3px 8px;
+border-radius: 12px;
+font-size: 0.7rem;
+font-weight: 600;
+display: inline-block;
+}
+.sascar-pendente { background: #fff3cd; color: #856404; }
+.sascar-instalado { background: #d1e7dd; color: #0f5132; }
+.sascar-manutencao { background: #ffe5d0; color: #fd7e14; }
+
+.management-dashboard {
+background: linear-gradient(135deg, #1a3a5c 0%, #2c5282 100%);
+color: white;
+border-radius: 16px;
+padding: 30px;
+margin-bottom: 30px;
+}
+.management-card {
+background: rgba(255,255,255,0.1);
+border-radius: 12px;
+padding: 20px;
+text-align: center;
+}
+.management-card .count {
+font-size: 2.5rem;
+font-weight: 700;
+}
+.management-card .label {
+font-size: 0.9rem;
+opacity: 0.9;
+}
+.ready-vehicle-item {
+background: white;
+border-radius: 8px;
+padding: 15px;
+margin-bottom: 10px;
+border-left: 4px solid #198754;
+}
+.sascar-alert-item {
+background: white;
+border-radius: 8px;
+padding: 15px;
+margin-bottom: 10px;
+border-left: 4px solid #fd7e14;
+}
+
+.password-toggle {
+cursor: pointer;
+background: none;
+border: none;
+color: #6c757d;
+}
+.password-toggle:hover {
+color: #1a3a5c;
+}
+
+.liberated-panel {
+position: fixed;
+right: -400px;
+top: 80px;
+width: 380px;
+height: calc(100vh - 80px);
+background: white;
+box-shadow: -4px 0 20px rgba(0,0,0,0.15);
+z-index: 999;
+transition: right 0.3s ease;
+overflow-y: auto;
+}
+.liberated-panel.show {
+right: 0;
+}
+.liberated-panel-header {
+background: var(--print-blue);
+color: white;
+padding: 15px 20px;
+position: sticky;
+top: 0;
+z-index: 10;
+}
+.liberated-panel-body {
+padding: 20px;
+}
+.liberated-vehicle-card {
+background: #f8f9fa;
+border-radius: 8px;
+padding: 15px;
+margin-bottom: 15px;
+border-left: 4px solid #198754;
+}
+.liberated-vehicle-card .plate {
+font-weight: 700;
+font-size: 1.1rem;
+color: var(--print-blue);
+}
+.liberated-vehicle-card .time-ready {
+color: #198754;
+font-weight: 600;
+}
+.btn-toggle-panel {
+position: fixed;
+right: 20px;
+top: 100px;
+z-index: 998;
+background: #198754;
+color: white;
+border: none;
+border-radius: 8px 0 0 8px;
+padding: 10px 15px;
+cursor: pointer;
+}
+.btn-toggle-panel:hover {
+background: #146c43;
+}
+
 @media (max-width: 768px) {
 .stat-card .count { font-size: 1.4rem; }
 .action-bar .btn { width: 100%; margin-right: 0; margin-bottom: 8px; min-width: auto; }
@@ -208,6 +392,8 @@ padding: 15px; margin-top: 15px; max-height: 300px; overflow-y: auto;
 .form-control, .form-select { font-size: 16px !important; }
 .stat-card .count { font-size: 1.4rem !important; }
 .stat-card .label { font-size: 0.75rem !important; }
+.management-card .count { font-size: 1.8rem !important; }
+.liberated-panel { width: 100%; right: -100%; }
 }
 @media (hover: none) {
 .btn, .action-btn { min-height: 44px !important; min-width: 44px !important; }
@@ -242,11 +428,18 @@ display: flex; flex-direction: column; justify-content: center; align-items: cen
 }
 .quick-action-card:hover { transform: scale(1.02); }
 .quick-action-card i { font-size: 2.5rem; margin-bottom: 10px; }
+.badge-sinistro {
+background: #dc3545; color: white; font-size: 0.7rem; padding: 2px 6px;
+border-radius: 4px; font-weight: 600; margin-left: 4px;
+}
+.badge-entregue {
+background: #cfe2ff; color: #084298; font-size: 0.7rem; padding: 2px 6px;
+border-radius: 4px; font-weight: 600; margin-left: 4px;
+}
 </style>
 </head>
 <body>
 
-<<<<<<< HEAD
 <!-- TELA DE LOGIN -->
 <div id="loginScreen" class="login-screen">
 <div class="login-card text-center">
@@ -267,6 +460,9 @@ placeholder="Usuário" required autocomplete="username">
 <span class="input-group-text"><i class="bi bi-lock"></i></span>
 <input type="password" class="form-control form-control-lg" id="loginPassword"
 placeholder="Senha" required autocomplete="current-password">
+<button class="btn btn-outline-secondary password-toggle" type="button" onclick="togglePassword()" title="Mostrar/Ocultar senha">
+<i class="bi bi-eye" id="passwordIcon"></i>
+</button>
 </div>
 </div>
 <button type="submit" class="btn btn-primary btn-lg w-100">
@@ -290,6 +486,20 @@ placeholder="Senha" required autocomplete="current-password">
 <div id="mainApp" class="hidden">
 <div id="notificationContainer" style="position: fixed; top: 80px; right: 20px; z-index: 9999; max-width: 400px;"></div>
 
+<button class="btn-toggle-panel" onclick="toggleLiberatedPanel()" title="Veículos Liberados">
+<i class="bi bi-truck"></i> <span id="liberadosCount">0</span>
+</button>
+
+<div id="liberatedPanel" class="liberated-panel">
+<div class="liberated-panel-header d-flex justify-content-between align-items-center">
+<h5 class="mb-0"><i class="bi bi-truck me-2"></i>Veículos Liberados</h5>
+<button class="btn btn-sm btn-light" onclick="toggleLiberatedPanel()"><i class="bi bi-x-lg"></i></button>
+</div>
+<div class="liberated-panel-body" id="liberatedPanelContent">
+<p class="text-muted text-center">Carregando...</p>
+</div>
+</div>
+
 <header class="header-print">
 <div class="container-fluid px-3">
 <div class="d-flex align-items-center justify-content-between">
@@ -308,6 +518,7 @@ placeholder="Senha" required autocomplete="current-password">
 <small class="text-white-50"><span id="userRole">Administrador</span> <span class="role-badge" id="userRoleBadge">ADMIN</span></small>
 </div>
 </div>
+<button class="btn btn-light btn-sm" onclick="openManagementDashboard()" title="Modo Gerência"><i class="bi bi-speedometer2"></i></button>
 <button class="btn btn-light btn-sm" onclick="logout()" title="Sair"><i class="bi bi-box-arrow-right"></i></button>
 </div>
 </div>
@@ -315,6 +526,69 @@ placeholder="Senha" required autocomplete="current-password">
 </header>
 
 <div class="container-fluid px-3 py-3">
+<div id="managementDashboard" class="management-dashboard hidden">
+<h3 class="mb-4"><i class="bi bi-speedometer2 me-2"></i>Modo Gerência - Visão Geral</h3>
+<div class="row g-4 mb-4">
+<div class="col-md-3">
+<div class="management-card">
+<div class="count" id="mgTotalVehicles">0</div>
+<div class="label">Total de Veículos</div>
+</div>
+</div>
+<div class="col-md-3">
+<div class="management-card">
+<div class="count" id="mgReadyVehicles" style="color: #198754;">0</div>
+<div class="label">Prontos para Operação</div>
+</div>
+</div>
+<div class="col-md-3">
+<div class="management-card">
+<div class="count" id="mgActiveVehicles" style="color: #ffc107;">0</div>
+<div class="label">Em Atividade</div>
+</div>
+</div>
+<div class="col-md-3">
+<div class="management-card">
+<div class="count" id="mgAvgReadyTime">0h</div>
+<div class="label">Tempo Médio Pronto</div>
+</div>
+</div>
+</div>
+
+<h5 class="mb-3"><i class="bi bi-tools me-2"></i>Manutenção por Categoria</h5>
+<div class="row g-3 mb-4">
+<div class="col-md-2"><div class="management-card"><div class="count" id="mgMecanica">0</div><div class="label">🔧 Mecânica</div></div></div>
+<div class="col-md-2"><div class="management-card"><div class="count" id="mgBau">0</div><div class="label">📦 Baú</div></div></div>
+<div class="col-md-2"><div class="management-card"><div class="count" id="mgBorracharia">0</div><div class="label">🛞 Borracharia</div></div></div>
+<div class="col-md-2"><div class="management-card"><div class="count" id="mgEletrica">0</div><div class="label">⚡ Elétrica</div></div></div>
+<div class="col-md-2"><div class="management-card"><div class="count" id="mgFreios">0</div><div class="label">🛑 Freios</div></div></div>
+<div class="col-md-2"><div class="management-card"><div class="count" id="mgStalled" style="color: #dc3545;">0</div><div class="label">⚠️ Parados >24h</div></div></div>
+</div>
+
+<h5 class="mb-3"><i class="bi bi-sim me-2"></i>Status Sascar</h5>
+<div class="row g-3 mb-4">
+<div class="col-md-4"><div class="management-card" style="background: rgba(255,193,7,0.2);"><div class="count" id="mgSascarPendente" style="color: #ffc107;">0</div><div class="label">⏳ Pendente Instalação</div></div></div>
+<div class="col-md-4"><div class="management-card" style="background: rgba(253,126,20,0.2);"><div class="count" id="mgSascarManutencao" style="color: #fd7e14;">0</div><div class="label">🔧 Pendente Manutenção</div></div></div>
+<div class="col-md-4"><div class="management-card" style="background: rgba(25,135,84,0.2);"><div class="count" id="mgSascarInstalado" style="color: #198754;">0</div><div class="label">✅ Instalado</div></div></div>
+</div>
+
+<h5 class="mb-3"><i class="bi bi-box-seam me-2"></i>Veículos Entregues</h5>
+<div class="row g-3 mb-4">
+<div class="col-md-6"><div class="management-card" style="background: rgba(13,110,253,0.2);"><div class="count" id="mgEntreguesCorreios" style="color: #0d6efd;">0</div><div class="label">📮 Entregues Correios</div></div></div>
+<div class="col-md-6"><div class="management-card" style="background: rgba(25,135,84,0.2);"><div class="count" id="mgEntreguesDiversos" style="color: #198754;">0</div><div class="label">📦 Entregues Diversos</div></div></div>
+</div>
+
+<h5 class="mb-3"><i class="bi bi-exclamation-triangle me-2"></i>Sascar - Pendências</h5>
+<div id="sascarPendenteList"></div>
+
+<h5 class="mb-3"><i class="bi bi-clock-history me-2"></i>Veículos Prontos (Tempo de Disponibilidade)</h5>
+<div id="readyVehiclesList"></div>
+
+<button class="btn btn-light mt-4" onclick="closeManagementDashboard()">
+<i class="bi bi-x-circle me-2"></i>Fechar Modo Gerência
+</button>
+</div>
+
 <div id="stalledAlert" class="alert-stalled hidden">
 <div class="d-flex align-items-center">
 <i class="bi bi-exclamation-triangle-fill text-danger fs-4 me-3"></i>
@@ -366,7 +640,7 @@ placeholder="Senha" required autocomplete="current-password">
 <div class="row g-3 align-items-end">
 <div class="col-md-4">
 <label class="form-label small text-muted">Buscar</label>
-<input type="text" class="form-control" id="searchInput" placeholder="Placa, tipo ou pátio..." onkeyup="filterTable()">
+<input type="text" class="form-control" id="searchInput" placeholder="Placa, tipo, pátio ou gestor..." onkeyup="filterTable()">
 </div>
 <div class="col-md-3">
 <label class="form-label small text-muted">Filtrar por Pátio</label>
@@ -388,6 +662,7 @@ placeholder="Senha" required autocomplete="current-password">
 <option value="Em manutenção">Em manutenção</option>
 <option value="Borracharia">Borracharia</option>
 <option value="Liberado">Liberado</option>
+<option value="Sinistro">🚨 Com Sinistro</option>
 </select>
 </div>
 <div class="col-md-2">
@@ -401,7 +676,7 @@ placeholder="Senha" required autocomplete="current-password">
 <div class="table-responsive">
 <table class="table table-hover mb-0">
 <thead>
-<tr><th>Tipo</th><th>Placa</th><th>Entrada</th><th>Saída</th><th>Tempo</th><th>Local</th><th>Manutenção</th><th>Status</th><th>Ações</th></tr>
+<tr><th>Tipo</th><th>Placa</th><th>Chassi</th><th>Entrada</th><th>Saída</th><th>Tempo</th><th>Local</th><th>Base Origem</th><th>Base Destino</th><th>Gestor</th><th>Sascar</th><th>Entregue</th><th>Sinistro</th><th>Status</th><th>Ações</th></tr>
 </thead>
 <tbody id="vehicleTableBody"></tbody>
 </table>
@@ -418,7 +693,7 @@ placeholder="Senha" required autocomplete="current-password">
 <div class="table-responsive">
 <table class="table table-sm mb-0">
 <thead class="table-light">
-<tr><th>Data</th><th>Entra</th><th>Sai</th><th>Base</th><th>Observações</th><th>Ações</th></tr>
+<tr><th>Data</th><th>Tipo</th><th>Entra</th><th>Sai</th><th>Base Origem</th><th>Base Destino</th><th>Observações</th><th>Ações</th></tr>
 </thead>
 <tbody id="swapsTableBody"></tbody>
 </table>
@@ -543,11 +818,50 @@ placeholder="Senha" required autocomplete="current-password">
 </div>
 <div class="col-md-6">
 <label class="form-label">Base de Origem</label>
-<input type="text" class="form-control" id="base" value="Jaraguá-SP">
+<select class="form-select" id="base" required>
+<option value="Jaraguá-SP (Nacional)">Jaraguá-SP (Nacional)</option>
+<option value="Belém-PA">Belém-PA</option>
+<option value="Campo Grande-MS">Campo Grande-MS</option>
+<option value="Vitória da Conquista-BA">Vitória da Conquista-BA</option>
+<option value="Salvador-BA">Salvador-BA</option>
+<option value="Vitória-ES">Vitória-ES</option>
+<option value="Recife-PE">Recife-PE</option>
+<option value="Fortaleza-CE">Fortaleza-CE</option>
+<option value="São Paulo-SP">São Paulo-SP</option>
+<option value="Rio de Janeiro-RJ">Rio de Janeiro-RJ</option>
+<option value="Curitiba-PR">Curitiba-PR</option>
+<option value="Porto Alegre-RS">Porto Alegre-RS</option>
+</select>
+</div>
+<div class="col-md-6">
+<label class="form-label">Base de Destino</label>
+<select class="form-select" id="baseDestino">
+<option value="">Selecione...</option>
+<option value="Jaraguá-SP (Nacional)">Jaraguá-SP (Nacional)</option>
+<option value="Belém-PA">Belém-PA</option>
+<option value="Campo Grande-MS">Campo Grande-MS</option>
+<option value="Vitória da Conquista-BA">Vitória da Conquista-BA</option>
+<option value="Salvador-BA">Salvador-BA</option>
+<option value="Vitória-ES">Vitória-ES</option>
+<option value="Recife-PE">Recife-PE</option>
+<option value="Fortaleza-CE">Fortaleza-CE</option>
+<option value="São Paulo-SP">São Paulo-SP</option>
+<option value="Rio de Janeiro-RJ">Rio de Janeiro-RJ</option>
+<option value="Curitiba-PR">Curitiba-PR</option>
+<option value="Porto Alegre-RS">Porto Alegre-RS</option>
+</select>
+</div>
+<div class="col-md-6">
+<label class="form-label">Gestor da Base de Origem</label>
+<input type="text" class="form-control" id="manager" placeholder="Nome do gestor responsável">
 </div>
 <div class="col-md-6">
 <label class="form-label">Responsável pelas Chaves</label>
 <input type="text" class="form-control" id="keys" placeholder="ex: Frotas, Motorista...">
+</div>
+<div class="col-md-6">
+<label class="form-label">Número do Chassi (0km)</label>
+<input type="text" class="form-control" id="chassis" placeholder="Apenas para veículos sem placa">
 </div>
 <div class="col-12">
 <label class="form-label">Entregar para:</label>
@@ -566,6 +880,34 @@ placeholder="Senha" required autocomplete="current-password">
 </div>
 </div>
 </div>
+<div class="col-md-6">
+<label class="form-label">Status Sascar</label>
+<select class="form-select" id="sascarStatus">
+<option value="pendente">⏳ Pendente Instalação</option>
+<option value="instalado">✅ Instalado</option>
+<option value="manutencao">🔧 Pendente Manutenção</option>
+<option value="nao_aplicavel">➖ Não Aplicável</option>
+</select>
+</div>
+<div class="col-md-6">
+<label class="form-label">Categoria de Manutenção</label>
+<select class="form-select" id="maintenanceCategory">
+<option value="">Sem manutenção</option>
+<option value="mecanica">🔧 Mecânica</option>
+<option value="bau">📦 Baú</option>
+<option value="borracharia">🛞 Borracharia</option>
+<option value="eletrica">⚡ Elétrica</option>
+<option value="freios">🛑 Freios</option>
+</select>
+</div>
+<div class="col-12">
+<div class="form-check">
+<input class="form-check-input" type="checkbox" id="hasAccident">
+<label class="form-check-label text-danger" for="hasAccident">
+<i class="bi bi-exclamation-triangle"></i> <strong>Veículo com Sinistro/Acidente</strong>
+</label>
+</div>
+</div>
 <div class="col-12">
 <label class="form-label">Observações</label>
 <textarea class="form-control" id="notes" rows="2" placeholder="Informações adicionais..."></textarea>
@@ -578,6 +920,95 @@ placeholder="Senha" required autocomplete="current-password">
 <div class="modal-footer">
 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
 <button type="button" class="btn btn-primary btn-lg" onclick="submitEntry()"><i class="bi bi-check-circle me-1"></i> Confirmar Entrada</button>
+</div>
+</div>
+</div>
+</div>
+
+<!-- Modal: Registrar Troca -->
+<div class="modal fade" id="swapModal" tabindex="-1">
+<div class="modal-dialog">
+<div class="modal-content">
+<div class="modal-header">
+<h5 class="modal-title"><i class="bi bi-arrow-left-right me-2"></i>Registrar Troca/Empréstimo</h5>
+<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+</div>
+<div class="modal-body">
+<form id="swapForm">
+<input type="hidden" id="editSwapId">
+<div class="mb-3">
+<label class="form-label">Tipo</label>
+<select class="form-select" id="swapTipo" required>
+<option value="troca">🔄 Troca</option>
+<option value="emprestimo">📋 Empréstimo</option>
+</select>
+</div>
+<div class="mb-3">
+<label class="form-label">Data/Hora</label>
+<input type="datetime-local" class="form-control" id="swapDate">
+</div>
+<div class="mb-3">
+<label class="form-label">Placa que ENTRA</label>
+<input type="text" class="form-control" id="swapPlateIn" placeholder="ou 0000">
+<small class="text-muted">Após registrar, abrirá tela para cadastrar este veículo</small>
+</div>
+<div class="mb-3">
+<label class="form-label">Placa que SAI *</label>
+<input type="text" class="form-control" id="swapPlateOut" required>
+</div>
+<div class="mb-3">
+<label class="form-label">Base de Origem</label>
+<select class="form-select" id="swapBase" required>
+<option value="Jaraguá-SP (Nacional)">Jaraguá-SP (Nacional)</option>
+<option value="Belém-PA">Belém-PA</option>
+<option value="Campo Grande-MS">Campo Grande-MS</option>
+<option value="Vitória da Conquista-BA">Vitória da Conquista-BA</option>
+<option value="Salvador-BA">Salvador-BA</option>
+<option value="Vitória-ES">Vitória-ES</option>
+<option value="Recife-PE">Recife-PE</option>
+<option value="Fortaleza-CE">Fortaleza-CE</option>
+<option value="São Paulo-SP">São Paulo-SP</option>
+<option value="Rio de Janeiro-RJ">Rio de Janeiro-RJ</option>
+<option value="Curitiba-PR">Curitiba-PR</option>
+<option value="Porto Alegre-RS">Porto Alegre-RS</option>
+</select>
+</div>
+<div class="mb-3">
+<label class="form-label">Base de Destino</label>
+<select class="form-select" id="swapBaseDestino">
+<option value="">Selecione...</option>
+<option value="Jaraguá-SP (Nacional)">Jaraguá-SP (Nacional)</option>
+<option value="Belém-PA">Belém-PA</option>
+<option value="Campo Grande-MS">Campo Grande-MS</option>
+<option value="Vitória da Conquista-BA">Vitória da Conquista-BA</option>
+<option value="Salvador-BA">Salvador-BA</option>
+<option value="Vitória-ES">Vitória-ES</option>
+<option value="Recife-PE">Recife-PE</option>
+<option value="Fortaleza-CE">Fortaleza-CE</option>
+<option value="São Paulo-SP">São Paulo-SP</option>
+<option value="Rio de Janeiro-RJ">Rio de Janeiro-RJ</option>
+<option value="Curitiba-PR">Curitiba-PR</option>
+<option value="Porto Alegre-RS">Porto Alegre-RS</option>
+</select>
+</div>
+<div class="mb-3">
+<label class="form-label">Veículo que SAI - Marcar como Entregue?</label>
+<select class="form-select" id="swapEntregarSaida">
+<option value="">Não marcar como entregue</option>
+<option value="correios">📮 Entregar para Correios</option>
+<option value="diversos">📦 Entregar para Diversos</option>
+</select>
+<small class="text-muted">Se selecionado, o veículo será marcado como LIBERADO e ENTREGUE</small>
+</div>
+<div class="mb-3">
+<label class="form-label">Observações</label>
+<textarea class="form-control" id="swapNotes" rows="2"></textarea>
+</div>
+</form>
+</div>
+<div class="modal-footer">
+<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+<button type="button" class="btn btn-primary" onclick="submitSwap()"><i class="bi bi-check-circle me-1"></i> <span id="swapBtnText">Registrar</span></button>
 </div>
 </div>
 </div>
@@ -657,9 +1088,14 @@ placeholder="Senha" required autocomplete="current-password">
 </select>
 </div>
 <div class="col-md-6">
-<label class="form-label">Data de Entrada <span id="dateEditBadge" class="badge bg-warning text-dark ms-1">Admin</span></label>
+<label class="form-label">Data de Entrada <span id="dateEditBadge" class="badge bg-warning text-dark ms-1">Admin/Bandeirantes</span></label>
 <input type="datetime-local" class="form-control" id="editEntryTime">
-<small class="text-muted" id="dateEditHelp">Apenas administradores podem alterar</small>
+<small class="text-muted" id="dateEditHelp">Apenas admin e Bandeirantes podem alterar</small>
+</div>
+<div class="col-md-6">
+<label class="form-label">Data de Saída <span id="exitDateBadge" class="badge bg-warning text-dark ms-1">Admin/Bandeirantes</span></label>
+<input type="datetime-local" class="form-control" id="editExitTime">
+<small class="text-muted" id="exitDateHelp">Apenas admin e Bandeirantes podem alterar</small>
 </div>
 <div class="col-md-6">
 <label class="form-label">Status</label>
@@ -673,12 +1109,71 @@ placeholder="Senha" required autocomplete="current-password">
 </select>
 </div>
 <div class="col-md-6">
-<label class="form-label">Base</label>
-<input type="text" class="form-control" id="editBase">
+<label class="form-label">Base de Origem</label>
+<select class="form-select" id="editBase">
+<option value="Jaraguá-SP (Nacional)">Jaraguá-SP (Nacional)</option>
+<option value="Belém-PA">Belém-PA</option>
+<option value="Campo Grande-MS">Campo Grande-MS</option>
+<option value="Vitória da Conquista-BA">Vitória da Conquista-BA</option>
+<option value="Salvador-BA">Salvador-BA</option>
+<option value="Vitória-ES">Vitória-ES</option>
+<option value="Recife-PE">Recife-PE</option>
+<option value="Fortaleza-CE">Fortaleza-CE</option>
+<option value="São Paulo-SP">São Paulo-SP</option>
+<option value="Rio de Janeiro-RJ">Rio de Janeiro-RJ</option>
+<option value="Curitiba-PR">Curitiba-PR</option>
+<option value="Porto Alegre-RS">Porto Alegre-RS</option>
+</select>
+</div>
+<div class="col-md-6">
+<label class="form-label">Base de Destino</label>
+<select class="form-select" id="editBaseDestino">
+<option value="">Selecione...</option>
+<option value="Jaraguá-SP (Nacional)">Jaraguá-SP (Nacional)</option>
+<option value="Belém-PA">Belém-PA</option>
+<option value="Campo Grande-MS">Campo Grande-MS</option>
+<option value="Vitória da Conquista-BA">Vitória da Conquista-BA</option>
+<option value="Salvador-BA">Salvador-BA</option>
+<option value="Vitória-ES">Vitória-ES</option>
+<option value="Recife-PE">Recife-PE</option>
+<option value="Fortaleza-CE">Fortaleza-CE</option>
+<option value="São Paulo-SP">São Paulo-SP</option>
+<option value="Rio de Janeiro-RJ">Rio de Janeiro-RJ</option>
+<option value="Curitiba-PR">Curitiba-PR</option>
+<option value="Porto Alegre-RS">Porto Alegre-RS</option>
+</select>
+</div>
+<div class="col-md-6">
+<label class="form-label">Gestor da Base</label>
+<input type="text" class="form-control" id="editManager">
 </div>
 <div class="col-md-6">
 <label class="form-label">Chaves com</label>
 <input type="text" class="form-control" id="editKeys">
+</div>
+<div class="col-md-6">
+<label class="form-label">Número do Chassi</label>
+<input type="text" class="form-control" id="editChassis">
+</div>
+<div class="col-md-6">
+<label class="form-label">Status Sascar</label>
+<select class="form-select" id="editSascarStatus">
+<option value="pendente">⏳ Pendente Instalação</option>
+<option value="instalado">✅ Instalado</option>
+<option value="manutencao">🔧 Pendente Manutenção</option>
+<option value="nao_aplicavel">➖ Não Aplicável</option>
+</select>
+</div>
+<div class="col-md-6">
+<label class="form-label">Categoria de Manutenção</label>
+<select class="form-select" id="editMaintenanceCategory">
+<option value="">Sem manutenção</option>
+<option value="mecanica">🔧 Mecânica</option>
+<option value="bau">📦 Baú</option>
+<option value="borracharia">🛞 Borracharia</option>
+<option value="eletrica">⚡ Elétrica</option>
+<option value="freios">🛑 Freios</option>
+</select>
 </div>
 <div class="col-12">
 <label class="form-label">Entregar para:</label>
@@ -695,6 +1190,29 @@ placeholder="Senha" required autocomplete="current-password">
 <label class="form-check-label" for="editEntregarCorreios">📮 Entregar para Correios/ECT</label>
 </div>
 </div>
+</div>
+</div>
+<div class="col-12">
+<div class="form-check">
+<input class="form-check-input" type="checkbox" id="editEntregue">
+<label class="form-check-label text-success" for="editEntregue">
+<i class="bi bi-check-circle"></i> <strong>Veículo Entregue</strong>
+</label>
+</div>
+</div>
+<div class="col-md-6" id="editEntregueParaDiv">
+<label class="form-label">Entregue Para:</label>
+<select class="form-select" id="editEntreguePara">
+<option value="correios">📮 Correios</option>
+<option value="diversos">📦 Diversos</option>
+</select>
+</div>
+<div class="col-12">
+<div class="form-check">
+<input class="form-check-input" type="checkbox" id="editHasAccident">
+<label class="form-check-label text-danger" for="editHasAccident">
+<i class="bi bi-exclamation-triangle"></i> <strong>Veículo com Sinistro/Acidente</strong>
+</label>
 </div>
 </div>
 <div class="col-12">
@@ -745,50 +1263,16 @@ placeholder="Senha" required autocomplete="current-password">
 </div>
 </div>
 
-<!-- Modal: Registrar Troca -->
-<div class="modal fade" id="swapModal" tabindex="-1">
-<div class="modal-dialog">
-<div class="modal-content">
-<div class="modal-header">
-<h5 class="modal-title"><i class="bi bi-arrow-left-right me-2"></i>Registrar Troca</h5>
-<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+<!-- 📱 PWA - Prompt de Instalação -->
+<div id="installPrompt" class="alert alert-primary position-fixed bottom-0 start-0 end-0 m-3 d-none" style="z-index: 9999; max-width: 400px; margin-left: auto; margin-right: auto;">
+<div class="d-flex align-items-center">
+<i class="bi bi-download fs-4 me-3"></i>
+<div class="flex-grow-1">
+<strong>📱 Instalar Controle de Pátio?</strong>
+<p class="mb-0 small">Adicione à tela inicial para acesso rápido</p>
 </div>
-<div class="modal-body">
-<form id="swapForm">
-<input type="hidden" id="editSwapId">
-<div class="mb-3">
-<label class="form-label">Data/Hora</label>
-<input type="datetime-local" class="form-control" id="swapDate">
-</div>
-<div class="mb-3">
-<label class="form-label">Placa que ENTRA</label>
-<input type="text" class="form-control" id="swapPlateIn" placeholder="ou 0000">
-</div>
-<div class="mb-3">
-<label class="form-label">Placa que SAI *</label>
-<input type="text" class="form-control" id="swapPlateOut" required>
-</div>
-<div class="mb-3">
-<label class="form-label">Base/Local</label>
-<select class="form-select" id="swapBase" required>
-<option value="Jaraguá-SP">Jaraguá-SP</option>
-<option value="Pátio Jaraguá">Pátio Jaraguá</option>
-<option value="Pátio Bandeirantes">Pátio Bandeirantes</option>
-<option value="Pátio Superior">Pátio Superior</option>
-<option value="Pátio Cajamar">Pátio Cajamar</option>
-</select>
-</div>
-<div class="mb-3">
-<label class="form-label">Observações</label>
-<textarea class="form-control" id="swapNotes" rows="2"></textarea>
-</div>
-</form>
-</div>
-<div class="modal-footer">
-<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-<button type="button" class="btn btn-primary" onclick="submitSwap()"><i class="bi bi-check-circle me-1"></i> <span id="swapBtnText">Registrar</span></button>
-</div>
-</div>
+<button class="btn btn-sm btn-primary ms-2" id="btnInstall">Instalar</button>
+<button class="btn btn-sm btn-outline-secondary ms-1" id="btnDismiss">✕</button>
 </div>
 </div>
 
@@ -804,6 +1288,9 @@ let cameraStream = null;
 let currentCameraMode = null;
 let vehicleToExit = null;
 let statusChart, yardChart, typeChart, timeChart;
+let deferredPrompt;
+let managementRefreshInterval = null;
+let canChangeLiberado = false;
 
 console.log('🚀 Sistema iniciado');
 console.log('📦 Tesseract disponível:', typeof Tesseract !== 'undefined');
@@ -814,7 +1301,203 @@ updateClock();
 setInterval(updateClock, 1000);
 setTimeout(checkStalledVehicles, 3000);
 setInterval(checkStalledVehicles, 5 * 60 * 1000);
+registerServiceWorker();
+setupInstallPrompt();
 });
+
+function togglePassword() {
+const passwordInput = document.getElementById('loginPassword');
+const passwordIcon = document.getElementById('passwordIcon');
+if (passwordInput.type === 'password') {
+passwordInput.type = 'text';
+passwordIcon.classList.remove('bi-eye');
+passwordIcon.classList.add('bi-eye-slash');
+} else {
+passwordInput.type = 'password';
+passwordIcon.classList.remove('bi-eye-slash');
+passwordIcon.classList.add('bi-eye');
+}
+}
+
+function toggleLiberatedPanel() {
+const panel = document.getElementById('liberatedPanel');
+panel.classList.toggle('show');
+if (panel.classList.contains('show')) {
+loadLiberatedVehicles();
+}
+}
+
+async function loadLiberatedVehicles() {
+try {
+const res = await fetch(`${API_URL}/management/dashboard`);
+const data = await res.json();
+const content = document.getElementById('liberatedPanelContent');
+document.getElementById('liberadosCount').textContent = data.readyVehicles;
+document.getElementById('mgEntreguesCorreios').textContent = data.entreguesCorreios || 0;
+document.getElementById('mgEntreguesDiversos').textContent = data.entreguesDiversos || 0;
+
+if (data.readyVehiclesList.length > 0) {
+content.innerHTML = data.readyVehiclesList.map(v => `
+<div class="liberated-vehicle-card">
+<div class="d-flex justify-content-between align-items-start mb-2">
+<div>
+<div class="plate">${v.plate}</div>
+<small class="text-muted">${v.type} • ${v.yard}</small>
+</div>
+<div class="text-end">
+<div class="time-ready">${v.timeReady || '—'}</div>
+<small class="text-muted">${v.hoursReady || '0'}h pronto</small>
+</div>
+</div>
+<div class="d-flex justify-content-between align-items-center">
+<small class="text-muted">Sascar: ${v.sascarStatus === 'pendente' ? '⏳ Pendente' : v.sascarStatus === 'manutencao' ? '🔧 Manutenção' : '✅ Instalado'}</small>
+${v.entregue ? `<span class="badge-entregue">📦 ${v.entreguePara === 'correios' ? 'Correios' : v.entreguePara === 'diversos' ? 'Diversos' : 'Entregue'}</span>` : ''}
+${canChangeLiberado ? `<button class="btn btn-sm btn-outline-warning" onclick="undoLiberado(${v.id})"><i class="bi bi-arrow-counterclockwise"></i></button>` : ''}
+</div>
+</div>
+`).join('');
+} else {
+content.innerHTML = '<p class="text-muted text-center">Nenhum veículo liberado no momento</p>';
+}
+} catch (err) {
+console.error('Erro ao carregar liberados:', err);
+}
+}
+
+function openManagementDashboard() {
+document.getElementById('managementDashboard').classList.remove('hidden');
+loadManagementDashboard();
+managementRefreshInterval = setInterval(loadManagementDashboard, 30000);
+}
+
+function closeManagementDashboard() {
+document.getElementById('managementDashboard').classList.add('hidden');
+if (managementRefreshInterval) {
+clearInterval(managementRefreshInterval);
+managementRefreshInterval = null;
+}
+}
+
+async function loadManagementDashboard() {
+try {
+const res = await fetch(`${API_URL}/management/dashboard`);
+const data = await res.json();
+
+document.getElementById('mgTotalVehicles').textContent = data.totalVehicles;
+document.getElementById('mgReadyVehicles').textContent = data.readyVehicles;
+document.getElementById('mgActiveVehicles').textContent = data.activeVehicles;
+document.getElementById('mgAvgReadyTime').textContent = `${data.avgReadyTime}h`;
+document.getElementById('mgEntreguesCorreios').textContent = data.entreguesCorreios || 0;
+document.getElementById('mgEntreguesDiversos').textContent = data.entreguesDiversos || 0;
+
+document.getElementById('mgMecanica').textContent = data.maintenanceByCategory.mecanica;
+document.getElementById('mgBau').textContent = data.maintenanceByCategory.bau;
+document.getElementById('mgBorracharia').textContent = data.maintenanceByCategory.borracharia;
+document.getElementById('mgEletrica').textContent = data.maintenanceByCategory.eletrica;
+document.getElementById('mgFreios').textContent = data.maintenanceByCategory.freios;
+document.getElementById('mgStalled').textContent = data.stalledVehicles;
+
+document.getElementById('mgSascarPendente').textContent = data.sascarStatus.pendente;
+document.getElementById('mgSascarManutencao').textContent = data.sascarStatus.manutencao;
+document.getElementById('mgSascarInstalado').textContent = data.sascarStatus.instalado;
+
+const sascarList = document.getElementById('sascarPendenteList');
+if (data.sascarPendenteList && data.sascarPendenteList.length > 0) {
+sascarList.innerHTML = data.sascarPendenteList.slice(0, 10).map(v => `
+<div class="sascar-alert-item">
+<div class="d-flex justify-content-between align-items-center">
+<div>
+<strong>${v.plate}</strong> - ${v.type}
+<small class="text-muted d-block">${v.yard} • ${v.status}</small>
+</div>
+<div>
+<span class="sascar-badge ${v.sascarStatus === 'pendente' ? 'sascar-pendente' : 'sascar-manutencao'}">
+${v.sascarStatus === 'pendente' ? '⏳ Pendente' : '🔧 Manutenção'}
+</span>
+</div>
+</div>
+</div>
+`).join('');
+} else {
+sascarList.innerHTML = '<p class="text-white-50">Nenhuma pendência de Sascar</p>';
+}
+
+const readyList = document.getElementById('readyVehiclesList');
+if (data.readyVehiclesList.length > 0) {
+readyList.innerHTML = data.readyVehiclesList.slice(0, 10).map(v => `
+<div class="ready-vehicle-item">
+<div class="d-flex justify-content-between align-items-center">
+<div>
+<strong>${v.plate}</strong> - ${v.type}
+<small class="text-muted d-block">${v.yard}</small>
+<small class="text-muted">Sascar: ${v.sascarStatus === 'pendente' ? '⏳ Pendente' : v.sascarStatus === 'manutencao' ? '🔧 Manutenção' : '✅ Instalado'}</small>
+${v.entregue ? `<small class="text-success d-block">📦 Entregue: ${v.entreguePara}</small>` : ''}
+</div>
+<div class="text-end">
+<span class="badge bg-success">${v.timeReady || '—'}</span>
+<small class="text-muted d-block">${v.hoursReady || '0'}h pronto</small>
+</div>
+</div>
+</div>
+`).join('');
+} else {
+readyList.innerHTML = '<p class="text-white-50">Nenhum veículo pronto no momento</p>';
+}
+} catch (err) {
+console.error('Erro ao carregar dashboard gerência:', err);
+}
+}
+
+function registerServiceWorker() {
+if ('serviceWorker' in navigator) {
+window.addEventListener('load', () => {
+navigator.serviceWorker.register('/sw.js')
+.then((registration) => {
+console.log('✅ [PWA] Service Worker registrado:', registration.scope);
+})
+.catch((err) => {
+console.error('❌ [PWA] Erro ao registrar SW:', err);
+});
+});
+}
+}
+
+function setupInstallPrompt() {
+const installPrompt = document.getElementById('installPrompt');
+const btnInstall = document.getElementById('btnInstall');
+const btnDismiss = document.getElementById('btnDismiss');
+
+window.addEventListener('beforeinstallprompt', (e) => {
+e.preventDefault();
+deferredPrompt = e;
+setTimeout(() => {
+if (!localStorage.getItem('pwa-install-dismissed')) {
+installPrompt.classList.remove('d-none');
+}
+}, 3000);
+});
+
+btnInstall?.addEventListener('click', async () => {
+if (!deferredPrompt) return;
+deferredPrompt.prompt();
+const { outcome } = await deferredPrompt.userChoice;
+deferredPrompt = null;
+installPrompt.classList.add('d-none');
+if (outcome === 'accepted') {
+showToast('🎉 App instalado com sucesso!', 'success');
+}
+});
+
+btnDismiss?.addEventListener('click', () => {
+installPrompt.classList.add('d-none');
+localStorage.setItem('pwa-install-dismissed', 'true');
+});
+
+window.addEventListener('appinstalled', () => {
+installPrompt.classList.add('d-none');
+localStorage.removeItem('pwa-install-dismissed');
+});
+}
 
 async function checkAuth() {
 try {
@@ -824,6 +1507,7 @@ if (data.authenticated) {
 currentUser = data.user;
 userPermissions = data.permissions || {};
 userYards = currentUser.yards || [];
+canChangeLiberado = data.canChangeLiberado || false;
 showMainApp();
 } else {
 showLoginScreen();
@@ -847,9 +1531,9 @@ document.getElementById('userAvatar').textContent = currentUser.username.charAt(
 document.getElementById('userRoleBadge').textContent = currentUser.role.toUpperCase();
 document.getElementById('userRoleBadge').className = `role-badge ${currentUser.role === 'admin' ? 'bg-warning text-dark' : 'bg-secondary text-white'}`;
 
-// ✅ ARMAZENAR PÁTIOS DO USUÁRIO
 userYards = currentUser.yards || [];
 console.log('📍 Pátios permitidos:', userYards);
+console.log('✅ Pode alterar Liberado:', canChangeLiberado);
 
 applyPermissions();
 loadStats();
@@ -859,7 +1543,6 @@ updateYardOptions();
 }
 
 function applyPermissions() {
-console.log('🔐 Role:', currentUser?.role);
 const importBtn = document.getElementById('btnImportJSON');
 if (importBtn) {
 if (currentUser?.role === 'admin') {
@@ -872,7 +1555,6 @@ importBtn.disabled = true;
 }
 }
 
-// ✅ FILTRAR OPÇÕES DE PÁTIO BASEADO NA PERMISSÃO DO USUÁRIO
 function updateYardOptions() {
 const yardFilter = document.getElementById('yardFilter');
 const yardSelect = document.getElementById('yard');
@@ -917,6 +1599,7 @@ const data = await res.json();
 if (data.success) {
 currentUser = data.user;
 userYards = data.user.yards || [];
+canChangeLiberado = data.canChangeLiberado || false;
 showMainApp();
 showToast(data.message, 'success');
 } else {
@@ -934,12 +1617,14 @@ await fetch(`${API_URL}/auth/logout`, { method: 'POST' });
 currentUser = null;
 userPermissions = {};
 userYards = [];
+canChangeLiberado = false;
 stopCamera('entry');
 stopCamera('exit');
+closeManagementDashboard();
+document.getElementById('liberatedPanel').classList.remove('show');
 showLoginScreen();
 }
 
-// ============ NOTIFICAÇÕES ============
 function showNotification(title, message, type = 'warning', duration = 5000) {
 const container = document.getElementById('notificationContainer');
 const notification = document.createElement('div');
@@ -950,7 +1635,6 @@ container.appendChild(notification);
 setTimeout(() => { notification.remove(); }, duration);
 }
 
-// ✅ VEÍCULOS PARADOS - MOSTRA DIAS E HORAS
 function checkStalledVehicles() {
 if (allVehicles.length === 0) return;
 const now = new Date();
@@ -975,7 +1659,6 @@ document.getElementById('stalledAlert').classList.add('hidden');
 }
 }
 
-// ============ DETECÇÃO E RENDERIZAÇÃO DE PLACAS ============
 function getPlacaTipo(placa) {
 if (!placa) return 'mercosul';
 const cleanPlate = placa.replace(/[-\s]/g, '').toUpperCase();
@@ -995,11 +1678,12 @@ const classe = tipo === 'vermelha' ? 'placa-vermelha' : 'placa-mercosul';
 return `<span class="placa-container ${classe}"><span class="placa-texto">${placa}</span></span>`;
 }
 
-// ============ CÂMERA / OCR ============
 function openEntryModal() {
 document.getElementById('plate').value = '';
+document.getElementById('chassis').value = '';
 document.getElementById('entregarDiversos').checked = false;
 document.getElementById('entregarCorreios').checked = false;
+document.getElementById('hasAccident').checked = false;
 document.getElementById('vehicleHistory').classList.add('hidden');
 document.getElementById('plateAlert').classList.add('hidden');
 document.getElementById('entryForm').querySelectorAll('input, select, textarea').forEach(el => el.disabled = false);
@@ -1020,7 +1704,6 @@ async function startCamera(mode) {
 currentCameraMode = mode;
 const statusId = mode === 'entry' ? 'scanStatusEntry' : 'scanStatusExit';
 const statusDiv = document.getElementById(statusId);
-console.log('📷 Iniciando câmera - Mode:', mode);
 statusDiv.innerHTML = '<i class="bi bi-hourglass-split"></i> Solicitando permissão...';
 statusDiv.className = 'scan-status scanning';
 try {
@@ -1051,23 +1734,16 @@ captureBtn.innerHTML = '<i class="bi bi-camera"></i> Capturar Placa';
 captureBtn.onclick = () => capturePlate(mode, video, cameraStream);
 container.appendChild(captureBtn);
 }
-console.log('✅ Câmera iniciada com sucesso');
 } catch (err) {
 console.error('❌ Erro câmera:', err);
 statusDiv.innerHTML = `<i class="bi bi-exclamation-triangle"></i> Erro: ${err.message}`;
 statusDiv.className = 'scan-status error';
-if (err.name === 'NotAllowedError') {
-statusDiv.innerHTML += '<br><small>Permita o acesso à câmera no navegador</small>';
-} else if (err.name === 'NotFoundError') {
-statusDiv.innerHTML += '<br><small>Nenhuma câmera encontrada</small>';
-}
 }
 }
 
 async function capturePlate(mode, video, stream) {
 const statusId = mode === 'entry' ? 'scanStatusEntry' : 'scanStatusExit';
 const statusDiv = document.getElementById(statusId);
-console.log('📸 Capturando imagem...');
 statusDiv.innerHTML = '<i class="bi bi-hourglass-split"></i> Processando imagem...';
 try {
 const canvas = document.createElement('canvas');
@@ -1077,7 +1753,6 @@ const ctx = canvas.getContext('2d');
 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 ctx.filter = 'contrast(1.2) brightness(1.1)';
 ctx.drawImage(canvas, 0, 0);
-console.log('🔍 Iniciando OCR com Tesseract...');
 const { data: { text, confidence } } = await Tesseract.recognize(canvas, 'por', {
 logger: m => {
 if (m.status === 'recognizing text') {
@@ -1085,8 +1760,6 @@ statusDiv.innerHTML = `<i class="bi bi-hourglass-split"></i> Processando: ${Math
 }
 }
 });
-console.log('📝 Texto OCR:', text);
-console.log('📊 Confiança:', confidence);
 const plate = extractPlate(text);
 if (plate) {
 statusDiv.innerHTML = `<i class="bi bi-check-circle"></i> ✅ Placa: ${plate} (Confiança: ${Math.round(confidence)}%)`;
@@ -1100,7 +1773,7 @@ checkPlateForExit(plate);
 }
 stopCamera(mode);
 } else {
-statusDiv.innerHTML = `<i class="bi bi-x-circle"></i> ❌ Não foi possível ler a placa.<br><small class="text-muted">Texto detectado: "${text.substring(0, 50)}..."</small>`;
+statusDiv.innerHTML = `<i class="bi bi-x-circle"></i> ❌ Não foi possível ler a placa.`;
 statusDiv.className = 'scan-status error';
 }
 } catch (err) {
@@ -1128,7 +1801,6 @@ if (container) {
 const captureBtn = container.querySelector('.btn-capture');
 if (captureBtn) captureBtn.remove();
 }
-console.log('📷 Câmera parada');
 }
 
 function extractPlate(text) {
@@ -1167,7 +1839,7 @@ document.getElementById('entryForm').querySelectorAll('input, select, textarea')
 if (vehicleHistory.length > 0) {
 const lastRecord = vehicleHistory[0];
 document.getElementById('type').value = lastRecord.type || '';
-document.getElementById('base').value = lastRecord.base || 'Jaraguá-SP';
+document.getElementById('base').value = lastRecord.base || 'Jaraguá-SP (Nacional)';
 document.getElementById('keys').value = lastRecord.keys || '';
 historyDiv.classList.remove('hidden');
 historyContent.innerHTML = `<div class="history-item info"><strong>✅ Veículo conhecido - Dados preenchidos automaticamente</strong><br><small>Tipo: ${lastRecord.type || '—'} | Base: ${lastRecord.base || '—'}</small></div>${vehicleHistory.slice(0, 3).map(v => `<div class="history-item"><div><strong>${v.entryDate}</strong> - ${v.yard}</div><small class="text-muted">${v.type} • ${v.timeInYard || '—'}</small></div>`).join('')}`;
@@ -1217,7 +1889,6 @@ showToast('❌ Erro ao registrar saída', 'danger');
 }
 }
 
-// ============ DASHBOARD ============
 function openDashboard() {
 new bootstrap.Modal(document.getElementById('dashboardModal')).show();
 setTimeout(updateDashboard, 500);
@@ -1298,13 +1969,11 @@ options: { responsive: true, maintainAspectRatio: true }
 });
 }
 
-// ============ CARREGAR DADOS ============
 async function loadStats() {
 try {
 const res = await fetch(`${API_URL}/stats`);
 const stats = await res.json();
 
-// ✅ ATUALIZAR HEADER COM PÁTIO DO USUÁRIO
 if (userYards.length > 0 && currentUser.role !== 'admin') {
 document.getElementById('current-yard-filter').textContent = userYards.join(', ');
 } else {
@@ -1312,82 +1981,27 @@ document.getElementById('current-yard-filter').textContent = 'Todos os Pátios';
 }
 
 const cards = [
-{
-icon: '/images/cavalo-mecanico.png',
-label: 'Cavalos Mecânicos',
-value: stats.cavalosMecanicos,
-filterType: 'Cavalo Mecânico',
-isImage: true
-},
-{
-icon: '/images/carreta.png',
-label: 'Carretas',
-value: stats.carretas,
-filterType: 'Carreta',
-isImage: true
-},
-{
-icon: '/images/conjunto-montado.png',
-label: 'Conjuntos Montados',
-value: stats.conjuntosMontados || 0,
-filterType: 'Conjunto Montado',
-isImage: true
-},
-{
-icon: '/images/manutencao.png',
-label: 'Em Manutenção',
-value: stats.emManutencao,
-filterStatus: 'Em manutenção',
-isImage: true
-},
-{
-icon: '/images/borracharia.png',
-label: 'Em Borracharia',
-value: stats.emBorracharia || 0,
-filterStatus: 'Borracharia',
-isImage: true
-},
-{
-icon: '/images/liberado.png',
-label: 'Liberados',
-value: stats.liberados,
-filterStatus: 'Liberado',
-isImage: true
-},
-{
-icon: '/images/diversos.png',
-label: 'Entregues para Diversos',
-value: stats.entreguesDiversos || 0,
-filterDiversos: true,
-isImage: true
-},
-{
-icon: '/images/correios.png',
-label: 'Entregues para Correios',
-value: stats.entreguesCorreios || 0,
-filterCorreios: true,
-isImage: true
-},
-{
-icon: 'bar-chart',
-label: 'Total Ativos',
-value: stats.totalAtivos,
-filterClear: true,
-isImage: false
-}
+{ icon: '/images/cavalo-mecanico.png', label: 'Cavalos Mecânicos', value: stats.cavalosMecanicos, filterType: 'Cavalo Mecânico', isImage: true },
+{ icon: '/images/carreta.png', label: 'Carretas', value: stats.carretas, filterType: 'Carreta', isImage: true },
+{ icon: '/images/conjunto-montado.png', label: 'Conjuntos Montados', value: stats.conjuntosMontados || 0, filterType: 'Conjunto Montado', isImage: true },
+{ icon: '/images/manutencao.png', label: 'Em Manutenção', value: stats.emManutencao, filterStatus: 'Em manutenção', isImage: true },
+{ icon: '/images/borracharia.png', label: 'Em Borracharia', value: stats.emBorracharia || 0, filterStatus: 'Borracharia', isImage: true },
+{ icon: '/images/liberado.png', label: 'Liberados', value: stats.liberados, filterStatus: 'Liberado', isImage: true },
+{ icon: '/images/diversos.png', label: 'Entregues para Diversos', value: stats.entreguesDiversos || 0, filterDiversos: true, isImage: true },
+{ icon: '/images/correios.png', label: 'Entregues para Correios', value: stats.entreguesCorreios || 0, filterCorreios: true, isImage: true },
+{ icon: 'bi bi-exclamation-triangle', label: 'Com Sinistro', value: stats.comSinistro || 0, filterSinistro: true, isImage: false },
+{ icon: 'bar-chart', label: 'Total Ativos', value: stats.totalAtivos, filterClear: true, isImage: false }
 ];
 
 document.getElementById('stats-cards').innerHTML = cards.map(card => {
 const iconHtml = card.isImage
 ? `<img src="${card.icon}" alt="${card.label}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><text y=%22.9em%22 font-size=%2214%22>📦</text></svg>'">`
-: `<i class="bi bi-${card.icon}"></i>`;
+: `<i class="bi ${card.icon}"></i>`;
 return `
 <div class="col-6 col-md-3 col-lg-2">
 <div class="stat-card card" onclick="filterByCard(${JSON.stringify(card).replace(/"/g, '&quot;')})">
 <div class="card-body">
-<div class="icon-placeholder">
-${iconHtml}
-</div>
+<div class="icon-placeholder">${iconHtml}</div>
 <div class="count">${card.value}</div>
 <div class="label">${card.label}</div>
 </div>
@@ -1444,6 +2058,14 @@ row.style.display = matches ? '' : 'none';
 showToast('🔍 Filtrando: Correios', 'info');
 return;
 }
+if (card.filterSinistro) {
+document.querySelectorAll('#vehicleTableBody tr').forEach(row => {
+const matches = row.dataset.hasAccident === 'true';
+row.style.display = matches ? '' : 'none';
+});
+showToast('🔍 Filtrando: Com Sinistro', 'info');
+return;
+}
 }
 
 async function loadVehicles() {
@@ -1472,43 +2094,54 @@ const maintenanceBadge = v.maintenance ? `<span class="text-danger"><i class="bi
 const placaHtml = renderPlaca(v.plate);
 const entregarDiversos = v.entregarDiversos ? 'true' : 'false';
 const entregarCorreios = v.entregarCorreios ? 'true' : 'false';
-return `<tr data-yard="${v.yard}" data-status="${v.status}" data-type="${v.type}" data-search="${v.plate} ${v.type} ${v.yard} ${v.base} ${v.notes || ''}" data-entregar-diversos="${entregarDiversos}" data-entregar-correios="${entregarCorreios}" data-id="${v.id}">
+const hasAccident = v.hasAccident ? 'true' : 'false';
+const sascarStatus = v.sascarStatus || 'pendente';
+const sascarClass = `sascar-${sascarStatus}`;
+const sascarLabel = sascarStatus === 'pendente' ? '⏳ Pendente' : sascarStatus === 'instalado' ? '✅ Instalado' : sascarStatus === 'manutencao' ? '🔧 Manutenção' : '➖ N/A';
+const sinistroBadge = v.hasAccident ? `<span class="badge-sinistro">🚨 Sinistro</span>` : '';
+const entregueBadge = v.entregue ? `<span class="badge-entregue">📦 ${v.entreguePara === 'correios' ? 'Correios' : v.entreguePara === 'diversos' ? 'Diversos' : 'Entregue'}</span>` : '';
+const canUndoLiberado = v.canChangeLiberado && v.status === 'Liberado';
+return `<tr data-yard="${v.yard}" data-status="${v.status}" data-type="${v.type}" data-search="${v.plate} ${v.type} ${v.yard} ${v.base} ${v.baseDestino} ${v.notes || ''} ${v.manager || ''}" data-entregar-diversos="${entregarDiversos}" data-entregar-correios="${entregarCorreios}" data-has-accident="${hasAccident}" data-sascar="${sascarStatus}" data-id="${v.id}">
 <td><span class="vehicle-icon"><i class="bi bi-${getVehicleIcon(v.type)}"></i></span><small class="d-md-none">${v.type}</small></td>
-<td>${placaHtml}</td>
+<td>${placaHtml}${sinistroBadge}</td>
+<td><small>${v.chassis || '—'}</small></td>
 <td><span class="date-badge">${v.entryDate}</span></td>
 <td>${v.exitDate ? `<span class="date-badge text-success">${v.exitDate}</span>` : '—'}</td>
 <td><span class="time-badge">${v.timeInYard}</span></td>
 <td><small class="text-primary"><i class="bi bi-pin me-1"></i>${v.yard}</small></td>
-<td>${maintenanceBadge}</td>
+<td><small>${v.base || '—'}</small></td>
+<td><small>${v.baseDestino || '—'}</small></td>
+<td><small>${v.manager || '—'}</small></td>
+<td><span class="sascar-badge ${sascarClass}">${sascarLabel}</span></td>
+<td>${entregueBadge || '<span class="text-muted">—</span>'}</td>
+<td>${v.hasAccident ? '<span class="text-danger"><i class="bi bi-exclamation-triangle"></i></span>' : '<span class="text-muted">—</span>'}</td>
 <td><span class="status-badge ${statusClass}">${v.status}</span></td>
 <td>
-<div class="btn-group btn-group-sm flex-wrap">
+<div class="actions-dropdown">
+<button class="actions-dropdown-toggle" onclick="toggleActionsDropdown(this)">
+<i class="bi bi-three-dots-vertical"></i> Ações
+</button>
+<div class="actions-dropdown-menu">
 ${v.status !== 'Liberado' ? `
-<button class="btn btn-outline-warning action-btn" onclick="updateStatus(${v.id}, 'Aguardando linha')" title="Veículo aguardando para entrar na linha de carga/descarga">
-<i class="bi bi-hourglass-split"></i>
-</button>
-<button class="btn btn-outline-info action-btn" onclick="updateStatus(${v.id}, 'Aguardando abastecimento')" title="Veículo aguardando para ser abastecido">
-<i class="bi bi-fuel-pump"></i>
-</button>
-<button class="btn btn-outline-danger action-btn" onclick="updateStatus(${v.id}, 'Aguardando manutenção')" title="Veículo aguardando manutenção preventiva/corretiva">
-<i class="bi bi-tools"></i>
-</button>
-<button class="btn btn-outline-purple action-btn" style="border-color:#6f42c1;color:#6f42c1" onclick="updateStatus(${v.id}, 'Em manutenção')" title="Veículo está em manutenção no momento">
-<i class="bi bi-wrench"></i>
-</button>
-<button class="btn btn-outline-warning action-btn" style="border-color:#fd7e14;color:#fd7e14" onclick="updateStatus(${v.id}, 'Borracharia')" title="Veículo está na borracharia para troca de pneus">
-<i class="bi bi-circle"></i>
-</button>
-<button class="btn btn-success action-btn" onclick="exitVehicle(${v.id})" title="Liberar veículo para saída do pátio">
-<i class="bi bi-check-lg"></i>
-</button>
-` : '<span class="text-success"><i class="bi bi-check-circle"></i></span>'}
-<button class="btn btn-outline-secondary action-btn" onclick="openEditVehicle(${v.id})" title="Editar informações do veículo">
-<i class="bi bi-pencil"></i>
-</button>
-<button class="btn btn-outline-danger action-btn" onclick="deleteVehicle(${v.id})" title="Excluir veículo do sistema (apenas admin)">
-<i class="bi bi-trash"></i>
-</button>
+<button class="dropdown-item" onclick="updateStatus(${v.id}, 'Aguardando linha')"><i class="bi bi-hourglass-split"></i> Aguardando linha</button>
+<button class="dropdown-item" onclick="updateStatus(${v.id}, 'Aguardando abastecimento')"><i class="bi bi-fuel-pump"></i> Aguardando abastecimento</button>
+<button class="dropdown-item" onclick="updateStatus(${v.id}, 'Aguardando manutenção')"><i class="bi bi-tools"></i> Aguardando manutenção</button>
+<button class="dropdown-item" onclick="updateStatus(${v.id}, 'Em manutenção')"><i class="bi bi-wrench"></i> Em manutenção</button>
+<button class="dropdown-item" onclick="updateStatus(${v.id}, 'Borracharia')"><i class="bi bi-disc"></i> Borracharia</button>
+<button class="dropdown-item" onclick="exitVehicle(${v.id})"><i class="bi bi-check-lg"></i> Liberar saída</button>
+<div class="dropdown-divider"></div>
+` : canUndoLiberado ? `
+<button class="dropdown-item text-warning" onclick="undoLiberado(${v.id})"><i class="bi bi-arrow-counterclockwise"></i> Desfazer Liberado</button>
+<div class="dropdown-divider"></div>
+` : '<button class="dropdown-item" disabled><i class="bi bi-check-circle"></i> Veículo liberado</button><div class="dropdown-divider"></div>'}
+${v.status === 'Liberado' && !v.entregue ? `
+<button class="dropdown-item text-success" onclick="marcarEntregue(${v.id}, 'correios')"><i class="bi bi-envelope"></i> Marcar como Entregue Correios</button>
+<button class="dropdown-item text-success" onclick="marcarEntregue(${v.id}, 'diversos')"><i class="bi bi-box"></i> Marcar como Entregue Diversos</button>
+<div class="dropdown-divider"></div>
+` : ''}
+<button class="dropdown-item" onclick="openEditVehicle(${v.id})"><i class="bi bi-pencil"></i> Editar veículo</button>
+<button class="dropdown-item text-danger" onclick="deleteVehicle(${v.id})"><i class="bi bi-trash"></i> Excluir</button>
+</div>
 </div>
 </td>
 </tr>`;
@@ -1516,23 +2149,91 @@ ${v.status !== 'Liberado' ? `
 } catch (err) { console.error('Erro loadVehicles:', err); }
 }
 
+function toggleActionsDropdown(button) {
+const dropdown = button.nextElementSibling;
+const allDropdowns = document.querySelectorAll('.actions-dropdown-menu');
+allDropdowns.forEach(d => {
+if (d !== dropdown) d.classList.remove('show');
+});
+dropdown.classList.toggle('show');
+event.stopPropagation();
+}
+
+document.addEventListener('click', () => {
+document.querySelectorAll('.actions-dropdown-menu').forEach(d => d.classList.remove('show'));
+});
+
 async function loadSwaps() {
 try {
 const res = await fetch(`${API_URL}/swaps`);
 const swaps = await res.json();
 const tbody = document.getElementById('swapsTableBody');
-tbody.innerHTML = swaps.slice(0, 20).map(s => `<tr><td><small>${new Date(s.date).toLocaleDateString('pt-BR')}</small></td><td><strong>${s.plateIn}</strong></td><td><strong>${s.plateOut}</strong></td><td><small>${s.base}</small></td><td><small class="text-muted">${s.notes || '—'}</small></td><td><button class="btn btn-sm btn-link" onclick="openEditSwap(${s.id})"><i class="bi bi-pencil"></i></button><button class="btn btn-sm btn-link text-danger" onclick="deleteSwap(${s.id})"><i class="bi bi-trash"></i></button></td></tr>`).join('') || '<tr><td colspan="6" class="text-center text-muted py-3">Nenhuma troca</td></tr>';
+tbody.innerHTML = swaps.slice(0, 20).map(s => {
+const tipoBadge = s.tipo === 'emprestimo' ? '<span class="badge bg-info">Empréstimo</span>' : '<span class="badge bg-secondary">Troca</span>';
+return `<tr><td><small>${new Date(s.date).toLocaleDateString('pt-BR')}</small></td><td>${tipoBadge}</td><td><strong>${s.plateIn}</strong></td><td><strong>${s.plateOut}</strong></td><td><small>${s.base || '—'}</small></td><td><small>${s.baseDestino || '—'}</small></td><td><small class="text-muted">${s.notes || '—'}</small></td><td><button class="btn btn-sm btn-link" onclick="openEditSwap(${s.id})"><i class="bi bi-pencil"></i></button><button class="btn btn-sm btn-link text-danger" onclick="deleteSwap(${s.id})"><i class="bi bi-trash"></i></button></td></tr>`;
+}).join('') || '<tr><td colspan="8" class="text-center text-muted py-3">Nenhuma troca</td></tr>';
 } catch (err) { console.error('Erro loadSwaps:', err); }
 }
 
-// ============ AÇÕES DE VEÍCULOS ============
+async function marcarEntregue(id, entreguePara) {
+if (!confirm(`Confirmar que veículo foi ENTREGUE para ${entreguePara === 'correios' ? 'Correios' : 'Diversos'}?`)) return;
+try {
+const res = await fetch(`${API_URL}/vehicles/${id}/entregue`, {
+method: 'PUT',
+headers: {'Content-Type': 'application/json'},
+body: JSON.stringify({ entreguePara })
+});
+const result = await res.json();
+if (result.success) {
+loadStats();
+loadVehicles();
+loadLiberatedVehicles();
+showToast(`✅ Veículo marcado como entregue para ${entreguePara === 'correios' ? 'Correios' : 'Diversos'}!`, 'success');
+} else {
+alert('Erro: ' + (result.error || 'Não foi possível marcar como entregue'));
+}
+} catch (err) {
+console.error('❌ Erro ao marcar como entregue:', err);
+alert('Erro de conexão ao marcar como entregue');
+}
+}
+
+async function undoLiberado(id) {
+if (!canChangeLiberado) {
+showToast('🔒 Você não tem permissão para desfazer liberação', 'danger');
+return;
+}
+const newStatus = prompt('Para qual status deseja retornar?\n(Aguardando linha, Aguardando abastecimento, Aguardando manutenção, Em manutenção, Borracharia)', 'Aguardando linha');
+if (!newStatus) return;
+try {
+const res = await fetch(`${API_URL}/vehicles/${id}/undo-liberado`, {
+method: 'PUT',
+headers: {'Content-Type': 'application/json'},
+body: JSON.stringify({ newStatus })
+});
+const result = await res.json();
+if (result.success) {
+loadStats();
+loadVehicles();
+loadLiberatedVehicles();
+showToast('✅ Liberação desfeita com sucesso!', 'success');
+} else {
+alert('Erro: ' + (result.error || 'Não foi possível desfazer liberação'));
+}
+} catch (err) {
+console.error('❌ Erro ao desfazer liberação:', err);
+alert('Erro de conexão ao desfazer liberação');
+}
+}
+
 async function submitEntry() {
 const plate = document.getElementById('plate').value.trim();
 const plateAlert = document.getElementById('plateAlert');
 if (!plateAlert.classList.contains('hidden')) { alert('⚠️ Não é possível cadastrar. Veículo já está no pátio!'); return; }
 const type = document.getElementById('type').value;
 const yard = document.getElementById('yard').value;
-if (!plate || !type || !yard) { alert('⚠️ Preencha: Placa, Tipo e Pátio'); return; }
+if (!plate && !document.getElementById('chassis').value) { alert('⚠️ Preencha: Placa ou Chassi'); return; }
+if (!type || !yard) { alert('⚠️ Preencha: Tipo e Pátio'); return; }
 try {
 await fetch(`${API_URL}/vehicles`, {
 method: 'POST',
@@ -1543,16 +2244,22 @@ type,
 yard,
 entryDate: document.getElementById('entryDate').value,
 base: document.getElementById('base').value,
+baseDestino: document.getElementById('baseDestino').value,
+manager: document.getElementById('manager').value,
+chassis: document.getElementById('chassis').value,
 keys: document.getElementById('keys').value,
 notes: document.getElementById('notes').value,
 entregarDiversos: document.getElementById('entregarDiversos').checked ? 1 : 0,
-entregarCorreios: document.getElementById('entregarCorreios').checked ? 1 : 0
+entregarCorreios: document.getElementById('entregarCorreios').checked ? 1 : 0,
+hasAccident: document.getElementById('hasAccident').checked ? 1 : 0,
+sascarStatus: document.getElementById('sascarStatus').value,
+maintenanceCategory: document.getElementById('maintenanceCategory').value
 })
 });
 stopCamera('entry');
 bootstrap.Modal.getInstance(document.getElementById('entryModal')).hide();
 document.getElementById('entryForm').reset();
-document.getElementById('base').value = 'Jaraguá-SP';
+document.getElementById('base').value = 'Jaraguá-SP (Nacional)';
 document.getElementById('vehicleHistory').classList.add('hidden');
 document.getElementById('plateAlert').classList.add('hidden');
 loadStats(); loadVehicles();
@@ -1576,18 +2283,26 @@ document.getElementById('scanExitModal').addEventListener('hide.bs.modal', () =>
 async function openEditVehicle(id) {
 const v = allVehicles.find(x => x.id === id);
 if (!v) return;
-console.log('🔐 Editando veículo - Role:', currentUser?.role);
 document.getElementById('editVehicleId').value = v.id;
 document.getElementById('editPlate').value = v.plate;
 document.getElementById('editType').value = v.type;
 document.getElementById('editYard').value = v.yard;
 document.getElementById('editBase').value = v.base || '';
+document.getElementById('editBaseDestino').value = v.baseDestino || '';
+document.getElementById('editManager').value = v.manager || '';
+document.getElementById('editChassis').value = v.chassis || '';
 document.getElementById('editKeys').value = v.keys || '';
 document.getElementById('editNotes').value = v.notes || '';
 document.getElementById('editStatus').value = v.status;
 document.getElementById('editMaintenance').checked = v.maintenance || false;
 document.getElementById('editEntregarDiversos').checked = v.entregarDiversos == 1 || v.entregarDiversos === true;
 document.getElementById('editEntregarCorreios').checked = v.entregarCorreios == 1 || v.entregarCorreios === true;
+document.getElementById('editEntregue').checked = v.entregue || false;
+document.getElementById('editEntreguePara').value = v.entreguePara || 'correios';
+document.getElementById('editHasAccident').checked = v.hasAccident == 1 || v.hasAccident === true;
+document.getElementById('editSascarStatus').value = v.sascarStatus || 'pendente';
+document.getElementById('editMaintenanceCategory').value = v.maintenanceCategory || '';
+
 if (v.entryTime) {
 const d = new Date(v.entryTime);
 const year = d.getFullYear();
@@ -1597,35 +2312,71 @@ const hours = String(d.getHours()).padStart(2, '0');
 const minutes = String(d.getMinutes()).padStart(2, '0');
 document.getElementById('editEntryTime').value = `${year}-${month}-${day}T${hours}:${minutes}`;
 }
+
+if (v.exitTime) {
+const d = new Date(v.exitTime);
+const year = d.getFullYear();
+const month = String(d.getMonth() + 1).padStart(2, '0');
+const day = String(d.getDate()).padStart(2, '0');
+const hours = String(d.getHours()).padStart(2, '0');
+const minutes = String(d.getMinutes()).padStart(2, '0');
+document.getElementById('editExitTime').value = `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
 const dateField = document.getElementById('editEntryTime');
+const exitDateField = document.getElementById('editExitTime');
 const dateBadge = document.getElementById('dateEditBadge');
+const exitDateBadge = document.getElementById('exitDateBadge');
 const dateHelp = document.getElementById('dateEditHelp');
-const isAdmin = currentUser?.role?.toLowerCase() === 'admin';
-console.log('✅ É admin?', isAdmin);
-if (isAdmin) {
+const exitDateHelp = document.getElementById('exitDateHelp');
+
+const canEditDates = currentUser?.role === 'admin' || 
+currentUser?.username?.toLowerCase() === 'bandeirantes' ||
+userYards?.includes('Pátio Bandeirantes');
+
+if (canEditDates) {
 dateField.disabled = false;
 dateField.readOnly = false;
+exitDateField.disabled = false;
+exitDateField.readOnly = false;
 if (dateBadge) dateBadge.style.display = 'inline-block';
+if (exitDateBadge) exitDateBadge.style.display = 'inline-block';
 if (dateHelp) {
 dateHelp.style.display = 'block';
-dateHelp.textContent = '✅ Administrador - Pode editar a data';
+dateHelp.textContent = '✅ Você pode editar a data de entrada';
 dateHelp.classList.remove('text-danger');
 dateHelp.classList.add('text-success');
+}
+if (exitDateHelp) {
+exitDateHelp.style.display = 'block';
+exitDateHelp.textContent = '✅ Você pode editar a data de saída';
+exitDateHelp.classList.remove('text-danger');
+exitDateHelp.classList.add('text-success');
 }
 } else {
 dateField.disabled = true;
 dateField.readOnly = true;
+exitDateField.disabled = true;
+exitDateField.readOnly = true;
 if (dateBadge) dateBadge.style.display = 'none';
+if (exitDateBadge) exitDateBadge.style.display = 'none';
 if (dateHelp) {
 dateHelp.style.display = 'block';
-dateHelp.textContent = '🔒 Campo disponível apenas para administradores';
+dateHelp.textContent = '🔒 Apenas admin e Bandeirantes podem alterar';
 dateHelp.classList.add('text-danger');
 dateHelp.classList.remove('text-success');
 }
+if (exitDateHelp) {
+exitDateHelp.style.display = 'block';
+exitDateHelp.textContent = '🔒 Apenas admin e Bandeirantes podem alterar';
+exitDateHelp.classList.add('text-danger');
+exitDateHelp.classList.remove('text-success');
 }
+}
+
 setTimeout(() => {
 console.log('📅 Campo data disabled:', dateField.disabled);
-console.log('📅 Campo data value:', dateField.value);
+console.log('📅 Campo exitDate disabled:', exitDateField.disabled);
 }, 500);
 new bootstrap.Modal(document.getElementById('editVehicleModal')).show();
 }
@@ -1637,17 +2388,36 @@ plate: document.getElementById('editPlate').value.toUpperCase(),
 type: document.getElementById('editType').value,
 yard: document.getElementById('editYard').value,
 base: document.getElementById('editBase').value,
+baseDestino: document.getElementById('editBaseDestino').value,
+manager: document.getElementById('editManager').value,
+chassis: document.getElementById('editChassis').value,
 keys: document.getElementById('editKeys').value,
 notes: document.getElementById('editNotes').value,
 status: document.getElementById('editStatus').value,
 maintenance: document.getElementById('editMaintenance').checked ? 1 : 0,
 entregarDiversos: document.getElementById('editEntregarDiversos').checked ? 1 : 0,
-entregarCorreios: document.getElementById('editEntregarCorreios').checked ? 1 : 0
+entregarCorreios: document.getElementById('editEntregarCorreios').checked ? 1 : 0,
+entregue: document.getElementById('editEntregue').checked ? 1 : 0,
+entreguePara: document.getElementById('editEntreguePara').value,
+hasAccident: document.getElementById('editHasAccident').checked ? 1 : 0,
+sascarStatus: document.getElementById('editSascarStatus').value,
+maintenanceCategory: document.getElementById('editMaintenanceCategory').value
 };
+
 const entryTime = document.getElementById('editEntryTime').value;
-if (entryTime && currentUser?.role?.toLowerCase() === 'admin') {
+const canEditDates = currentUser?.role === 'admin' || 
+currentUser?.username?.toLowerCase() === 'bandeirantes' ||
+userYards?.includes('Pátio Bandeirantes');
+
+if (entryTime && canEditDates) {
 updates.entryTime = new Date(entryTime).toISOString();
 }
+
+const exitTime = document.getElementById('editExitTime').value;
+if (exitTime && canEditDates) {
+updates.exitTime = new Date(exitTime).toISOString();
+}
+
 console.log('💾 Salvando edição:', updates);
 try {
 const res = await fetch(`${API_URL}/vehicles/${id}`, {
@@ -1696,12 +2466,54 @@ showToast('Veículo excluído', 'info');
 
 async function submitSwap() {
 const plateOut = document.getElementById('swapPlateOut').value.trim();
+const plateIn = document.getElementById('swapPlateIn').value.trim();
+const entregarSaida = document.getElementById('swapEntregarSaida').value;
+const tipo = document.getElementById('swapTipo').value;
+
 if (!plateOut) { alert('Placa que Sai é obrigatória'); return; }
-await fetch(`${API_URL}/swaps`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ date: document.getElementById('swapDate').value, plateIn: document.getElementById('swapPlateIn').value.trim() || '0000', plateOut, base: document.getElementById('swapBase').value, notes: document.getElementById('swapNotes').value }) });
+
+try {
+const res = await fetch(`${API_URL}/swaps`, {
+method: 'POST',
+headers: {'Content-Type': 'application/json'},
+body: JSON.stringify({
+date: document.getElementById('swapDate').value,
+plateIn: plateIn || '0000',
+plateOut,
+base: document.getElementById('swapBase').value,
+baseDestino: document.getElementById('swapBaseDestino').value,
+notes: document.getElementById('swapNotes').value,
+tipo,
+entregarVeiculoSaida: entregarSaida || null
+})
+});
+const result = await res.json();
+
+if (result.success) {
 bootstrap.Modal.getInstance(document.getElementById('swapModal')).hide();
 document.getElementById('swapForm').reset();
 loadSwaps();
+
+if (plateIn && plateIn !== '0000') {
+setTimeout(() => {
+openEntryModal();
+document.getElementById('plate').value = plateIn.toUpperCase();
+showToast(`🔄 Troca registrada! Abrindo cadastro para ${plateIn.toUpperCase()}...`, 'success');
+}, 500);
+} else {
 showToast('🔄 Troca registrada!', 'success');
+}
+
+if (result.vehicleMarkedAsEntregue) {
+showToast(`📦 Veículo ${plateOut} marcado como ENTREGUE!`, 'success');
+}
+} else {
+alert('Erro: ' + (result.error || 'Não foi possível registrar troca'));
+}
+} catch (err) {
+console.error('❌ Erro ao registrar troca:', err);
+alert('Erro de conexão ao registrar troca');
+}
 }
 
 async function openEditSwap(id) {
@@ -1710,15 +2522,18 @@ const swaps = await res.json();
 const s = swaps.find(x => x.id === id);
 if (!s) return;
 document.getElementById('editSwapId').value = s.id;
+document.getElementById('swapTipo').value = s.tipo || 'troca';
 document.getElementById('swapPlateIn').value = s.plateIn === '0000' ? '' : s.plateIn;
 document.getElementById('swapPlateOut').value = s.plateOut;
 document.getElementById('swapBase').value = s.base;
+document.getElementById('swapBaseDestino').value = s.baseDestino || '';
 document.getElementById('swapNotes').value = s.notes || '';
 if (s.date) {
 const d = new Date(s.date);
 const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
 document.getElementById('swapDate').value = local.toISOString().slice(0,16);
 }
+document.getElementById('swapBtnText').textContent = 'Atualizar';
 new bootstrap.Modal(document.getElementById('swapModal')).show();
 }
 
@@ -1729,7 +2544,6 @@ loadSwaps();
 showToast('Troca excluída', 'info');
 }
 
-// ============ EXPORTAR ============
 async function exportToJSON() {
 try {
 const res = await fetch(`${API_URL}/export`);
@@ -1753,28 +2567,13 @@ csv += `Data de Exportação: ${new Date().toLocaleString('pt-BR')}\n`;
 csv += `Total de Veículos: ${allVehicles.length}\n`;
 csv += `Veículos Ativos: ${allVehicles.filter(v => v.status !== 'Liberado').length}\n`;
 csv += `Veículos Liberados: ${allVehicles.filter(v => v.status === 'Liberado').length}\n\n`;
-csv = 'ID;Placa;Tipo;Pátio;Base;Status;Manutenção;Entrada;Saída;Tempo no Pátio;Chaves;Observações;Diversos;Correios\n';
+csv = 'ID;Placa;Chassi;Tipo;Pátio;Base Origem;Base Destino;Gestor;Status;Manutenção;Categoria;Sinistro;Sascar;Entregue;Entrada;Saída;Tempo no Pátio;Chaves;Observações;Diversos;Correios\n';
 allVehicles.forEach(v => {
-const row = [v.id, `"${v.plate}"`, `"${v.type}"`, `"${v.yard}"`, `"${v.base || ''}"`, `"${v.status}"`, v.maintenance ? 'Sim' : 'Não', `"${v.entryDate || ''}"`, `"${v.exitDate || ''}"`, `"${v.timeInYard || '—'}"`, `"${v.keys || ''}"`, `"${(v.notes || '').replace(/"/g, '""')}"`, v.entregarDiversos ? 'Sim' : 'Não', v.entregarCorreios ? 'Sim' : 'Não'].join(';');
+const sascarLabel = v.sascarStatus === 'pendente' ? 'Pendente' : v.sascarStatus === 'instalado' ? 'Instalado' : v.sascarStatus === 'manutencao' ? 'Manutenção' : 'N/A';
+const maintenanceCat = v.maintenanceCategory || '—';
+const entregueLabel = v.entregue ? `Sim (${v.entreguePara})` : 'Não';
+const row = [v.id, `"${v.plate}"`, `"${v.chassis || ''}"`, `"${v.type}"`, `"${v.yard}"`, `"${v.base || ''}"`, `"${v.baseDestino || ''}"`, `"${v.manager || ''}"`, `"${v.status}"`, v.maintenance ? 'Sim' : 'Não', maintenanceCat, v.hasAccident ? 'Sim' : 'Não', sascarLabel, entregueLabel, `"${v.entryDate || ''}"`, `"${v.exitDate || ''}"`, `"${v.timeInYard || '—'}"`, `"${v.keys || ''}"`, `"${(v.notes || '').replace(/"/g, '""')}"`, v.entregarDiversos ? 'Sim' : 'Não', v.entregarCorreios ? 'Sim' : 'Não'].join(';');
 csv += row + '\n';
-});
-csv += '\n\nRESUMO POR PÁTIO\n';
-csv += 'Pátio;Total;Em Manutenção;Liberados;Ativos\n';
-const yards = ['Pátio Jaraguá', 'Pátio Bandeirantes', 'Pátio Superior', 'Pátio Cajamar'];
-yards.forEach(yard => {
-const total = allVehicles.filter(v => v.yard === yard).length;
-const maintenance = allVehicles.filter(v => v.yard === yard && v.maintenance).length;
-const liberated = allVehicles.filter(v => v.yard === yard && v.status === 'Liberado').length;
-const ativos = total - liberated;
-csv += `"${yard}";${total};${maintenance};${liberated};${ativos}\n`;
-});
-csv += '\n\nRESUMO POR STATUS\n';
-csv += 'Status;Quantidade;Percentual\n';
-const statusCount = {};
-allVehicles.forEach(v => { statusCount[v.status] = (statusCount[v.status] || 0) + 1; });
-Object.entries(statusCount).forEach(([status, count]) => {
-const percent = ((count / allVehicles.length) * 100).toFixed(1);
-csv += `"${status}";${count};${percent}%\n`;
 });
 const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
 const url = URL.createObjectURL(blob);
@@ -1791,29 +2590,44 @@ showToast('❌ Erro ao exportar Excel', 'danger');
 
 function exportToPDF() {
 try {
-let html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Relatório de Pátio - Transportadora Print</title><style>body{font-family:Arial,sans-serif;margin:20px;}h1{color:#1a3a5c;border-bottom:3px solid #1a3a5c;padding-bottom:10px;}h2{color:#2c5282;margin-top:30px;}table{width:100%;border-collapse:collapse;margin:20px 0;}th{background-color:#1a3a5c;color:white;padding:10px;text-align:left;}td{padding:8px;border-bottom:1px solid #ddd;}tr:nth-child(even){background-color:#f2f2f2;}.header{background-color:#f8f9fa;padding:20px;border-radius:8px;margin-bottom:20px;}@media print{body{margin:10px;}table{font-size:10px;}}</style></head><body><div class="header"><h1>🚚 CONTROLE DE PÁTIO - TRANSPORTADORA PRINT</h1><p><strong>Data:</strong> ${new Date().toLocaleString('pt-BR')}</p><p><strong>Total:</strong> ${allVehicles.length} veículos</p></div><h2>📋 VEÍCULOS CADASTRADOS</h2><table><thead><tr><th>ID</th><th>Placa</th><th>Tipo</th><th>Pátio</th><th>Status</th><th>Entrada</th><th>Saída</th><th>Tempo</th><th>Entrega</th></tr></thead><tbody>`;
+let html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Relatório de Pátio - Transportadora Print</title><style>body{font-family:Arial,sans-serif;margin:20px;}h1{color:#1a3a5c;border-bottom:3px solid #1a3a5c;padding-bottom:10px;}h2{color:#2c5282;margin-top:30px;}table{width:100%;border-collapse:collapse;margin:20px 0;}th{background-color:#1a3a5c;color:white;padding:10px;text-align:left;}td{padding:8px;border-bottom:1px solid #ddd;}tr:nth-child(even){background-color:#f2f2f2;}.header{background-color:#f8f9fa;padding:20px;border-radius:8px;margin-bottom:20px;}@media print{body{margin:10px;}table{font-size:10px;}}</style></head><body><div class="header"><h1>🚚 CONTROLE DE PÁTIO - TRANSPORTADORA PRINT</h1><p><strong>Data:</strong> ${new Date().toLocaleString('pt-BR')}</p><p><strong>Total:</strong> ${allVehicles.length} veículos</p></div><h2>📋 VEÍCULOS CADASTRADOS</h2><table><thead><tr><th>ID</th><th>Placa</th><th>Tipo</th><th>Pátio</th><th>Base Origem</th><th>Base Destino</th><th>Status</th><th>Entrada</th><th>Saída</th><th>Tempo</th><th>Entregue</th><th>Sascar</th><th>Sinistro</th></tr></thead><tbody>`;
+
 allVehicles.forEach(v => {
-const entrega = [];
-if (v.entregarDiversos) entrega.push('📦 Diversos');
-if (v.entregarCorreios) entrega.push('📮 Correios');
-html += `<tr><td>${v.id}</td><td><strong>${v.plate}</strong></td><td>${v.type}</td><td>${v.yard}</td><td>${v.status}</td><td>${v.entryDate || '—'}</td><td>${v.exitDate || '—'}</td><td>${v.timeInYard || '—'}</td><td>${entrega.join(', ') || '—'}</td></tr>`;
+    const sascarLabel = v.sascarStatus === 'pendente' ? '⏳ Pendente' : v.sascarStatus === 'instalado' ? '✅ Instalado' : v.sascarStatus === 'manutencao' ? '🔧 Manutenção' : '➖ N/A';
+    const entregueLabel = v.entregue ? `📦 ${v.entreguePara}` : '—';
+    html += `<tr><td>${v.id}</td><td><strong>${v.plate}</strong></td><td>${v.type}</td><td>${v.yard}</td><td>${v.base || '—'}</td><td>${v.baseDestino || '—'}</td><td>${v.status}</td><td>${v.entryDate || '—'}</td><td>${v.exitDate || '—'}</td><td>${v.timeInYard || '—'}</td><td>${entregueLabel}</td><td>${sascarLabel}</td><td>${v.hasAccident ? '🚨 Sim' : '—'}</td></tr>`;
 });
+
 html += `</tbody></table>`;
+
 fetch(`${API_URL}/swaps`).then(res => res.json()).then(swaps => {
-html += `<h2>🔄 TROCAS / EMPRÉSTIMOS</h2><table><thead><tr><th>Data</th><th>Placa Entra</th><th>Placa Sai</th><th>Base</th><th>Observações</th></tr></thead><tbody>`;
-swaps.slice(0, 50).forEach(s => {
-html += `<tr><td>${new Date(s.date).toLocaleString('pt-BR')}</td><td>${s.plateIn}</td><td>${s.plateOut}</td><td>${s.base}</td><td>${s.notes || '—'}</td></tr>`;
-});
-html += `</tbody></table></body></html>`;
-const printWindow = window.open('', '_blank');
-printWindow.document.write(html);
-printWindow.document.close();
-printWindow.print();
-showToast('📄 PDF gerado com sucesso!', 'success');
+    if (swaps && swaps.length > 0) {
+        html += `<h2>🔄 TROCAS / EMPRÉSTIMOS</h2><table><thead><tr><th>Data</th><th>Tipo</th><th>Placa Entra</th><th>Placa Sai</th><th>Base Origem</th><th>Base Destino</th><th>Observações</th></tr></thead><tbody>`;
+        swaps.slice(0, 50).forEach(s => {
+            const tipoLabel = s.tipo === 'emprestimo' ? 'Empréstimo' : 'Troca';
+            html += `<tr><td>${new Date(s.date).toLocaleString('pt-BR')}</td><td>${tipoLabel}</td><td>${s.plateIn}</td><td>${s.plateOut}</td><td>${s.base || '—'}</td><td>${s.baseDestino || '—'}</td><td>${s.notes || '—'}</td></tr>`;
+        });
+        html += `</tbody></table>`;
+    }
+
+    html += `</body></html>`;
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.print();
+    showToast('📄 PDF gerado com sucesso!', 'success');
+}).catch(err => {
+    console.error('Erro ao buscar trocas:', err);
+    html += `</body></html>`;
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.print();
+    showToast('📄 PDF gerado (sem trocas)', 'warning');
 });
 } catch (err) {
-console.error('Erro export PDF:', err);
-showToast('❌ Erro ao gerar PDF', 'danger');
+    console.error('Erro export PDF:', err);
+    showToast('❌ Erro ao gerar PDF', 'danger');
 }
 }
 
@@ -1843,7 +2657,6 @@ showToast('📥 Dados importados!', 'success');
 fileInput.value = '';
 }
 
-// ============ UTILITÁRIOS ============
 function getVehicleIcon(type) {
 const icons = {'Carreta': 'truck', 'Cavalo Mecânico': 'car-front', 'Vans': 'bus-front', 'Caminhão Truck': 'truck', 'Caminhão Toco': 'truck', 'Veículo Visitante': 'person', 'Veículo Diretoria': 'star'};
 return icons[type] || 'truck';
@@ -1854,7 +2667,15 @@ const search = document.getElementById('searchInput').value.toLowerCase();
 const yardFilter = document.getElementById('yardFilter').value;
 const statusFilter = document.getElementById('statusFilter').value;
 document.querySelectorAll('#vehicleTableBody tr').forEach(row => {
-const matches = (!search || row.dataset.search.toLowerCase().includes(search)) && (!yardFilter || row.dataset.yard === yardFilter) && (!statusFilter || row.dataset.status === statusFilter);
+let matches = (!search || row.dataset.search.toLowerCase().includes(search)) && 
+(!yardFilter || row.dataset.yard === yardFilter);
+
+if (statusFilter === 'Sinistro') {
+matches = matches && row.dataset.hasAccident === 'true';
+} else if (statusFilter) {
+matches = matches && row.dataset.status === statusFilter;
+}
+
 row.style.display = matches ? '' : 'none';
 });
 }
@@ -1869,6 +2690,12 @@ showToast('🔄 Filtros limpos', 'info');
 
 function refreshData() {
 loadStats(); loadVehicles(); loadSwaps();
+if (!document.getElementById('managementDashboard').classList.contains('hidden')) {
+loadManagementDashboard();
+}
+if (document.getElementById('liberatedPanel').classList.contains('show')) {
+loadLiberatedVehicles();
+}
 showToast('🔄 Dados atualizados!', 'info');
 }
 
@@ -1888,1447 +2715,5 @@ toast.addEventListener('hidden.bs.toast', () => toast.remove());
 
 setInterval(() => { loadVehicles(); }, 30000);
 </script>
-=======
-    <!-- TELA DE LOGIN (SEGURA - SEM CREDENCIAIS) -->
-    <div id="loginScreen" class="login-screen">
-        <div class="login-card text-center">
-            <img src="/images/logo-print.png" alt="Transportadora Print" class="login-logo"
-                 onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚛</text></svg>'">
-            <h4 class="mb-2">Controle de Pátio</h4>
-            <p class="text-muted mb-4">Transportadora Print</p>
-            <form id="loginForm">
-                <div class="mb-3">
-                    <div class="input-group">
-                        <span class="input-group-text"><i class="bi bi-person"></i></span>
-                        <input type="text" class="form-control form-control-lg" id="loginUsername" 
-                               placeholder="Usuário" required autocomplete="username">
-                    </div>
-                </div>
-                <div class="mb-3">
-                    <div class="input-group">
-                        <span class="input-group-text"><i class="bi bi-lock"></i></span>
-                        <input type="password" class="form-control form-control-lg" id="loginPassword" 
-                               placeholder="Senha" required autocomplete="current-password">
-                    </div>
-                </div>
-                <button type="submit" class="btn btn-primary btn-lg w-100">
-                    <i class="bi bi-box-arrow-in-right me-2"></i>Entrar
-                </button>
-            </form>
-            <div id="loginError" class="alert alert-danger mt-3 hidden"></div>
-            <div class="mt-4 text-muted small">
-                <i class="bi bi-shield-lock"></i> Acesso restrito a usuários autorizados<br>
-                <small>Sistema de Controle de Pátio - Uso Interno</small>
-                <hr class="my-2">
-                <small class="text-primary">
-                     <i class="bi bi-code-slash"></i> Sistema desenvolvido e mantido por<br>
-                    <strong>Ramalho Sistemas e Software</strong>
-                </small>
-            </div>
-        </div>
-    </div>
-
-    <!-- SISTEMA PRINCIPAL -->
-    <div id="mainApp" class="hidden">
-        <!-- Notificações em Tempo Real -->
-        <div id="notificationContainer" style="position: fixed; top: 80px; right: 20px; z-index: 9999; max-width: 400px;"></div>
-        
-        <header class="header-print">
-            <div class="container-fluid px-3">
-                <div class="d-flex align-items-center justify-content-between">
-                    <div class="d-flex align-items-center gap-3">
-                        <img src="/images/logo-print.png" alt="Transportadora Print" onerror="this.style.display='none'">
-                        <div>
-                            <h1 style="font-size: 1.3rem; margin: 0;">Controle de Pátio</h1>
-                            <small><i class="bi bi-geo-alt me-1"></i><span id="current-yard-filter">Todos os Pátios</span> • <i class="bi bi-clock me-1"></i><span id="current-time"></span></small>
-                        </div>
-                    </div>
-                    <div class="d-flex align-items-center gap-3">
-                        <div class="user-menu">
-                            <div class="user-avatar" id="userAvatar">A</div>
-                            <div class="d-none d-md-block">
-                                <small class="d-block" id="userName">Admin</small>
-                                <small class="text-white-50"><span id="userRole">Administrador</span> <span class="role-badge" id="userRoleBadge">ADMIN</span></small>
-                            </div>
-                        </div>
-                        <button class="btn btn-light btn-sm" onclick="logout()" title="Sair"><i class="bi bi-box-arrow-right"></i></button>
-                    </div>
-                </div>
-            </div>
-        </header>
-
-        <div class="container-fluid px-3 py-3">
-            <div id="stalledAlert" class="alert-stalled hidden">
-                <div class="d-flex align-items-center">
-                    <i class="bi bi-exclamation-triangle-fill text-danger fs-4 me-3"></i>
-                    <div><strong class="text-danger">⚠️ Veículos parados há mais de 24h</strong><p class="mb-0 mt-1" id="stalledList"></p></div>
-                </div>
-            </div>
-            
-            <div class="row g-3 mb-4" id="stats-cards"></div>
-
-            <div class="row g-3 mb-4">
-                <div class="col-6 col-md-3">
-                    <div class="quick-action-card" onclick="openEntryModal()">
-                        <i class="bi bi-plus-circle"></i><div><strong>Nova Entrada</strong></div><small>Cadastrar veículo</small>
-                    </div>
-                </div>
-                <div class="col-6 col-md-3">
-                    <div class="quick-action-card" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);" onclick="openScanExitModal()">
-                        <i class="bi bi-qr-code-scan"></i><div><strong>Escanear Saída</strong></div><small>Liberar veículo</small>
-                    </div>
-                </div>
-                <div class="col-6 col-md-3">
-                    <div class="quick-action-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);" onclick="exportToPDF()">
-                        <i class="bi bi-file-earmark-pdf"></i><div><strong>Exportar PDF</strong></div><small>Relatório completo</small>
-                    </div>
-                </div>
-                <div class="col-6 col-md-3">
-                    <div class="quick-action-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);" onclick="exportToExcel()">
-                        <i class="bi bi-file-earmark-excel"></i><div><strong>Exportar Excel</strong></div><small>Planilha CSV</small>
-                    </div>
-                </div>
-            </div>
-
-            <div class="action-bar">
-                <div class="container-fluid px-3">
-                    <button class="btn btn-primary" onclick="openDashboard()"><i class="bi bi-graph-up me-1"></i> Dashboard</button>
-                    <button class="btn btn-primary" onclick="openEntryModal()"><i class="bi bi-plus-lg"></i> Novo Veículo</button>
-                    <button class="btn btn-scan-exit" onclick="openScanExitModal()"><i class="bi bi-qr-code-scan"></i> Escanear Saída</button>
-                    <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#swapModal"><i class="bi bi-arrow-left-right"></i> Registrar Troca</button>
-                    <button class="btn btn-outline-success" onclick="exportToJSON()"><i class="bi bi-file-earmark-json"></i> Exportar JSON</button>
-                    <button class="btn btn-outline-success" onclick="exportToExcel()"><i class="bi bi-file-earmark-excel"></i> Exportar Excel</button>
-                    <button class="btn btn-outline-danger" onclick="exportToPDF()"><i class="bi bi-file-earmark-pdf"></i> Exportar PDF</button>
-                    <button class="btn btn-outline-info" id="btnImportJSON" data-bs-toggle="modal" data-bs-target="#importModal" style="display: inline-flex !important;"><i class="bi bi-file-earmark-arrow-up"></i> Importar JSON</button>
-                    <div class="vr mx-2"></div>
-                    <button class="btn btn-outline-warning" onclick="refreshData()"><i class="bi bi-arrow-clockwise"></i> Atualizar</button>
-                </div>
-            </div>
-
-            <div class="filter-bar">
-                <div class="row g-3 align-items-end">
-                    <div class="col-md-4">
-                        <label class="form-label small text-muted">Buscar</label>
-                        <input type="text" class="form-control" id="searchInput" placeholder="Placa, tipo ou pátio..." onkeyup="filterTable()">
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label small text-muted">Filtrar por Pátio</label>
-                        <select class="form-select" id="yardFilter" onchange="filterTable()">
-                            <option value="">Todos os Pátios</option>
-                            <option value="Pátio Jaraguá">Pátio Jaraguá</option>
-                            <option value="Pátio Bandeirantes">Pátio Bandeirantes</option>
-                            <option value="Pátio Superior">Pátio Superior</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label small text-muted">Filtrar por Status</label>
-                        <select class="form-select" id="statusFilter" onchange="filterTable()">
-                            <option value="">Todos os Status</option>
-                            <option value="Aguardando linha">Aguardando linha</option>
-                            <option value="Aguardando abastecimento">Aguardando abastecimento</option>
-                            <option value="Aguardando manutenção">Aguardando manutenção</option>
-                            <option value="Em manutenção">Em manutenção</option>
-                            <option value="Liberado">Liberado</option>
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label small text-muted">&nbsp;</label>
-                        <button class="btn btn-outline-secondary w-100" onclick="clearFilters()"><i class="bi bi-x-circle"></i> Limpar</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="vehicle-table">
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead>
-                            <tr><th>Tipo</th><th>Placa</th><th>Entrada</th><th>Saída</th><th>Tempo</th><th>Local</th><th>Manutenção</th><th>Status</th><th>Ações</th></tr>
-                        </thead>
-                        <tbody id="vehicleTableBody"></tbody>
-                    </table>
-                </div>
-                <div class="p-3 text-center text-muted" id="emptyMessage">
-                    <i class="bi bi-inbox fs-1 d-block mb-2"></i>Nenhum veículo cadastrado. Clique em "Novo Veículo" para começar.
-                </div>
-            </div>
-
-            <div class="vehicle-table mt-4">
-                <div class="card-header bg-light py-3">
-                    <h6 class="mb-0"><i class="bi bi-arrow-left-right me-2"></i>Trocas / Empréstimos</h6>
-                </div>
-                <div class="table-responsive">
-                    <table class="table table-sm mb-0">
-                        <thead class="table-light">
-                            <tr><th>Data</th><th>Entra</th><th>Sai</th><th>Base</th><th>Observações</th><th>Ações</th></tr>
-                        </thead>
-                        <tbody id="swapsTableBody"></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal Dashboard -->
-    <div class="modal fade" id="dashboardModal" tabindex="-1">
-        <div class="modal-dialog modal-xl">
-            <div class="modal-content">
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title"><i class="bi bi-graph-up me-2"></i>Dashboard em Tempo Real</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <div class="card">
-                                <div class="card-header bg-light"><strong>Veículos por Status</strong></div>
-                                <div class="card-body"><canvas id="statusChart"></canvas></div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="card">
-                                <div class="card-header bg-light"><strong>Veículos por Pátio</strong></div>
-                                <div class="card-body"><canvas id="yardChart"></canvas></div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="card">
-                                <div class="card-header bg-light"><strong>Veículos por Tipo</strong></div>
-                                <div class="card-body"><canvas id="typeChart"></canvas></div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="card">
-                                <div class="card-header bg-light"><strong>Tempo Médio no Pátio</strong></div>
-                                <div class="card-body"><canvas id="timeChart"></canvas></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
-                    <button type="button" class="btn btn-primary" onclick="updateDashboard()"><i class="bi bi-arrow-clockwise me-1"></i>Atualizar</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modais restantes (Entry, Scan Exit, Edit, Import, Swap) -->
-    <div class="modal fade" id="entryModal" tabindex="-1">
-        <div class="modal-dialog modal-xl">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Registrar Entrada</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="row">
-                        <div class="col-lg-5">
-                            <div class="card border-0 shadow-sm">
-                                <div class="card-body text-center">
-                                    <h6 class="card-title mb-3"><i class="bi bi-camera me-2"></i>Escanear Placa</h6>
-                                    <div id="camera-container-entry" class="scan-overlay">
-                                        <video id="camera-video-entry" autoplay playsinline></video>
-                                    </div>
-                                    <div class="btn-group w-100 mt-3">
-                                        <button class="btn btn-camera" onclick="startCamera('entry')"><i class="bi bi-camera-video me-2"></i>Iniciar</button>
-                                        <button class="btn btn-outline-secondary" onclick="stopCamera('entry')"><i class="bi bi-camera-video-off me-2"></i>Parar</button>
-                                    </div>
-                                    <div id="scanStatusEntry" class="scan-status mt-2"></div>
-                                    <small class="text-muted d-block mt-2"><i class="bi bi-info-circle"></i> Aponte para a placa do veículo</small>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-lg-7">
-                            <form id="entryForm">
-                                <div class="row g-3">
-                                    <div class="col-12">
-                                        <label class="form-label">Placa *</label>
-                                        <div class="input-group">
-                                            <input type="text" class="form-control form-control-lg" id="plate" placeholder="ABC-1D23" maxlength="9" required style="text-transform:uppercase; font-family:monospace; font-weight:600; font-size: 1.2rem;">
-                                            <button class="btn btn-outline-secondary" type="button" onclick="manualPlateEntry()"><i class="bi bi-keyboard"></i></button>
-                                        </div>
-                                        <div id="plateAlert" class="alert alert-danger mt-2 hidden"></div>
-                                    </div>
-                                    <div id="vehicleHistory" class="col-12 hidden">
-                                        <div class="vehicle-history">
-                                            <h6 class="mb-3"><i class="bi bi-clock-history me-2"></i>Histórico do Veículo</h6>
-                                            <div id="historyContent"></div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Tipo *</label>
-                                        <select class="form-select form-select-lg" id="type" required>
-                                            <option value="">Selecione...</option>
-                                            <option value="Carreta">🚛 Carreta</option>
-                                            <option value="Cavalo Mecânico">🐎 Cavalo Mecânico</option>
-                                            <option value="Vans">🚐 Vans</option>
-                                            <option value="Caminhão Truck">🚚 Caminhão Truck</option>
-                                            <option value="Caminhão Toco">🚐 Caminhão Toco</option>
-                                            <option value="Veículo Visitante">👤 Visitante</option>
-                                            <option value="Veículo Diretoria">⭐ Diretoria</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Pátio *</label>
-                                        <select class="form-select form-select-lg" id="yard" required>
-                                            <option value="">Selecione...</option>
-                                            <option value="Pátio Jaraguá">🏭 Jaraguá</option>
-                                            <option value="Pátio Bandeirantes">🏢 Bandeirantes</option>
-                                            <option value="Pátio Superior">⬆️ Superior</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Data/Hora de Entrada</label>
-                                        <input type="datetime-local" class="form-control" id="entryDate">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Base de Origem</label>
-                                        <input type="text" class="form-control" id="base" value="Jaraguá-SP">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Responsável pelas Chaves</label>
-                                        <input type="text" class="form-control" id="keys" placeholder="ex: Frotas, Motorista...">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label">Categoria de Entrega</label>
-                                        <select class="form-select" id="deliveryCategory">
-                                            <option value="">Sem categoria</option>
-                                            <option value="correios">📮 Correios/ECT</option>
-                                            <option value="diversos">📦 Diversos</option>
-                                            <option value="urgente">🔥 Urgente</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-12">
-                                        <label class="form-label">Observações</label>
-                                        <textarea class="form-control" id="notes" rows="2" placeholder="Informações adicionais..."></textarea>
-                                    </div>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-primary btn-lg" onclick="submitEntry()"><i class="bi bi-check-circle me-1"></i> Confirmar Entrada</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal fade" id="scanExitModal" tabindex="-1">
-        <div class="modal-dialog modal-md">
-            <div class="modal-content">
-                <div class="modal-header bg-success text-white">
-                    <h5 class="modal-title"><i class="bi bi-qr-code-scan me-2"></i>Escanear para Saída</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body text-center">
-                    <div id="camera-container-exit" class="scan-overlay">
-                        <video id="camera-video-exit" autoplay playsinline></video>
-                    </div>
-                    <div class="btn-group w-100 mt-3">
-                        <button class="btn btn-scan-exit" onclick="startCamera('exit')"><i class="bi bi-camera-video me-2"></i>Iniciar Câmera</button>
-                        <button class="btn btn-outline-secondary" onclick="stopCamera('exit')"><i class="bi bi-camera-video-off me-2"></i>Parar</button>
-                    </div>
-                    <div id="scanStatusExit" class="scan-status mt-2"></div>
-                    <div class="mt-3">
-                        <label class="form-label">Ou digite a placa:</label>
-                        <div class="input-group">
-                            <input type="text" class="form-control form-control-lg" id="scanExitPlate" placeholder="ABC-1D23" maxlength="9" style="text-transform:uppercase; font-family:monospace; font-weight:600;">
-                            <button class="btn btn-outline-secondary" type="button" onclick="checkPlateForExit()"><i class="bi bi-search"></i></button>
-                        </div>
-                    </div>
-                    <div id="exitVehicleInfo" class="vehicle-history hidden mt-3">
-                        <div id="exitVehicleContent"></div>
-                        <button class="btn btn-success btn-lg w-100 mt-3" onclick="confirmExitVehicle()"><i class="bi bi-check-circle me-2"></i>Confirmar Saída</button>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal fade" id="editVehicleModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header bg-warning text-dark">
-                    <h5 class="modal-title"><i class="bi bi-pencil me-2"></i>Editar Veículo</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="editVehicleForm">
-                        <input type="hidden" id="editVehicleId">
-                        <div class="row g-3">
-                            <div class="col-md-4">
-                                <label class="form-label">Placa</label>
-                                <input type="text" class="form-control" id="editPlate" style="text-transform:uppercase; font-family:monospace;">
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Tipo</label>
-                                <select class="form-select" id="editType">
-                                    <option value="Carreta">Carreta</option>
-                                    <option value="Cavalo Mecânico">Cavalo Mecânico</option>
-                                    <option value="Vans">Vans</option>
-                                    <option value="Caminhão Truck">Caminhão Truck</option>
-                                    <option value="Caminhão Toco">Caminhão Toco</option>
-                                    <option value="Veículo Visitante">Veículo Visitante</option>
-                                    <option value="Veículo Diretoria">Veículo Diretoria</option>
-                                </select>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="form-label">Pátio</label>
-                                <select class="form-select" id="editYard">
-                                    <option value="Pátio Jaraguá">Pátio Jaraguá</option>
-                                    <option value="Pátio Bandeirantes">Pátio Bandeirantes</option>
-                                    <option value="Pátio Superior">Pátio Superior</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Data de Entrada <span id="dateEditBadge" class="badge bg-warning text-dark ms-1">Admin</span></label>
-                                <input type="datetime-local" class="form-control" id="editEntryTime">
-                                <small class="text-muted" id="dateEditHelp">Apenas administradores podem alterar</small>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Status</label>
-                                <select class="form-select" id="editStatus">
-                                    <option value="Aguardando linha">Aguardando linha</option>
-                                    <option value="Aguardando abastecimento">Aguardando abastecimento</option>
-                                    <option value="Aguardando manutenção">Aguardando manutenção</option>
-                                    <option value="Em manutenção">Em manutenção</option>
-                                    <option value="Liberado">Liberado</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Base</label>
-                                <input type="text" class="form-control" id="editBase">
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label">Chaves com</label>
-                                <input type="text" class="form-control" id="editKeys">
-                            </div>
-                            <div class="col-12">
-                                <label class="form-label">Observações</label>
-                                <textarea class="form-control" id="editNotes" rows="2"></textarea>
-                            </div>
-                            <div class="col-12">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="editMaintenance">
-                                    <label class="form-check-label" for="editMaintenance"><strong>Em Manutenção?</strong></label>
-                                </div>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-warning" onclick="saveVehicleEdit()"><i class="bi bi-save me-1"></i> Salvar Alterações</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal fade" id="importModal" tabindex="-1">
-        <div class="modal-dialog modal-md">
-            <div class="modal-content">
-                <div class="modal-header bg-info text-white">
-                    <h5 class="modal-title"><i class="bi bi-file-earmark-arrow-up me-2"></i>Importar Dados</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="alert alert-warning">
-                        <i class="bi bi-exclamation-triangle me-2"></i><strong>Atenção:</strong> Importar um arquivo irá <u>substituir todos os dados atuais</u> do sistema.
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Selecione o arquivo JSON de backup</label>
-                        <input type="file" class="form-control form-control-lg" id="importJsonFile" accept=".json">
-                        <div class="form-text">Arquivos exportados: <code>print-patio-backup-*.json</code></div>
-                    </div>
-                    <div id="importPreview"></div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-info text-white" onclick="processImport()"><i class="bi bi-upload me-1"></i> Importar e Substituir</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal fade" id="swapModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title"><i class="bi bi-arrow-left-right me-2"></i>Registrar Troca</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="swapForm">
-                        <input type="hidden" id="editSwapId">
-                        <div class="mb-3">
-                            <label class="form-label">Data/Hora</label>
-                            <input type="datetime-local" class="form-control" id="swapDate">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Placa que ENTRA</label>
-                            <input type="text" class="form-control" id="swapPlateIn" placeholder="ou 0000">
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Placa que SAI *</label>
-                            <input type="text" class="form-control" id="swapPlateOut" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Base/Local</label>
-                            <select class="form-select" id="swapBase" required>
-                                <option value="Jaraguá-SP">Jaraguá-SP</option>
-                                <option value="Pátio Jaraguá">Pátio Jaraguá</option>
-                                <option value="Pátio Bandeirantes">Pátio Bandeirantes</option>
-                                <option value="Pátio Superior">Pátio Superior</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Observações</label>
-                            <textarea class="form-control" id="swapNotes" rows="2"></textarea>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-primary" onclick="submitSwap()"><i class="bi bi-check-circle me-1"></i> <span id="swapBtnText">Registrar</span></button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        const API_URL = '/api';
-        let currentUser = null;
-        let userPermissions = {};
-        let allVehicles = [];
-        let cameraStream = null;
-        let currentCameraMode = null;
-        let vehicleToExit = null;
-        let statusChart, yardChart, typeChart, timeChart;
-
-        console.log('🚀 Sistema iniciado');
-        console.log('📦 Tesseract disponível:', typeof Tesseract !== 'undefined');
-
-        document.addEventListener('DOMContentLoaded', async () => {
-            await checkAuth();
-            updateClock();
-            setInterval(updateClock, 1000);
-            setTimeout(checkStalledVehicles, 3000);
-            setInterval(checkStalledVehicles, 5 * 60 * 1000);
-        });
-
-        async function checkAuth() {
-            try {
-                const res = await fetch(`${API_URL}/auth/me`);
-                const data = await res.json();
-                if (data.authenticated) {
-                    currentUser = data.user;
-                    userPermissions = data.permissions || {};
-                    showMainApp();
-                } else {
-                    showLoginScreen();
-                }
-            } catch (err) {
-                showLoginScreen();
-            }
-        }
-
-        function showLoginScreen() {
-            document.getElementById('loginScreen').classList.remove('hidden');
-            document.getElementById('mainApp').classList.add('hidden');
-        }
-
-        function showMainApp() {
-            document.getElementById('loginScreen').classList.add('hidden');
-            document.getElementById('mainApp').classList.remove('hidden');
-            document.getElementById('userName').textContent = currentUser.username;
-            document.getElementById('userRole').textContent = currentUser.role === 'admin' ? 'Administrador' : 'Operador';
-            document.getElementById('userAvatar').textContent = currentUser.username.charAt(0).toUpperCase();
-            document.getElementById('userRoleBadge').textContent = currentUser.role.toUpperCase();
-            document.getElementById('userRoleBadge').className = `role-badge ${currentUser.role === 'admin' ? 'bg-warning text-dark' : 'bg-secondary text-white'}`;
-            applyPermissions();
-            loadStats();
-            loadVehicles();
-            loadSwaps();
-        }
-
-        function applyPermissions() {
-            console.log('🔐 Role:', currentUser?.role);
-            const importBtn = document.getElementById('btnImportJSON');
-            if (importBtn) {
-                if (currentUser?.role === 'admin') {
-                    importBtn.style.display = 'inline-flex';
-                    importBtn.disabled = false;
-                } else {
-                    importBtn.style.display = 'none';
-                    importBtn.disabled = true;
-                }
-            }
-        }
-
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const username = document.getElementById('loginUsername').value.trim();
-            const password = document.getElementById('loginPassword').value;
-            const errorDiv = document.getElementById('loginError');
-            errorDiv.classList.add('hidden');
-            try {
-                const res = await fetch(`${API_URL}/auth/login`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ username, password })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    currentUser = data.user;
-                    showMainApp();
-                    showToast(data.message, 'success');
-                } else {
-                    errorDiv.textContent = data.error;
-                    errorDiv.classList.remove('hidden');
-                }
-            } catch (err) {
-                errorDiv.textContent = 'Erro de conexão';
-                errorDiv.classList.remove('hidden');
-            }
-        });
-
-        async function logout() {
-            await fetch(`${API_URL}/auth/logout`, { method: 'POST' });
-            currentUser = null;
-            userPermissions = {};
-            stopCamera('entry');
-            stopCamera('exit');
-            showLoginScreen();
-        }
-
-        // ============ NOTIFICAÇÕES ============
-        function showNotification(title, message, type = 'warning', duration = 5000) {
-            const container = document.getElementById('notificationContainer');
-            const notification = document.createElement('div');
-            notification.className = `alert alert-${type} alert-dismissible fade show shadow`;
-            notification.style.minWidth = '300px';
-            notification.innerHTML = `<strong>${title}</strong><br><small>${message}</small><button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
-            container.appendChild(notification);
-            setTimeout(() => { notification.remove(); }, duration);
-        }
-
-        function checkStalledVehicles() {
-            if (allVehicles.length === 0) return;
-            const now = new Date();
-            const stalledVehicles = allVehicles.filter(v => {
-                if (v.status === 'Liberado') return false;
-                const entry = new Date(v.entryTime);
-                const hoursDiff = (now - entry) / (1000 * 60 * 60);
-                return hoursDiff > 24;
-            });
-            if (stalledVehicles.length > 0) {
-                showNotification('⚠️ Veículos Parados', `${stalledVehicles.length} veículo(s) parado(s) há mais de 24h`, 'warning', 10000);
-            }
-        }
-
-        // ============ CÂMERA / OCR ============
-        function openEntryModal() {
-            document.getElementById('plate').value = '';
-            document.getElementById('vehicleHistory').classList.add('hidden');
-            document.getElementById('plateAlert').classList.add('hidden');
-            document.getElementById('entryForm').querySelectorAll('input, select, textarea').forEach(el => el.disabled = false);
-            stopCamera('entry');
-            new bootstrap.Modal(document.getElementById('entryModal')).show();
-        }
-
-        function openScanExitModal() {
-            document.getElementById('scanExitPlate').value = '';
-            document.getElementById('exitVehicleInfo').classList.add('hidden');
-            document.getElementById('scanStatusExit').innerHTML = '';
-            vehicleToExit = null;
-            stopCamera('exit');
-            new bootstrap.Modal(document.getElementById('scanExitModal')).show();
-        }
-
-        async function startCamera(mode) {
-            currentCameraMode = mode;
-            const statusId = mode === 'entry' ? 'scanStatusEntry' : 'scanStatusExit';
-            const statusDiv = document.getElementById(statusId);
-            console.log('📷 Iniciando câmera - Mode:', mode);
-            statusDiv.innerHTML = '<i class="bi bi-hourglass-split"></i> Solicitando permissão...';
-            statusDiv.className = 'scan-status scanning';
-            try {
-                if (typeof Tesseract === 'undefined') {
-                    throw new Error('Tesseract.js não carregou. Verifique sua conexão.');
-                }
-                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                    throw new Error('Navegador não suporta acesso à câmera');
-                }
-                cameraStream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
-                    audio: false
-                });
-                const videoId = mode === 'entry' ? 'camera-video-entry' : 'camera-video-exit';
-                const video = document.getElementById(videoId);
-                video.srcObject = cameraStream;
-                await new Promise((resolve) => {
-                    video.onloadedmetadata = () => { video.play(); resolve(); };
-                });
-                statusDiv.innerHTML = '<i class="bi bi-camera-video"></i> Câmera ativa. Posicione a placa e clique em "Capturar".';
-                statusDiv.className = 'scan-status success';
-                const container = video.parentElement;
-                let captureBtn = container.querySelector('.btn-capture');
-                if (!captureBtn) {
-                    captureBtn = document.createElement('button');
-                    captureBtn.className = 'btn btn-success btn-capture w-100 mt-2';
-                    captureBtn.innerHTML = '<i class="bi bi-camera"></i> Capturar Placa';
-                    captureBtn.onclick = () => capturePlate(mode, video, cameraStream);
-                    container.appendChild(captureBtn);
-                }
-                console.log('✅ Câmera iniciada com sucesso');
-            } catch (err) {
-                console.error('❌ Erro câmera:', err);
-                statusDiv.innerHTML = `<i class="bi bi-exclamation-triangle"></i> Erro: ${err.message}`;
-                statusDiv.className = 'scan-status error';
-                if (err.name === 'NotAllowedError') {
-                    statusDiv.innerHTML += '<br><small>Permita o acesso à câmera no navegador</small>';
-                } else if (err.name === 'NotFoundError') {
-                    statusDiv.innerHTML += '<br><small>Nenhuma câmera encontrada</small>';
-                }
-            }
-        }
-
-        async function capturePlate(mode, video, stream) {
-            const statusId = mode === 'entry' ? 'scanStatusEntry' : 'scanStatusExit';
-            const statusDiv = document.getElementById(statusId);
-            console.log('📸 Capturando imagem...');
-            statusDiv.innerHTML = '<i class="bi bi-hourglass-split"></i> Processando imagem...';
-            try {
-                const canvas = document.createElement('canvas');
-                canvas.width = video.videoWidth || 1920;
-                canvas.height = video.videoHeight || 1080;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                ctx.filter = 'contrast(1.2) brightness(1.1)';
-                ctx.drawImage(canvas, 0, 0);
-                console.log('🔍 Iniciando OCR com Tesseract...');
-                const { data: { text, confidence } } = await Tesseract.recognize(canvas, 'por', {
-                    logger: m => {
-                        if (m.status === 'recognizing text') {
-                            statusDiv.innerHTML = `<i class="bi bi-hourglass-split"></i> Processando: ${Math.round(m.progress * 100)}%`;
-                        }
-                    }
-                });
-                console.log('📝 Texto OCR:', text);
-                console.log('📊 Confiança:', confidence);
-                const plate = extractPlate(text);
-                if (plate) {
-                    statusDiv.innerHTML = `<i class="bi bi-check-circle"></i> ✅ Placa: ${plate} (Confiança: ${Math.round(confidence)}%)`;
-                    statusDiv.className = 'scan-status success';
-                    if (mode === 'entry') {
-                        document.getElementById('plate').value = plate;
-                        checkVehicleHistory(plate);
-                    } else {
-                        document.getElementById('scanExitPlate').value = plate;
-                        checkPlateForExit(plate);
-                    }
-                    stopCamera(mode);
-                } else {
-                    statusDiv.innerHTML = `<i class="bi bi-x-circle"></i> ❌ Não foi possível ler a placa.<br><small class="text-muted">Texto detectado: "${text.substring(0, 50)}..."</small>`;
-                    statusDiv.className = 'scan-status error';
-                }
-            } catch (err) {
-                console.error('❌ Erro OCR:', err);
-                statusDiv.innerHTML = '<i class="bi bi-x-circle"></i> Erro no OCR: ' + err.message;
-                statusDiv.className = 'scan-status error';
-            }
-        }
-
-        function stopCamera(mode) {
-            const videoId = mode === 'entry' ? 'camera-video-entry' : 'camera-video-exit';
-            const video = document.getElementById(videoId);
-            if (video && video.srcObject) {
-                video.srcObject.getTracks().forEach(track => track.stop());
-                video.srcObject = null;
-            }
-            if (cameraStream) {
-                cameraStream.getTracks().forEach(track => track.stop());
-                cameraStream = null;
-            }
-            const statusId = mode === 'entry' ? 'scanStatusEntry' : 'scanStatusExit';
-            document.getElementById(statusId).innerHTML = '<i class="bi bi-camera-video-off"></i> Câmera desligada';
-            const container = video?.parentElement;
-            if (container) {
-                const captureBtn = container.querySelector('.btn-capture');
-                if (captureBtn) captureBtn.remove();
-            }
-            console.log('📷 Câmera parada');
-        }
-
-        function extractPlate(text) {
-            const patterns = [/[A-Z]{3}\d[A-Z]\d{2}/i, /[A-Z]{3}\d{4}/i, /[A-Z]{3}-\d{4}/i];
-            for (const pattern of patterns) {
-                const match = text.toUpperCase().match(pattern);
-                if (match) return match[0].replace('-', '');
-            }
-            return null;
-        }
-
-        function manualPlateEntry() {
-            stopCamera('entry');
-            document.getElementById('plate').focus();
-        }
-
-        async function checkVehicleHistory(plate) {
-            try {
-                const res = await fetch(`${API_URL}/vehicles`);
-                const vehicles = await res.json();
-                const existingVehicle = vehicles.find(v => v.plate.toUpperCase() === plate.toUpperCase() && v.status !== 'Liberado');
-                const historyDiv = document.getElementById('vehicleHistory');
-                const historyContent = document.getElementById('historyContent');
-                const plateAlert = document.getElementById('plateAlert');
-                if (existingVehicle) {
-                    plateAlert.innerHTML = `<i class="bi bi-exclamation-triangle-fill"></i> <strong>Veículo já está no pátio!</strong><br>📍 Local: ${existingVehicle.yard}<br>⏱️ Entrada: ${existingVehicle.entryDate}<br>⏳ Tempo: ${existingVehicle.timeInYard}`;
-                    plateAlert.classList.remove('hidden');
-                    document.getElementById('entryForm').querySelectorAll('input, select, textarea').forEach(el => el.disabled = true);
-                    document.getElementById('plate').disabled = false;
-                    historyDiv.classList.remove('hidden');
-                    historyContent.innerHTML = `<div class="history-item alert"><strong>⚠️ VEÍCULO JÁ ESTÁ NO PÁTIO</strong><br><small>Não é possível cadastrar entrada duplicada</small></div>`;
-                } else {
-                    const vehicleHistory = vehicles.filter(v => v.plate.toUpperCase() === plate.toUpperCase());
-                    plateAlert.classList.add('hidden');
-                    document.getElementById('entryForm').querySelectorAll('input, select, textarea').forEach(el => el.disabled = false);
-                    if (vehicleHistory.length > 0) {
-                        const lastRecord = vehicleHistory[0];
-                        document.getElementById('type').value = lastRecord.type || '';
-                        document.getElementById('base').value = lastRecord.base || 'Jaraguá-SP';
-                        document.getElementById('keys').value = lastRecord.keys || '';
-                        historyDiv.classList.remove('hidden');
-                        historyContent.innerHTML = `<div class="history-item info"><strong>✅ Veículo conhecido - Dados preenchidos automaticamente</strong><br><small>Tipo: ${lastRecord.type || '—'} | Base: ${lastRecord.base || '—'}</small></div>${vehicleHistory.slice(0, 3).map(v => `<div class="history-item"><div><strong>${v.entryDate}</strong> - ${v.yard}</div><small class="text-muted">${v.type} • ${v.timeInYard || '—'}</small></div>`).join('')}`;
-                    } else {
-                        historyDiv.classList.add('hidden');
-                    }
-                }
-            } catch (err) {
-                console.error('Erro ao buscar histórico:', err);
-            }
-        }
-
-        async function checkPlateForExit(plate = null) {
-            const plateInput = plate || document.getElementById('scanExitPlate').value.trim();
-            if (!plateInput) { showToast('⚠️ Digite ou escaneie uma placa', 'warning'); return; }
-            try {
-                const res = await fetch(`${API_URL}/vehicles`);
-                const vehicles = await res.json();
-                const vehicle = vehicles.find(v => v.plate.toUpperCase() === plateInput.toUpperCase() && v.status !== 'Liberado');
-                const exitInfo = document.getElementById('exitVehicleInfo');
-                const exitContent = document.getElementById('exitVehicleContent');
-                if (vehicle) {
-                    vehicleToExit = vehicle;
-                    exitInfo.classList.remove('hidden');
-                    exitContent.innerHTML = `<div class="history-item success"><h5><i class="bi bi-check-circle me-2"></i>Veículo Encontrado</h5><div class="row mt-3"><div class="col-6 text-start"><strong>Placa:</strong> ${vehicle.plate}<br><strong>Tipo:</strong> ${vehicle.type}<br><strong>Pátio:</strong> ${vehicle.yard}</div><div class="col-6 text-start"><strong>Entrada:</strong> ${vehicle.entryDate}<br><strong>Tempo:</strong> ${vehicle.timeInYard}<br><strong>Status:</strong> ${vehicle.status}</div></div></div>`;
-                } else {
-                    vehicleToExit = null;
-                    exitInfo.classList.remove('hidden');
-                    exitContent.innerHTML = `<div class="history-item alert"><h5><i class="bi bi-exclamation-triangle me-2"></i>Veículo Não Encontrado</h5><p class="mb-0">A placa <strong>${plateInput}</strong> não está registrada no pátio ou já foi liberada.</p></div>`;
-                }
-            } catch (err) {
-                showToast('❌ Erro ao buscar veículo', 'danger');
-            }
-        }
-
-        async function confirmExitVehicle() {
-            if (!vehicleToExit) { showToast('⚠️ Nenhum veículo para liberar', 'warning'); return; }
-            if (!confirm(`✅ Confirmar SAÍDA do veículo ${vehicleToExit.plate}?`)) return;
-            try {
-                await fetch(`${API_URL}/vehicles/${vehicleToExit.id}/exit`, { method: 'POST' });
-                bootstrap.Modal.getInstance(document.getElementById('scanExitModal')).hide();
-                loadStats();
-                loadVehicles();
-                showToast('🚪 Saída registrada com sucesso!', 'success');
-            } catch (err) {
-                showToast('❌ Erro ao registrar saída', 'danger');
-            }
-        }
-
-        // ============ DASHBOARD ============
-        function openDashboard() {
-            new bootstrap.Modal(document.getElementById('dashboardModal')).show();
-            setTimeout(updateDashboard, 500);
-        }
-
-        function updateDashboard() {
-            updateStatusChart();
-            updateYardChart();
-            updateTypeChart();
-            updateTimeChart();
-        }
-
-        function updateStatusChart() {
-            const ctx = document.getElementById('statusChart');
-            if (!ctx) return;
-            const statusCount = {};
-            allVehicles.forEach(v => { statusCount[v.status] = (statusCount[v.status] || 0) + 1; });
-            if (statusChart) statusChart.destroy();
-            statusChart = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: Object.keys(statusCount),
-                    datasets: [{ data: Object.values(statusCount), backgroundColor: ['#ffc107', '#0dcaf0', '#dc3545', '#6f42c1', '#198754'] }]
-                },
-                options: { responsive: true, maintainAspectRatio: true }
-            });
-        }
-
-        function updateYardChart() {
-            const ctx = document.getElementById('yardChart');
-            if (!ctx) return;
-            const yardCount = {};
-            allVehicles.filter(v => v.status !== 'Liberado').forEach(v => { yardCount[v.yard] = (yardCount[v.yard] || 0) + 1; });
-            if (yardChart) yardChart.destroy();
-            yardChart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: Object.keys(yardCount),
-                    datasets: [{ label: 'Veículos Ativos', data: Object.values(yardCount), backgroundColor: '#1a3a5c' }]
-                },
-                options: { responsive: true, maintainAspectRatio: true }
-            });
-        }
-
-        function updateTypeChart() {
-            const ctx = document.getElementById('typeChart');
-            if (!ctx) return;
-            const typeCount = {};
-            allVehicles.filter(v => v.status !== 'Liberado').forEach(v => { typeCount[v.type] = (typeCount[v.type] || 0) + 1; });
-            if (typeChart) typeChart.destroy();
-            typeChart = new Chart(ctx, {
-                type: 'pie',
-                data: {
-                    labels: Object.keys(typeCount),
-                    datasets: [{ data: Object.values(typeCount), backgroundColor: ['#0d6efd', '#20c997', '#ffc107', '#dc3545', '#6f42c1', '#fd7e14', '#20c997'] }]
-                },
-                options: { responsive: true, maintainAspectRatio: true }
-            });
-        }
-
-        function updateTimeChart() {
-            const ctx = document.getElementById('timeChart');
-            if (!ctx) return;
-            const activeVehicles = allVehicles.filter(v => v.status !== 'Liberado');
-            const avgTime = activeVehicles.reduce((acc, v) => {
-                const entry = new Date(v.entryTime);
-                const now = new Date();
-                return acc + ((now - entry) / (1000 * 60 * 60));
-            }, 0) / (activeVehicles.length || 1);
-            if (timeChart) timeChart.destroy();
-            timeChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: ['Tempo Médio (horas)'],
-                    datasets: [{ label: 'Tempo Médio no Pátio', data: [avgTime.toFixed(1)], borderColor: '#1a3a5c', backgroundColor: 'rgba(26, 58, 92, 0.1)', fill: true }]
-                },
-                options: { responsive: true, maintainAspectRatio: true }
-            });
-        }
-
-        // ============ CARREGAR DADOS ============
-        async function loadStats() {
-            try {
-                const res = await fetch(`${API_URL}/stats`);
-                const stats = await res.json();
-                
-                const cards = [
-                    { 
-                        icon: '/images/cavalo-mecanico.png',
-                        label: 'Cavalos Mecânicos', 
-                        value: stats.cavalosMecanicos, 
-                        filterType: 'Cavalo Mecânico',
-                        isImage: true
-                    },
-                    { 
-                        icon: '/images/carreta.png',
-                        label: 'Carretas', 
-                        value: stats.carretas, 
-                        filterType: 'Carreta',
-                        isImage: true
-                    },
-                    { 
-                        icon: '/images/conjunto-montado.png',
-                        label: 'Conjuntos Montados', 
-                        value: stats.conjuntosMontados || 0, 
-                        filterType: 'Conjunto Montado',
-                        isImage: true
-                    },
-                    { 
-                        icon: '/images/manutencao.png',
-                        label: 'Em Manutenção', 
-                        value: stats.emManutencao, 
-                        filterStatus: 'Em manutenção',
-                        isImage: true
-                    },
-                    { 
-                        icon: '/images/liberado.png',
-                        label: 'Liberados', 
-                        value: stats.liberados, 
-                        filterStatus: 'Liberado',
-                        isImage: true
-                    },
-                    { 
-                        icon: '/images/diversos.png',
-                        label: 'Entregues para Diversos', 
-                        value: stats.entreguesDiversos, 
-                        filterNote: 'diversos',
-                        isImage: true
-                    },
-                    { 
-                        icon: '/images/correios.png',
-                        label: 'Entregues para Correios', 
-                        value: stats.entreguesCorreios, 
-                        filterNote: 'correios',
-                        isImage: true
-                    },
-                    { 
-                        icon: 'bar-chart',
-                        label: 'Total Ativos', 
-                        value: stats.totalAtivos, 
-                        filterClear: true,
-                        isImage: false
-                    }
-                ];
-
-                document.getElementById('stats-cards').innerHTML = cards.map(card => {
-                    const iconHtml = card.isImage 
-                        ? `<img src="${card.icon}" alt="${card.label}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><text y=%22.9em%22 font-size=%2214%22>📦</text></svg>'">`
-                        : `<i class="bi bi-${card.icon}"></i>`;
-                    
-                    return `
-                        <div class="col-6 col-md-3 col-lg-2">
-                            <div class="stat-card card" onclick="filterByCard(${JSON.stringify(card).replace(/"/g, '&quot;')})">
-                                <div class="card-body">
-                                    <div class="icon-placeholder">
-                                        ${iconHtml}
-                                    </div>
-                                    <div class="count">${card.value}</div>
-                                    <div class="label">${card.label}</div>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-                
-                if (stats.stalledVehicles > 0) {
-                    document.getElementById('stalledAlert').classList.remove('hidden');
-                    document.getElementById('stalledList').textContent = stats.stalledVehiclesList.map(v => `${v.plate} (${v.hours}h)`).join(', ');
-                } else {
-                    document.getElementById('stalledAlert').classList.add('hidden');
-                }
-            } catch (err) { console.error('Erro stats:', err); }
-        }
-
-        function filterByCard(card) {
-            document.getElementById('searchInput').value = '';
-            document.getElementById('yardFilter').value = '';
-            document.getElementById('statusFilter').value = '';
-            if (card.filterClear) { filterTable(); showToast('📊 Filtros limpos', 'info'); return; }
-            if (card.filterType) {
-                document.querySelectorAll('#vehicleTableBody tr').forEach(row => {
-                    row.style.display = (row.dataset.type === card.filterType) ? '' : 'none';
-                });
-                showToast(`🔍 Filtrando: ${card.filterType}`, 'info');
-                return;
-            }
-            if (card.filterStatus) {
-                document.getElementById('statusFilter').value = card.filterStatus;
-                filterTable();
-                showToast(`🔍 Filtrando: ${card.filterStatus}`, 'info');
-                return;
-            }
-            if (card.filterNote) {
-                document.querySelectorAll('#vehicleTableBody tr').forEach(row => {
-                    row.style.display = row.dataset.search.toLowerCase().includes(card.filterNote) ? '' : 'none';
-                });
-                showToast(`🔍 Filtrando: ${card.filterNote}`, 'info');
-                return;
-            }
-        }
-
-        async function loadVehicles() {
-            try {
-                const res = await fetch(`${API_URL}/vehicles`);
-                let vehicles = await res.json();
-                allVehicles = vehicles;
-                vehicles.sort((a, b) => {
-                    if (a.status === 'Liberado' && b.status !== 'Liberado') return 1;
-                    if (a.status !== 'Liberado' && b.status === 'Liberado') return -1;
-                    return new Date(b.entryTime) - new Date(a.entryTime);
-                });
-                const tbody = document.getElementById('vehicleTableBody');
-                const emptyMsg = document.getElementById('emptyMessage');
-                if (vehicles.length === 0) {
-                    tbody.innerHTML = '';
-                    emptyMsg.style.display = 'block';
-                    return;
-                }
-                emptyMsg.style.display = 'none';
-                tbody.innerHTML = vehicles.map(v => {
-                    const statusClass = `status-${v.status.toLowerCase().replace(/ /g, '-').replace('ç','c').replace('ã','a')}`;
-                    const maintenanceBadge = v.maintenance ? `<span class="text-danger"><i class="bi bi-exclamation-circle"></i> SIM</span>` : '<span class="text-muted">Não</span>';
-                    return `<tr data-yard="${v.yard}" data-status="${v.status}" data-type="${v.type}" data-search="${v.plate} ${v.type} ${v.yard} ${v.base} ${v.notes || ''}" data-id="${v.id}"><td><span class="vehicle-icon"><i class="bi bi-${getVehicleIcon(v.type)}"></i></span><small class="d-md-none">${v.type}</small></td><td><span class="plate-badge">${v.plate}</span></td><td><span class="date-badge">${v.entryDate}</span></td><td>${v.exitDate ? `<span class="date-badge text-success">${v.exitDate}</span>` : '—'}</td><td><span class="time-badge">${v.timeInYard}</span></td><td><small class="text-primary"><i class="bi bi-pin me-1"></i>${v.yard}</small></td><td>${maintenanceBadge}</td><td><span class="status-badge ${statusClass}">${v.status}</span></td><td><div class="btn-group btn-group-sm flex-wrap">${v.status !== 'Liberado' ? `<button class="btn btn-outline-warning action-btn" onclick="updateStatus(${v.id}, 'Aguardando linha')"><i class="bi bi-hourglass-split"></i></button><button class="btn btn-outline-info action-btn" onclick="updateStatus(${v.id}, 'Aguardando abastecimento')"><i class="bi bi-fuel-pump"></i></button><button class="btn btn-outline-danger action-btn" onclick="updateStatus(${v.id}, 'Aguardando manutenção')"><i class="bi bi-tools"></i></button><button class="btn btn-outline-purple action-btn" style="border-color:#6f42c1;color:#6f42c1" onclick="updateStatus(${v.id}, 'Em manutenção')"><i class="bi bi-wrench"></i></button><button class="btn btn-success action-btn" onclick="exitVehicle(${v.id})"><i class="bi bi-check-lg"></i></button>` : '<span class="text-success"><i class="bi bi-check-circle"></i></span>'}<button class="btn btn-outline-secondary action-btn" onclick="openEditVehicle(${v.id})"><i class="bi bi-pencil"></i></button><button class="btn btn-outline-danger action-btn" onclick="deleteVehicle(${v.id})"><i class="bi bi-trash"></i></button></div></td></tr>`;
-                }).join('');
-            } catch (err) { console.error('Erro loadVehicles:', err); }
-        }
-
-        async function loadSwaps() {
-            try {
-                const res = await fetch(`${API_URL}/swaps`);
-                const swaps = await res.json();
-                const tbody = document.getElementById('swapsTableBody');
-                tbody.innerHTML = swaps.slice(0, 20).map(s => `<tr><td><small>${new Date(s.date).toLocaleDateString('pt-BR')}</small></td><td><strong>${s.plateIn}</strong></td><td><strong>${s.plateOut}</strong></td><td><small>${s.base}</small></td><td><small class="text-muted">${s.notes || '—'}</small></td><td><button class="btn btn-sm btn-link" onclick="openEditSwap(${s.id})"><i class="bi bi-pencil"></i></button><button class="btn btn-sm btn-link text-danger" onclick="deleteSwap(${s.id})"><i class="bi bi-trash"></i></button></td></tr>`).join('') || '<tr><td colspan="6" class="text-center text-muted py-3">Nenhuma troca</td></tr>';
-            } catch (err) { console.error('Erro loadSwaps:', err); }
-        }
-
-        // ============ AÇÕES DE VEÍCULOS ============
-        async function submitEntry() {
-            const plate = document.getElementById('plate').value.trim();
-            const plateAlert = document.getElementById('plateAlert');
-            if (!plateAlert.classList.contains('hidden')) { alert('⚠️ Não é possível cadastrar. Veículo já está no pátio!'); return; }
-            const type = document.getElementById('type').value;
-            const yard = document.getElementById('yard').value;
-            if (!plate || !type || !yard) { alert('⚠️ Preencha: Placa, Tipo e Pátio'); return; }
-            try {
-                await fetch(`${API_URL}/vehicles`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ plate, type, yard, entryDate: document.getElementById('entryDate').value, base: document.getElementById('base').value, keys: document.getElementById('keys').value, notes: document.getElementById('notes').value, deliveryCategory: document.getElementById('deliveryCategory').value })
-                });
-                stopCamera('entry');
-                bootstrap.Modal.getInstance(document.getElementById('entryModal')).hide();
-                document.getElementById('entryForm').reset();
-                document.getElementById('base').value = 'Jaraguá-SP';
-                document.getElementById('vehicleHistory').classList.add('hidden');
-                document.getElementById('plateAlert').classList.add('hidden');
-                loadStats(); loadVehicles();
-                showToast('✅ Veículo registrado!', 'success');
-            } catch (err) {
-                showToast('❌ Erro ao registrar', 'danger');
-            }
-        }
-
-        document.getElementById('entryModal').addEventListener('show.bs.modal', () => {
-            document.getElementById('plate').value = '';
-            document.getElementById('vehicleHistory').classList.add('hidden');
-            document.getElementById('plateAlert').classList.add('hidden');
-            document.getElementById('entryForm').querySelectorAll('input, select, textarea').forEach(el => el.disabled = false);
-            stopCamera('entry');
-        });
-
-        document.getElementById('entryModal').addEventListener('hide.bs.modal', () => stopCamera('entry'));
-        document.getElementById('scanExitModal').addEventListener('hide.bs.modal', () => stopCamera('exit'));
-
-        async function openEditVehicle(id) {
-            const v = allVehicles.find(x => x.id === id);
-            if (!v) return;
-            console.log('🔐 Editando veículo - Role:', currentUser?.role);
-            document.getElementById('editVehicleId').value = v.id;
-            document.getElementById('editPlate').value = v.plate;
-            document.getElementById('editType').value = v.type;
-            document.getElementById('editYard').value = v.yard;
-            document.getElementById('editBase').value = v.base || '';
-            document.getElementById('editKeys').value = v.keys || '';
-            document.getElementById('editNotes').value = v.notes || '';
-            document.getElementById('editStatus').value = v.status;
-            document.getElementById('editMaintenance').checked = v.maintenance || false;
-            if (v.entryTime) {
-                const d = new Date(v.entryTime);
-                const year = d.getFullYear();
-                const month = String(d.getMonth() + 1).padStart(2, '0');
-                const day = String(d.getDate()).padStart(2, '0');
-                const hours = String(d.getHours()).padStart(2, '0');
-                const minutes = String(d.getMinutes()).padStart(2, '0');
-                document.getElementById('editEntryTime').value = `${year}-${month}-${day}T${hours}:${minutes}`;
-            }
-            const dateField = document.getElementById('editEntryTime');
-            const dateBadge = document.getElementById('dateEditBadge');
-            const dateHelp = document.getElementById('dateEditHelp');
-            const isAdmin = currentUser?.role?.toLowerCase() === 'admin';
-            console.log('✅ É admin?', isAdmin);
-            if (isAdmin) {
-                dateField.disabled = false;
-                dateField.readOnly = false;
-                if (dateBadge) dateBadge.style.display = 'inline-block';
-                if (dateHelp) {
-                    dateHelp.style.display = 'block';
-                    dateHelp.textContent = '✅ Administrador - Pode editar a data';
-                    dateHelp.classList.remove('text-danger');
-                    dateHelp.classList.add('text-success');
-                }
-            } else {
-                dateField.disabled = true;
-                dateField.readOnly = true;
-                if (dateBadge) dateBadge.style.display = 'none';
-                if (dateHelp) {
-                    dateHelp.style.display = 'block';
-                    dateHelp.textContent = '🔒 Campo disponível apenas para administradores';
-                    dateHelp.classList.add('text-danger');
-                    dateHelp.classList.remove('text-success');
-                }
-            }
-            setTimeout(() => {
-                console.log('📅 Campo data disabled:', dateField.disabled);
-                console.log('📅 Campo data value:', dateField.value);
-            }, 500);
-            new bootstrap.Modal(document.getElementById('editVehicleModal')).show();
-        }
-
-        async function saveVehicleEdit() {
-            const id = document.getElementById('editVehicleId').value;
-            const updates = {
-                plate: document.getElementById('editPlate').value.toUpperCase(),
-                type: document.getElementById('editType').value,
-                yard: document.getElementById('editYard').value,
-                base: document.getElementById('editBase').value,
-                keys: document.getElementById('editKeys').value,
-                notes: document.getElementById('editNotes').value,
-                status: document.getElementById('editStatus').value,
-                maintenance: document.getElementById('editMaintenance').checked
-            };
-            const entryTime = document.getElementById('editEntryTime').value;
-            if (entryTime && currentUser?.role?.toLowerCase() === 'admin') {
-                updates.entryTime = new Date(entryTime).toISOString();
-            }
-            try {
-                const res = await fetch(`${API_URL}/vehicles/${id}`, {
-                    method: 'PUT',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(updates)
-                });
-                const result = await res.json();
-                if (result.success) {
-                    bootstrap.Modal.getInstance(document.getElementById('editVehicleModal')).hide();
-                    loadStats(); loadVehicles();
-                    showToast('✏️ Veículo atualizado!', 'success');
-                } else {
-                    alert('Erro: ' + (result.error || 'Não foi possível salvar'));
-                }
-            } catch (err) {
-                console.error('Erro ao salvar:', err);
-                alert('Erro de conexão ao salvar alterações');
-            }
-        }
-
-        async function updateStatus(id, newStatus) {
-            await fetch(`${API_URL}/vehicles/${id}/status`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ status: newStatus }) });
-            loadStats(); loadVehicles();
-        }
-
-        async function exitVehicle(id) {
-            if (!confirm('✅ Confirmar SAÍDA?')) return;
-            await fetch(`${API_URL}/vehicles/${id}/exit`, { method: 'POST' });
-            loadStats(); loadVehicles();
-            showToast('🚪 Saída registrada!', 'success');
-        }
-
-        async function deleteVehicle(id) {
-            if (!confirm('🗑️ EXCLUIR veículo?')) return;
-            const res = await fetch(`${API_URL}/vehicles/${id}`, { method: 'DELETE' });
-            const data = await res.json();
-            if (res.status === 403) {
-                showToast('🔒 Apenas administradores podem excluir', 'danger');
-            } else if (data.success) {
-                loadStats(); loadVehicles();
-                showToast('Veículo excluído', 'info');
-            }
-        }
-
-        async function submitSwap() {
-            const plateOut = document.getElementById('swapPlateOut').value.trim();
-            if (!plateOut) { alert('Placa que Sai é obrigatória'); return; }
-            await fetch(`${API_URL}/swaps`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ date: document.getElementById('swapDate').value, plateIn: document.getElementById('swapPlateIn').value.trim() || '0000', plateOut, base: document.getElementById('swapBase').value, notes: document.getElementById('swapNotes').value }) });
-            bootstrap.Modal.getInstance(document.getElementById('swapModal')).hide();
-            document.getElementById('swapForm').reset();
-            loadSwaps();
-            showToast('🔄 Troca registrada!', 'success');
-        }
-
-        async function openEditSwap(id) {
-            const res = await fetch(`${API_URL}/swaps`);
-            const swaps = await res.json();
-            const s = swaps.find(x => x.id === id);
-            if (!s) return;
-            document.getElementById('editSwapId').value = s.id;
-            document.getElementById('swapPlateIn').value = s.plateIn === '0000' ? '' : s.plateIn;
-            document.getElementById('swapPlateOut').value = s.plateOut;
-            document.getElementById('swapBase').value = s.base;
-            document.getElementById('swapNotes').value = s.notes || '';
-            if (s.date) {
-                const d = new Date(s.date);
-                const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
-                document.getElementById('swapDate').value = local.toISOString().slice(0,16);
-            }
-            new bootstrap.Modal(document.getElementById('swapModal')).show();
-        }
-
-        async function deleteSwap(id) {
-            if (!confirm('Excluir troca?')) return;
-            await fetch(`${API_URL}/swaps/${id}`, { method: 'DELETE' });
-            loadSwaps();
-            showToast('Troca excluída', 'info');
-        }
-
-        // ============ EXPORTAR ============
-        async function exportToJSON() {
-            try {
-                const res = await fetch(`${API_URL}/export`);
-                const data = await res.json();
-                const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `print-patio-backup-${new Date().toISOString().slice(0,10)}.json`;
-                a.click();
-                showToast('📦 JSON exportado!', 'success');
-            } catch (err) {
-                showToast('❌ Erro ao exportar', 'danger');
-            }
-        }
-
-        function exportToExcel() {
-            try {
-                let csv = 'CONTROLE DE PÁTIO - TRANSPORTADORA PRINT\n';
-                csv += `Data de Exportação: ${new Date().toLocaleString('pt-BR')}\n`;
-                csv += `Total de Veículos: ${allVehicles.length}\n`;
-                csv += `Veículos Ativos: ${allVehicles.filter(v => v.status !== 'Liberado').length}\n`;
-                csv += `Veículos Liberados: ${allVehicles.filter(v => v.status === 'Liberado').length}\n\n`;
-                csv = 'ID;Placa;Tipo;Pátio;Base;Status;Manutenção;Entrada;Saída;Tempo no Pátio;Chaves;Observações;Categoria\n';
-                allVehicles.forEach(v => {
-                    const row = [v.id, `"${v.plate}"`, `"${v.type}"`, `"${v.yard}"`, `"${v.base || ''}"`, `"${v.status}"`, v.maintenance ? 'Sim' : 'Não', `"${v.entryDate || ''}"`, `"${v.exitDate || ''}"`, `"${v.timeInYard || '—'}"`, `"${v.keys || ''}"`, `"${(v.notes || '').replace(/"/g, '""')}"`, `"${v.deliveryCategory || ''}"`].join(';');
-                    csv += row + '\n';
-                });
-                csv += '\n\nRESUMO POR PÁTIO\n';
-                csv += 'Pátio;Total;Em Manutenção;Liberados;Ativos\n';
-                const yards = ['Pátio Jaraguá', 'Pátio Bandeirantes', 'Pátio Superior'];
-                yards.forEach(yard => {
-                    const total = allVehicles.filter(v => v.yard === yard).length;
-                    const maintenance = allVehicles.filter(v => v.yard === yard && v.maintenance).length;
-                    const liberated = allVehicles.filter(v => v.yard === yard && v.status === 'Liberado').length;
-                    const ativos = total - liberated;
-                    csv += `"${yard}";${total};${maintenance};${liberated};${ativos}\n`;
-                });
-                csv += '\n\nRESUMO POR STATUS\n';
-                csv += 'Status;Quantidade;Percentual\n';
-                const statusCount = {};
-                allVehicles.forEach(v => { statusCount[v.status] = (statusCount[v.status] || 0) + 1; });
-                Object.entries(statusCount).forEach(([status, count]) => {
-                    const percent = ((count / allVehicles.length) * 100).toFixed(1);
-                    csv += `"${status}";${count};${percent}%\n`;
-                });
-                csv += '\n\nRESUMO POR TIPO\n';
-                csv += 'Tipo;Quantidade\n';
-                const typeCount = {};
-                allVehicles.filter(v => v.status !== 'Liberado').forEach(v => { typeCount[v.type] = (typeCount[v.type] || 0) + 1; });
-                Object.entries(typeCount).forEach(([type, count]) => { csv += `"${type}";${count}\n`; });
-                const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `print-patio-completo-${new Date().toISOString().slice(0,10)}.csv`;
-                a.click();
-                showToast('📊 Excel exportado com sucesso!', 'success');
-            } catch (err) {
-                console.error('Erro export Excel:', err);
-                showToast('❌ Erro ao exportar Excel', 'danger');
-            }
-        }
-
-        function exportToPDF() {
-            try {
-                let html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Relatório de Pátio - Transportadora Print</title><style>body{font-family:Arial,sans-serif;margin:20px;}h1{color:#1a3a5c;border-bottom:3px solid #1a3a5c;padding-bottom:10px;}h2{color:#2c5282;margin-top:30px;}table{width:100%;border-collapse:collapse;margin:20px 0;}th{background-color:#1a3a5c;color:white;padding:10px;text-align:left;}td{padding:8px;border-bottom:1px solid #ddd;}tr:nth-child(even){background-color:#f2f2f2;}.header{background-color:#f8f9fa;padding:20px;border-radius:8px;margin-bottom:20px;}@media print{body{margin:10px;}table{font-size:10px;}}</style></head><body><div class="header"><h1>🚚 CONTROLE DE PÁTIO - TRANSPORTADORA PRINT</h1><p><strong>Data:</strong> ${new Date().toLocaleString('pt-BR')}</p><p><strong>Total:</strong> ${allVehicles.length} veículos</p></div><h2>📋 TODAS AS MOVIMENTAÇÕES</h2><table><thead><tr><th>ID</th><th>Placa</th><th>Tipo</th><th>Pátio</th><th>Status</th><th>Entrada</th><th>Saída</th><th>Tempo</th></tr></thead><tbody>`;
-                allVehicles.forEach(v => { html += `<tr><td>${v.id}</td><td><strong>${v.plate}</strong></td><td>${v.type}</td><td>${v.yard}</td><td>${v.status}</td><td>${v.entryDate || '—'}</td><td>${v.exitDate || '—'}</td><td>${v.timeInYard || '—'}</td></tr>`; });
-                html += `</tbody></table></body></html>`;
-                const printWindow = window.open('', '_blank');
-                printWindow.document.write(html);
-                printWindow.document.close();
-                printWindow.print();
-                showToast('📄 PDF gerado com sucesso!', 'success');
-            } catch (err) {
-                console.error('Erro export PDF:', err);
-                showToast('❌ Erro ao gerar PDF', 'danger');
-            }
-        }
-
-        async function processImport() {
-            const fileInput = document.getElementById('importJsonFile');
-            if (!fileInput.files || fileInput.files.length === 0) { alert('⚠️ Selecione um arquivo JSON'); return; }
-            const file = fileInput.files[0];
-            const text = await file.text();
-            const jsonData = JSON.parse(text);
-            if (!jsonData.vehicles || !Array.isArray(jsonData.vehicles)) { alert('❌ Arquivo inválido'); return; }
-            if (!confirm(`🔄 Substituir TODOS os dados por ${jsonData.vehicles.length} veículo(s)?`)) return;
-            const res = await fetch(`${API_URL}/import`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ vehicles: jsonData.vehicles, swaps: jsonData.swaps || [] }) });
-            const result = await res.json();
-            if (res.status === 403) {
-                document.getElementById('importPreview').innerHTML = `<div class="alert alert-danger mt-3">🔒 Apenas administradores podem importar</div>`;
-                return;
-            }
-            document.getElementById('importPreview').innerHTML = `<div class="alert alert-success mt-3">✅ <strong>Importação concluída!</strong><br>📥 ${result.imported} veículo(s) carregado(s)</div>`;
-            setTimeout(() => {
-                loadStats(); loadVehicles(); loadSwaps();
-                bootstrap.Modal.getInstance(document.getElementById('importModal')).hide();
-                showToast('📥 Dados importados!', 'success');
-            }, 1500);
-            fileInput.value = '';
-        }
-
-        // ============ UTILITÁRIOS ============
-        function getVehicleIcon(type) {
-            const icons = {'Carreta': 'truck', 'Cavalo Mecânico': 'car-front', 'Vans': 'bus-front', 'Caminhão Truck': 'truck', 'Caminhão Toco': 'truck', 'Veículo Visitante': 'person', 'Veículo Diretoria': 'star'};
-            return icons[type] || 'truck';
-        }
-
-        function filterTable() {
-            const search = document.getElementById('searchInput').value.toLowerCase();
-            const yardFilter = document.getElementById('yardFilter').value;
-            const statusFilter = document.getElementById('statusFilter').value;
-            document.querySelectorAll('#vehicleTableBody tr').forEach(row => {
-                const matches = (!search || row.dataset.search.toLowerCase().includes(search)) && (!yardFilter || row.dataset.yard === yardFilter) && (!statusFilter || row.dataset.status === statusFilter);
-                row.style.display = matches ? '' : 'none';
-            });
-        }
-
-        function clearFilters() {
-            document.getElementById('searchInput').value = '';
-            document.getElementById('yardFilter').value = '';
-            document.getElementById('statusFilter').value = '';
-            filterTable();
-            showToast('🔄 Filtros limpos', 'info');
-        }
-
-        function refreshData() {
-            loadStats(); loadVehicles(); loadSwaps();
-            showToast('🔄 Dados atualizados!', 'info');
-        }
-
-        function updateClock() {
-            const now = new Date();
-            document.getElementById('current-time').textContent = now.toLocaleDateString('pt-BR') + ' ' + now.toLocaleTimeString('pt-BR');
-        }
-
-        function showToast(message, type = 'info') {
-            const toast = document.createElement('div');
-            toast.className = `toast align-items-center text-white bg-${type} border-0 position-fixed bottom-0 end-0 m-3`;
-            toast.innerHTML = `<div class="d-flex"><div class="toast-body">${message}</div><button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button></div>`;
-            document.body.appendChild(toast);
-            new bootstrap.Toast(toast, { delay: 3000 }).show();
-            toast.addEventListener('hidden.bs.toast', () => toast.remove());
-        }
-
-        setInterval(() => { loadVehicles(); }, 30000);
-    </script>
->>>>>>> ea9cb47065b4e760d1f860908ac334f42948a97a
 </body>
-
 </html>
-
