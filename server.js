@@ -52,7 +52,7 @@ function mapPostgresRow(row) {
         baseDestino: row.basedestino || '',
         manager: row.manager, chassis: row.chassis, status: row.status,
         maintenance: row.maintenance, maintenanceCategory: row.maintenancecategory || '',
-        hasAccident: row.hasaccident || false, sascarStatus: row.sascarstatus || 'pendente',
+        hasAccident: row.hasaccident || false, documentIssue: row.documentissue || false, sascarStatus: row.sascarstatus || 'pendente',
         keys: row.keys, notes: row.notes,
         entregarDiversos: row.entregar_diversos || false,
         entregarCorreios: row.entregar_correios || false,
@@ -82,6 +82,178 @@ function mapSwapRow(row) {
     };
 }
 
+function mapConjuntoRow(row) {
+    if (!row) return null;
+    return {
+        id: row.id, date: row.date,
+        cavaloPlate: row.cavaloplate || row.cavaloPlate,
+        carretaPlate: row.carretaplate || row.carretaPlate,
+        yard: row.yard || '',
+        base: row.base || '',
+        baseDestino: row.basedestino || row.baseDestino || '',
+        leaderName: row.leadername || row.leaderName || '',
+        notes: row.notes || '',
+        createdAt: row.createdat || row.createdAt,
+        updatedBy: row.updatedby || row.updatedBy
+    };
+}
+
+function pickFirstDefined(obj, keys, fallback = undefined) {
+    if (!obj || typeof obj !== 'object') return fallback;
+    for (const key of keys) {
+        if (Object.prototype.hasOwnProperty.call(obj, key) && obj[key] !== undefined && obj[key] !== null) {
+            return obj[key];
+        }
+    }
+    return fallback;
+}
+
+function canonicalText(value) {
+    return String(value || '')
+        .trim()
+        .toLowerCase()
+        .replace(/á|â|ã|ä|á|â|ã|à|ä/g, 'a')
+        .replace(/ç|ç/g, 'c')
+        .replace(/é|ê|è|ë|é|ê|è|ë/g, 'e')
+        .replace(/í|ì|î|ï|í|ì|î|ï/g, 'i')
+        .replace(/ó|ô|õ|ö|ó|ô|õ|ò|ö/g, 'o')
+        .replace(/ú|ù|û|ü|ú|ù|û|ü/g, 'u')
+        .replace(/[^a-z0-9]+/g, ' ')
+        .trim();
+}
+
+function canonicalizeVehicleType(type) {
+    const normalized = canonicalText(type);
+    if (normalized.includes('cavalo mec')) return 'Cavalo Mecânico';
+    if (normalized.includes('carreta')) return 'Carreta';
+    if (normalized.includes('van')) return 'Vans';
+    if (normalized.includes('truck')) return 'Caminhão Truck';
+    if (normalized.includes('toco')) return 'Caminhão Toco';
+    if (normalized.includes('visitante')) return 'Veículo Visitante';
+    if (normalized.includes('diretoria')) return 'Veículo Diretoria';
+    return String(type || '').trim();
+}
+
+function canonicalizeVehicleStatus(status) {
+    const normalized = canonicalText(status);
+    if (normalized.includes('aguardando linha')) return 'Aguardando linha';
+    if (normalized.includes('aguardando abaste')) return 'Aguardando abastecimento';
+    if (normalized.includes('aguardando manut')) return 'Aguardando manutenção';
+    if (normalized.includes('em manut')) return 'Em manutenção';
+    if (normalized.includes('borrachar')) return 'Borracharia';
+    if (normalized.includes('liberad')) return 'Liberado';
+    if (normalized.includes('sinistro')) return 'Sinistro';
+    return String(status || 'Aguardando linha').trim() || 'Aguardando linha';
+}
+
+function canonicalizeSascarStatus(status) {
+    const normalized = canonicalText(status);
+    if (normalized.includes('instal')) return 'instalado';
+    if (normalized.includes('manut')) return 'manutencao';
+    return 'pendente';
+}
+
+function canonicalizeMaintenanceCategory(category) {
+    const normalized = canonicalText(category);
+    if (normalized.includes('mecan')) return 'mecanica';
+    if (normalized.includes('borrach')) return 'borracharia';
+    if (normalized.includes('eletr')) return 'eletrica';
+    if (normalized.includes('frei')) return 'freios';
+    if (normalized.includes('bau')) return 'bau';
+    return '';
+}
+
+function normalizeVehicleRecord(vehicle) {
+    if (!vehicle || typeof vehicle !== 'object') return vehicle;
+    return {
+        ...vehicle,
+        type: canonicalizeVehicleType(vehicle.type),
+        status: canonicalizeVehicleStatus(vehicle.status),
+        sascarStatus: canonicalizeSascarStatus(vehicle.sascarStatus),
+        maintenanceCategory: canonicalizeMaintenanceCategory(vehicle.maintenanceCategory),
+        maintenance: Boolean(vehicle.maintenance),
+        hasAccident: Boolean(vehicle.hasAccident),
+        documentIssue: Boolean(vehicle.documentIssue),
+        entregarDiversos: Boolean(vehicle.entregarDiversos ?? vehicle.entregar_diversos),
+        entregarCorreios: Boolean(vehicle.entregarCorreios ?? vehicle.entregar_correios),
+        entregue: Boolean(vehicle.entregue)
+    };
+}
+
+function normalizeImportedVehicle(v) {
+    if (!v || typeof v !== 'object') return null;
+    return {
+        plate: pickFirstDefined(v, ['plate', 'Plate'], ''),
+        type: pickFirstDefined(v, ['type', 'Type'], ''),
+        yard: pickFirstDefined(v, ['yard', 'Yard'], ''),
+        base: pickFirstDefined(v, ['base', 'Base'], 'Jaraguá-SP (Nacional)'),
+        baseDestino: pickFirstDefined(v, ['baseDestino', 'basedestino', 'base_destino', 'BaseDestino'], ''),
+        manager: pickFirstDefined(v, ['manager', 'Manager'], ''),
+        chassis: pickFirstDefined(v, ['chassis', 'Chassis'], ''),
+        status: pickFirstDefined(v, ['status', 'Status'], 'Aguardando linha'),
+        maintenance: !!pickFirstDefined(v, ['maintenance', 'Maintenance'], false),
+        maintenanceCategory: pickFirstDefined(v, ['maintenanceCategory', 'maintenancecategory', 'maintenance_category'], ''),
+        hasAccident: !!pickFirstDefined(v, ['hasAccident', 'hasaccident', 'has_accident'], false),
+        documentIssue: !!pickFirstDefined(v, ['documentIssue', 'documentissue', 'document_issue', 'problemaDocumentacao', 'problema_documentacao'], false),
+        sascarStatus: pickFirstDefined(v, ['sascarStatus', 'sascarstatus', 'sascar_status'], 'pendente'),
+        keys: pickFirstDefined(v, ['keys', 'Keys'], ''),
+        notes: pickFirstDefined(v, ['notes', 'Notes'], ''),
+        entregarDiversos: !!pickFirstDefined(v, ['entregarDiversos', 'entregar_diversos'], false),
+        entregarCorreios: !!pickFirstDefined(v, ['entregarCorreios', 'entregar_correios'], false),
+        entregue: !!pickFirstDefined(v, ['entregue', 'Entregue'], false),
+        entreguePara: pickFirstDefined(v, ['entreguePara', 'entreguepara', 'entregue_para'], ''),
+        readyTime: pickFirstDefined(v, ['readyTime', 'readytime'], null),
+        entryTime: pickFirstDefined(v, ['entryTime', 'entrytime'], new Date().toISOString()),
+        exitTime: pickFirstDefined(v, ['exitTime', 'exittime'], null)
+    };
+}
+
+function normalizeImportedSwap(s) {
+    if (!s || typeof s !== 'object') return null;
+    return {
+        date: pickFirstDefined(s, ['date', 'Date'], new Date().toISOString()),
+        plateIn: pickFirstDefined(s, ['plateIn', 'platein', 'plate_in'], '0000'),
+        plateOut: pickFirstDefined(s, ['plateOut', 'plateout', 'plate_out'], ''),
+        base: pickFirstDefined(s, ['base', 'Base'], ''),
+        baseDestino: pickFirstDefined(s, ['baseDestino', 'basedestino', 'base_destino', 'BaseDestino'], ''),
+        notes: pickFirstDefined(s, ['notes', 'Notes', 'observacoes', 'observação', 'observacao'], ''),
+        tipo: pickFirstDefined(s, ['tipo', 'type', 'Tipo'], 'troca')
+    };
+}
+
+function resolveImportedSwaps(payload) {
+    if (!payload || typeof payload !== 'object') return [];
+    if (Array.isArray(payload.swaps)) return payload.swaps;
+    if (Array.isArray(payload.trocas)) return payload.trocas;
+    const merged = [];
+    if (Array.isArray(payload.emprestimos)) merged.push(...payload.emprestimos.map(item => ({ ...item, tipo: item?.tipo || 'emprestimo' })));
+    if (Array.isArray(payload.trocasEEmprestimos)) merged.push(...payload.trocasEEmprestimos);
+    return merged;
+}
+
+function normalizeImportedConjunto(c) {
+    if (!c || typeof c !== 'object') return null;
+    return {
+        date: pickFirstDefined(c, ['date', 'Date'], new Date().toISOString()),
+        cavaloPlate: pickFirstDefined(c, ['cavaloPlate', 'cavaloplate', 'cavalo_plate', 'placaCavalo'], ''),
+        carretaPlate: pickFirstDefined(c, ['carretaPlate', 'carretaplate', 'carreta_plate', 'placaCarreta'], ''),
+        yard: pickFirstDefined(c, ['yard', 'Yard'], ''),
+        base: pickFirstDefined(c, ['base', 'Base'], ''),
+        baseDestino: pickFirstDefined(c, ['baseDestino', 'basedestino', 'base_destino', 'BaseDestino'], ''),
+        leaderName: pickFirstDefined(c, ['leaderName', 'leadername', 'leader_name', 'nomeLider', 'nome_lider'], ''),
+        notes: pickFirstDefined(c, ['notes', 'Notes', 'observacoes', 'observacao'], '')
+    };
+}
+
+function resolveImportedConjuntos(payload) {
+    if (!payload || typeof payload !== 'object') return [];
+    if (Array.isArray(payload.conjuntos)) return payload.conjuntos;
+    const merged = [];
+    if (Array.isArray(payload.conjuntosMontados)) merged.push(...payload.conjuntosMontados);
+    if (Array.isArray(payload.mountedSets)) merged.push(...payload.mountedSets);
+    return merged;
+}
+
 const userYardPermissions = {
     admin: ['Pátio Jaraguá', 'Pátio Bandeirantes', 'Pátio Superior', 'Pátio Cajamar'],
     cajamar: ['Pátio Cajamar'],
@@ -97,6 +269,12 @@ function filterVehiclesByUserYards(vehicles, username) {
     const allowedYards = getUserAllowedYards(username);
     if (allowedYards.length === 0) return vehicles;
     return vehicles.filter(v => allowedYards.includes(v.yard));
+}
+
+function filterConjuntosByUserYards(conjuntos, username) {
+    const allowedYards = getUserAllowedYards(username);
+    if (allowedYards.length === 0) return conjuntos;
+    return conjuntos.filter(c => !c.yard || allowedYards.includes(c.yard));
 }
 
 function canChangeLiberadoStatus(user) {
@@ -118,7 +296,7 @@ async function initDatabase() {
                     manager TEXT DEFAULT '', chassis TEXT DEFAULT '',
                     status TEXT DEFAULT 'Aguardando linha',
                     maintenance BOOLEAN DEFAULT false, maintenanceCategory TEXT DEFAULT '',
-                    hasAccident BOOLEAN DEFAULT false, sascarStatus TEXT DEFAULT 'pendente',
+                    hasAccident BOOLEAN DEFAULT false, documentIssue BOOLEAN DEFAULT false, sascarStatus TEXT DEFAULT 'pendente',
                     keys TEXT DEFAULT '', notes TEXT DEFAULT '',
                     entregar_diversos BOOLEAN DEFAULT false,
                     entregar_correios BOOLEAN DEFAULT false,
@@ -134,6 +312,19 @@ async function initDatabase() {
                     plateIn TEXT DEFAULT '0000', plateOut TEXT NOT NULL,
                     base TEXT DEFAULT '', baseDestino TEXT DEFAULT '',
                     notes TEXT DEFAULT '', tipo TEXT DEFAULT 'troca',
+                    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updatedBy TEXT DEFAULT 'system'
+                );
+                CREATE TABLE IF NOT EXISTS conjuntos (
+                    id SERIAL PRIMARY KEY,
+                    date TIMESTAMP NOT NULL,
+                    cavaloPlate TEXT NOT NULL,
+                    carretaPlate TEXT NOT NULL,
+                    yard TEXT DEFAULT '',
+                    base TEXT DEFAULT '',
+                    baseDestino TEXT DEFAULT '',
+                    leaderName TEXT DEFAULT '',
+                    notes TEXT DEFAULT '',
                     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updatedBy TEXT DEFAULT 'system'
                 );
@@ -153,6 +344,7 @@ async function initDatabase() {
             await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS manager TEXT DEFAULT ''`);
             await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS chassis TEXT DEFAULT ''`);
             await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS hasAccident BOOLEAN DEFAULT false`);
+            await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS documentIssue BOOLEAN DEFAULT false`);
             await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS sascarStatus TEXT DEFAULT 'pendente'`);
             await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS maintenanceCategory TEXT DEFAULT ''`);
             await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS readyTime TIMESTAMP`);
@@ -163,6 +355,9 @@ async function initDatabase() {
             await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS baseDestino TEXT DEFAULT ''`);
             await pool.query(`ALTER TABLE swaps ADD COLUMN IF NOT EXISTS tipo TEXT DEFAULT 'troca'`);
             await pool.query(`ALTER TABLE swaps ADD COLUMN IF NOT EXISTS baseDestino TEXT DEFAULT ''`);
+            await pool.query(`ALTER TABLE conjuntos ADD COLUMN IF NOT EXISTS yard TEXT DEFAULT ''`);
+            await pool.query(`ALTER TABLE conjuntos ADD COLUMN IF NOT EXISTS baseDestino TEXT DEFAULT ''`);
+            await pool.query(`ALTER TABLE conjuntos ADD COLUMN IF NOT EXISTS leaderName TEXT DEFAULT ''`);
             await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS yards JSONB DEFAULT '[]'`);
             
             const users = [
@@ -191,7 +386,7 @@ async function initDatabase() {
                     manager TEXT DEFAULT '', chassis TEXT DEFAULT '',
                     status TEXT DEFAULT 'Aguardando linha',
                     maintenance INTEGER DEFAULT 0, maintenanceCategory TEXT DEFAULT '',
-                    hasAccident INTEGER DEFAULT 0, sascarStatus TEXT DEFAULT 'pendente',
+                    hasAccident INTEGER DEFAULT 0, documentIssue INTEGER DEFAULT 0, sascarStatus TEXT DEFAULT 'pendente',
                     keys TEXT DEFAULT '', notes TEXT DEFAULT '',
                     entregar_diversos INTEGER DEFAULT 0,
                     entregar_correios INTEGER DEFAULT 0,
@@ -210,6 +405,19 @@ async function initDatabase() {
                     createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
                     updatedBy TEXT DEFAULT 'system'
                 );
+                CREATE TABLE IF NOT EXISTS conjuntos (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    date TEXT NOT NULL,
+                    cavaloPlate TEXT NOT NULL,
+                    carretaPlate TEXT NOT NULL,
+                    yard TEXT DEFAULT '',
+                    base TEXT DEFAULT '',
+                    baseDestino TEXT DEFAULT '',
+                    leaderName TEXT DEFAULT '',
+                    notes TEXT DEFAULT '',
+                    createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+                    updatedBy TEXT DEFAULT 'system'
+                );
                 CREATE TABLE IF NOT EXISTS users (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     username TEXT UNIQUE NOT NULL,
@@ -224,6 +432,7 @@ async function initDatabase() {
             try { db.exec('ALTER TABLE vehicles ADD COLUMN manager TEXT DEFAULT ""'); } catch(e) {}
             try { db.exec('ALTER TABLE vehicles ADD COLUMN chassis TEXT DEFAULT ""'); } catch(e) {}
             try { db.exec('ALTER TABLE vehicles ADD COLUMN hasAccident INTEGER DEFAULT 0'); } catch(e) {}
+            try { db.exec('ALTER TABLE vehicles ADD COLUMN documentIssue INTEGER DEFAULT 0'); } catch(e) {}
             try { db.exec('ALTER TABLE vehicles ADD COLUMN sascarStatus TEXT DEFAULT "pendente"'); } catch(e) {}
             try { db.exec('ALTER TABLE vehicles ADD COLUMN maintenanceCategory TEXT DEFAULT ""'); } catch(e) {}
             try { db.exec('ALTER TABLE vehicles ADD COLUMN readyTime TEXT'); } catch(e) {}
@@ -323,9 +532,9 @@ app.get('/api/vehicles', requireAuth, async (req, res) => {
         let vehicles;
         if (isProduction) {
             const result = await pool.query('SELECT * FROM vehicles ORDER BY entryTime DESC');
-            vehicles = result.rows.map(mapPostgresRow);
+            vehicles = result.rows.map(mapPostgresRow).map(normalizeVehicleRecord);
         } else {
-            vehicles = db.prepare('SELECT * FROM vehicles ORDER BY entryTime DESC').all();
+            vehicles = db.prepare('SELECT * FROM vehicles ORDER BY entryTime DESC').all().map(normalizeVehicleRecord);
         }
         vehicles = filterVehiclesByUserYards(vehicles, req.session.user.username);
         res.json(vehicles.map(v => ({
@@ -343,19 +552,19 @@ app.get('/api/vehicles', requireAuth, async (req, res) => {
 });
 
 app.post('/api/vehicles', requireAuth, async (req, res) => {
-    const { plate, type, yard, base, baseDestino, manager, chassis, keys, notes, entryDate, entregarDiversos, entregarCorreios, hasAccident, sascarStatus, maintenanceCategory } = req.body;
+    const { plate, type, yard, base, baseDestino, manager, chassis, keys, notes, entryDate, entregarDiversos, entregarCorreios, hasAccident, documentIssue, sascarStatus, maintenanceCategory } = req.body;
     const allowedYards = getUserAllowedYards(req.session.user.username);
     if (allowedYards.length > 0 && !allowedYards.includes(yard)) return res.status(403).json({ error: 'Você não tem permissão para este pátio' });
     if (!plate && !chassis) return res.status(400).json({ error: 'Placa ou Chassi obrigatórios' });
     if (!type || !yard) return res.status(400).json({ error: 'Tipo e pátio obrigatórios' });
     try {
         if (isProduction) {
-            const result = await pool.query(`INSERT INTO vehicles (plate, type, yard, base, baseDestino, manager, chassis, keys, notes, entregar_diversos, entregar_correios, hasAccident, sascarStatus, maintenanceCategory, entryTime, updatedBy) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING *`,
-                [plate ? plate.toUpperCase() : '', type, yard, base || 'Jaraguá-SP (Nacional)', baseDestino || '', manager || '', chassis || '', keys || '', notes || '', entregarDiversos ? true : false, entregarCorreios ? true : false, hasAccident ? true : false, sascarStatus || 'pendente', maintenanceCategory || '', entryDate ? new Date(entryDate).toISOString() : new Date().toISOString(), req.session.user.username]);
+            const result = await pool.query(`INSERT INTO vehicles (plate, type, yard, base, baseDestino, manager, chassis, keys, notes, entregar_diversos, entregar_correios, hasAccident, documentIssue, sascarStatus, maintenanceCategory, entryTime, updatedBy) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING *`,
+                [plate ? plate.toUpperCase() : '', type, yard, base || 'Jaraguá-SP (Nacional)', baseDestino || '', manager || '', chassis || '', keys || '', notes || '', entregarDiversos ? true : false, entregarCorreios ? true : false, hasAccident ? true : false, documentIssue ? true : false, sascarStatus || 'pendente', maintenanceCategory || '', entryDate ? new Date(entryDate).toISOString() : new Date().toISOString(), req.session.user.username]);
             res.json(mapPostgresRow(result.rows[0]));
         } else {
-            const stmt = db.prepare(`INSERT INTO vehicles (plate, type, yard, base, baseDestino, manager, chassis, keys, notes, entregar_diversos, entregar_correios, hasAccident, sascarStatus, maintenanceCategory, entryTime, updatedBy) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-            const result = stmt.run(plate ? plate.toUpperCase() : '', type, yard, base || 'Jaraguá-SP (Nacional)', baseDestino || '', manager || '', chassis || '', keys || '', notes || '', entregarDiversos ? 1 : 0, entregarCorreios ? 1 : 0, hasAccident ? 1 : 0, sascarStatus || 'pendente', maintenanceCategory || '', entryDate ? new Date(entryDate).toISOString() : new Date().toISOString(), req.session.user.username);
+            const stmt = db.prepare(`INSERT INTO vehicles (plate, type, yard, base, baseDestino, manager, chassis, keys, notes, entregar_diversos, entregar_correios, hasAccident, documentIssue, sascarStatus, maintenanceCategory, entryTime, updatedBy) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+            const result = stmt.run(plate ? plate.toUpperCase() : '', type, yard, base || 'Jaraguá-SP (Nacional)', baseDestino || '', manager || '', chassis || '', keys || '', notes || '', entregarDiversos ? 1 : 0, entregarCorreios ? 1 : 0, hasAccident ? 1 : 0, documentIssue ? 1 : 0, sascarStatus || 'pendente', maintenanceCategory || '', entryDate ? new Date(entryDate).toISOString() : new Date().toISOString(), req.session.user.username);
             res.json({ ...db.prepare('SELECT * FROM vehicles WHERE id = ?').get(result.lastInsertRowid) });
         }
     } catch (err) {
@@ -374,12 +583,12 @@ app.put('/api/vehicles/:id', requireAuth, async (req, res) => {
     }
     try {
         if (isProduction) {
-            await pool.query(`UPDATE vehicles SET plate = COALESCE($1::TEXT, plate), type = COALESCE($2::TEXT, type), yard = COALESCE($3::TEXT, yard), base = COALESCE($4::TEXT, base), baseDestino = COALESCE($5::TEXT, baseDestino), manager = COALESCE($6::TEXT, manager), chassis = COALESCE($7::TEXT, chassis), status = COALESCE($8::TEXT, status), maintenance = COALESCE($9::BOOLEAN, maintenance), hasAccident = COALESCE($10::BOOLEAN, hasAccident), sascarStatus = COALESCE($11::TEXT, sascarStatus), maintenanceCategory = COALESCE($12::TEXT, maintenanceCategory), notes = COALESCE($13::TEXT, notes), entregar_diversos = COALESCE($14::BOOLEAN, entregar_diversos), entregar_correios = COALESCE($15::BOOLEAN, entregar_correios), entregue = COALESCE($16::BOOLEAN, entregue), entreguePara = COALESCE($17::TEXT, entreguePara), entryTime = CASE WHEN $18::TEXT IS NOT NULL AND ${canEditDates} THEN $18::TIMESTAMP ELSE entryTime END, exitTime = CASE WHEN $19::TEXT IS NOT NULL AND ${canEditDates} THEN $19::TIMESTAMP ELSE exitTime END, updatedAt = CURRENT_TIMESTAMP, updatedBy = $20::TEXT WHERE id = $21::INTEGER`,
-                [updates.plate || null, updates.type || null, updates.yard || null, updates.base || null, updates.baseDestino || null, updates.manager || null, updates.chassis || null, updates.status || null, updates.maintenance !== undefined ? Boolean(updates.maintenance) : null, updates.hasAccident !== undefined ? Boolean(updates.hasAccident) : null, updates.sascarStatus || null, updates.maintenanceCategory || null, updates.notes || null, updates.entregarDiversos !== undefined ? Boolean(updates.entregarDiversos) : null, updates.entregarCorreios !== undefined ? Boolean(updates.entregarCorreios) : null, updates.entregue !== undefined ? Boolean(updates.entregue) : null, updates.entreguePara || null, canEditDates && updates.entryTime ? updates.entryTime : null, canEditDates && updates.exitTime ? updates.exitTime : null, req.session.user.username, id]);
+            await pool.query(`UPDATE vehicles SET plate = COALESCE($1::TEXT, plate), type = COALESCE($2::TEXT, type), yard = COALESCE($3::TEXT, yard), base = COALESCE($4::TEXT, base), baseDestino = COALESCE($5::TEXT, baseDestino), manager = COALESCE($6::TEXT, manager), chassis = COALESCE($7::TEXT, chassis), keys = COALESCE($8::TEXT, keys), status = COALESCE($9::TEXT, status), maintenance = COALESCE($10::BOOLEAN, maintenance), hasAccident = COALESCE($11::BOOLEAN, hasAccident), documentIssue = COALESCE($12::BOOLEAN, documentIssue), sascarStatus = COALESCE($13::TEXT, sascarStatus), maintenanceCategory = COALESCE($14::TEXT, maintenanceCategory), notes = COALESCE($15::TEXT, notes), entregar_diversos = COALESCE($16::BOOLEAN, entregar_diversos), entregar_correios = COALESCE($17::BOOLEAN, entregar_correios), entregue = COALESCE($18::BOOLEAN, entregue), entreguePara = COALESCE($19::TEXT, entreguePara), entryTime = CASE WHEN $20::TEXT IS NOT NULL AND ${canEditDates} THEN $20::TIMESTAMP ELSE entryTime END, exitTime = CASE WHEN $21::TEXT IS NOT NULL AND ${canEditDates} THEN $21::TIMESTAMP ELSE exitTime END, updatedAt = CURRENT_TIMESTAMP, updatedBy = $22::TEXT WHERE id = $23::INTEGER`,
+                [updates.plate || null, updates.type || null, updates.yard || null, updates.base || null, updates.baseDestino || null, updates.manager || null, updates.chassis || null, updates.keys || null, updates.status || null, updates.maintenance !== undefined ? Boolean(updates.maintenance) : null, updates.hasAccident !== undefined ? Boolean(updates.hasAccident) : null, updates.documentIssue !== undefined ? Boolean(updates.documentIssue) : null, updates.sascarStatus || null, updates.maintenanceCategory || null, updates.notes || null, updates.entregarDiversos !== undefined ? Boolean(updates.entregarDiversos) : null, updates.entregarCorreios !== undefined ? Boolean(updates.entregarCorreios) : null, updates.entregue !== undefined ? Boolean(updates.entregue) : null, updates.entreguePara || null, canEditDates && updates.entryTime ? updates.entryTime : null, canEditDates && updates.exitTime ? updates.exitTime : null, req.session.user.username, id]);
         } else {
-            db.prepare(`UPDATE vehicles SET plate = ?, type = ?, yard = ?, base = ?, baseDestino = ?, manager = ?, chassis = ?, status = ?, maintenance = ?, hasAccident = ?, sascarStatus = ?, maintenanceCategory = ?, notes = ?, entregar_diversos = ?, entregar_correios = ?, entregue = ?, entreguePara = ?, entryTime = ?, exitTime = ?, updatedAt = ?, updatedBy = ? WHERE id = ?`).run(
-                updates.plate || null, updates.type || null, updates.yard || null, updates.base || null, updates.baseDestino || null, updates.manager || null, updates.chassis || null, updates.status || null,
-                updates.maintenance ? 1 : 0, updates.hasAccident ? 1 : 0, updates.sascarStatus || 'pendente', updates.maintenanceCategory || '', updates.notes || null,
+            db.prepare(`UPDATE vehicles SET plate = ?, type = ?, yard = ?, base = ?, baseDestino = ?, manager = ?, chassis = ?, keys = ?, status = ?, maintenance = ?, hasAccident = ?, documentIssue = ?, sascarStatus = ?, maintenanceCategory = ?, notes = ?, entregar_diversos = ?, entregar_correios = ?, entregue = ?, entreguePara = ?, entryTime = ?, exitTime = ?, updatedAt = ?, updatedBy = ? WHERE id = ?`).run(
+                updates.plate || null, updates.type || null, updates.yard || null, updates.base || null, updates.baseDestino || null, updates.manager || null, updates.chassis || null, updates.keys || null, updates.status || null,
+                updates.maintenance ? 1 : 0, updates.hasAccident ? 1 : 0, updates.documentIssue ? 1 : 0, updates.sascarStatus || 'pendente', updates.maintenanceCategory || '', updates.notes || null,
                 updates.entregarDiversos ? 1 : 0, updates.entregarCorreios ? 1 : 0, updates.entregue ? 1 : 0, updates.entreguePara || '',
                 canEditDates && updates.entryTime ? updates.entryTime : null, canEditDates && updates.exitTime ? updates.exitTime : null,
                 new Date().toISOString(), req.session.user.username, id);
@@ -532,14 +741,83 @@ app.delete('/api/swaps/:id', requireAuth, requireRole(['admin']), async (req, re
     } catch (err) { res.status(500).json({ error: 'Erro ao deletar' }); }
 });
 
+app.get('/api/conjuntos', requireAuth, async (req, res) => {
+    try {
+        let conjuntos;
+        if (isProduction) {
+            const result = await pool.query('SELECT * FROM conjuntos ORDER BY date DESC LIMIT 200');
+            conjuntos = result.rows.map(mapConjuntoRow);
+        } else {
+            conjuntos = db.prepare('SELECT * FROM conjuntos ORDER BY date DESC LIMIT 200').all();
+        }
+        conjuntos = filterConjuntosByUserYards(conjuntos, req.session.user.username);
+        res.json(conjuntos.map(c => ({ ...c, dateFormatted: formatDateBR(c.date) })));
+    } catch (err) {
+        console.error('Erro ao buscar conjuntos:', err);
+        res.status(500).json({ error: 'Erro ao buscar conjuntos' });
+    }
+});
+
+app.post('/api/conjuntos', requireAuth, async (req, res) => {
+    const { date, cavaloPlate, carretaPlate, yard, base, baseDestino, leaderName, notes } = req.body;
+    const allowedYards = getUserAllowedYards(req.session.user.username);
+    if (allowedYards.length > 0 && yard && !allowedYards.includes(yard)) return res.status(403).json({ error: 'Você não tem permissão para este pátio' });
+    if (!cavaloPlate || !carretaPlate) return res.status(400).json({ error: 'Cavalo e carreta são obrigatórios' });
+    try {
+        if (isProduction) {
+            await pool.query(`INSERT INTO conjuntos (date, cavaloPlate, carretaPlate, yard, base, baseDestino, leaderName, notes, updatedBy) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+                [date ? new Date(date).toISOString() : new Date().toISOString(), cavaloPlate.toUpperCase(), carretaPlate.toUpperCase(), yard || '', base || '', baseDestino || '', leaderName || '', notes || '', req.session.user.username]);
+        } else {
+            db.prepare(`INSERT INTO conjuntos (date, cavaloPlate, carretaPlate, yard, base, baseDestino, leaderName, notes, updatedBy) VALUES (?,?,?,?,?,?,?,?,?)`)
+                .run(date ? new Date(date).toISOString() : new Date().toISOString(), cavaloPlate.toUpperCase(), carretaPlate.toUpperCase(), yard || '', base || '', baseDestino || '', leaderName || '', notes || '', req.session.user.username);
+        }
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Erro ao criar conjunto:', err);
+        res.status(500).json({ error: 'Erro ao montar conjunto: ' + err.message });
+    }
+});
+
+app.put('/api/conjuntos/:id', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    const { date, cavaloPlate, carretaPlate, yard, base, baseDestino, leaderName, notes } = req.body;
+    const allowedYards = getUserAllowedYards(req.session.user.username);
+    if (allowedYards.length > 0 && yard && !allowedYards.includes(yard)) return res.status(403).json({ error: 'Você não tem permissão para este pátio' });
+    try {
+        if (isProduction) {
+            await pool.query(`UPDATE conjuntos SET date = COALESCE($1, date), cavaloPlate = COALESCE($2, cavaloPlate), carretaPlate = COALESCE($3, carretaPlate), yard = COALESCE($4, yard), base = COALESCE($5, base), baseDestino = COALESCE($6, baseDestino), leaderName = COALESCE($7, leaderName), notes = COALESCE($8, notes), updatedBy = $9 WHERE id = $10`,
+                [date ? new Date(date).toISOString() : null, cavaloPlate ? cavaloPlate.toUpperCase() : null, carretaPlate ? carretaPlate.toUpperCase() : null, yard || null, base || null, baseDestino || null, leaderName || null, notes || null, req.session.user.username, id]);
+        } else {
+            db.prepare(`UPDATE conjuntos SET date = ?, cavaloPlate = ?, carretaPlate = ?, yard = ?, base = ?, baseDestino = ?, leaderName = ?, notes = ?, updatedBy = ? WHERE id = ?`)
+                .run(date ? new Date(date).toISOString() : null, cavaloPlate ? cavaloPlate.toUpperCase() : null, carretaPlate ? carretaPlate.toUpperCase() : null, yard || null, base || null, baseDestino || null, leaderName || null, notes || null, req.session.user.username, id);
+        }
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Erro ao atualizar conjunto:', err);
+        res.status(500).json({ error: 'Erro ao atualizar conjunto: ' + err.message });
+    }
+});
+
+app.delete('/api/conjuntos/:id', requireAuth, async (req, res) => {
+    const { id } = req.params;
+    try {
+        if (isProduction) { await pool.query('DELETE FROM conjuntos WHERE id = $1', [id]); }
+        else { db.prepare('DELETE FROM conjuntos WHERE id = ?').run(id); }
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Erro ao desmontar conjunto:', err);
+        res.status(500).json({ error: 'Erro ao desmontar conjunto' });
+    }
+});
+
 app.get('/api/management/dashboard', requireAuth, async (req, res) => {
     try {
         let allVehicles;
         if (isProduction) {
             const result = await pool.query('SELECT * FROM vehicles');
-            allVehicles = result.rows.map(mapPostgresRow);
+            allVehicles = result.rows.map(mapPostgresRow).map(normalizeVehicleRecord);
         } else {
-            allVehicles = db.prepare('SELECT * FROM vehicles').all();
+            allVehicles = db.prepare('SELECT * FROM vehicles').all().map(normalizeVehicleRecord);
         }
         const vehicles = filterVehiclesByUserYards(allVehicles, req.session.user.username);
         const now = new Date();
@@ -592,30 +870,43 @@ app.get('/api/management/dashboard', requireAuth, async (req, res) => {
 
 app.get('/api/stats', requireAuth, async (req, res) => {
     try {
-        let allVehicles;
+        let allVehicles, allConjuntos;
         if (isProduction) {
-            const result = await pool.query('SELECT * FROM vehicles');
-            allVehicles = result.rows.map(mapPostgresRow);
+            const vehicleResult = await pool.query('SELECT * FROM vehicles');
+            allVehicles = vehicleResult.rows.map(mapPostgresRow).map(normalizeVehicleRecord);
+            const conjuntosResult = await pool.query('SELECT * FROM conjuntos');
+            allConjuntos = conjuntosResult.rows.map(mapConjuntoRow);
         } else {
-            allVehicles = db.prepare('SELECT * FROM vehicles').all();
+            allVehicles = db.prepare('SELECT * FROM vehicles').all().map(normalizeVehicleRecord);
+            allConjuntos = db.prepare('SELECT * FROM conjuntos').all();
         }
         const vehicles = filterVehiclesByUserYards(allVehicles, req.session.user.username);
+        const conjuntos = filterConjuntosByUserYards(allConjuntos, req.session.user.username);
         const active = vehicles.filter(v => v.status !== 'Liberado');
         const liberated = vehicles.filter(v => v.status === 'Liberado');
-        const entreguesDiversos = liberated.filter(v => v.entregarDiversos).length;
-        const entreguesCorreios = liberated.filter(v => v.entregarCorreios).length;
+        const entreguesDiversos = vehicles.filter(v => v.entregarDiversos).length;
+        const entreguesCorreios = vehicles.filter(v => v.entregarCorreios).length;
         const comSinistro = vehicles.filter(v => v.hasAccident).length;
         const now = new Date();
         const stalledVehicles = active.filter(v => (now - new Date(v.entryTime)) / (1000 * 60 * 60) > 24 && v.status === 'Aguardando linha');
+        const readyForBoarding = liberated.filter(v => !v.entregue).length;
+        const sascarIssues = vehicles.filter(v => ['pendente', 'manutencao'].includes(v.sascarStatus)).length;
+        const documentationIssues = vehicles.filter(v => v.documentIssue).length;
+        const maintenanceOrAccident = vehicles.filter(v => v.status === 'Em manutenção' || v.status === 'Borracharia' || v.maintenance || v.hasAccident).length;
         res.json({
             cavalosMecanicos: active.filter(v => v.type === 'Cavalo Mecânico').length,
             carretas: active.filter(v => v.type === 'Carreta').length,
+            conjuntosMontados: conjuntos.length,
             emManutencao: active.filter(v => v.status === 'Em manutenção').length,
             emBorracharia: active.filter(v => v.status === 'Borracharia').length,
             liberados: liberated.length,
             entreguesDiversos,
             entreguesCorreios,
             comSinistro,
+            readyForBoarding,
+            sascarIssues,
+            documentationIssues,
+            maintenanceOrAccident,
             totalAtivos: active.length,
             totalGeral: active.length + liberated.length,
             stalledVehicles: stalledVehicles.length,
@@ -626,16 +917,32 @@ app.get('/api/stats', requireAuth, async (req, res) => {
 });
 
 app.post('/api/import', requireAuth, requireRole(['admin']), async (req, res) => {
-    const { vehicles: importedVehicles, swaps: importedSwaps } = req.body;
-    if (!Array.isArray(importedVehicles)) return res.status(400).json({ error: 'Dados devem conter: {"vehicles": [...]} ' });
+    const importedVehiclesRaw = Array.isArray(req.body?.vehicles) ? req.body.vehicles : [];
+    const importedSwapsRaw = resolveImportedSwaps(req.body);
+    const importedConjuntosRaw = resolveImportedConjuntos(req.body);
+    if (!Array.isArray(importedVehiclesRaw)) return res.status(400).json({ error: 'Dados devem conter: {"vehicles": [...]} ' });
+
+    const importedVehicles = importedVehiclesRaw
+        .map(normalizeImportedVehicle)
+        .filter(v => v && (v.plate || v.chassis));
+
+    const importedSwaps = importedSwapsRaw
+        .map(normalizeImportedSwap)
+        .filter(s => s && s.plateOut);
+
+    const importedConjuntos = importedConjuntosRaw
+        .map(normalizeImportedConjunto)
+        .filter(c => c && c.cavaloPlate && c.carretaPlate);
+
     try {
         if (isProduction) {
             await pool.query('DELETE FROM vehicles');
             await pool.query('DELETE FROM swaps');
+            await pool.query('DELETE FROM conjuntos');
             for (const v of importedVehicles) {
                 if (v.plate || v.chassis) {
-                    await pool.query(`INSERT INTO vehicles (plate, type, yard, base, baseDestino, manager, chassis, status, maintenance, maintenanceCategory, hasAccident, sascarStatus, keys, notes, entregar_diversos, entregar_correios, entregue, entreguePara, readyTime, entryTime, exitTime, updatedBy) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)`,
-                        [v.plate ? v.plate.toUpperCase() : '', v.type, v.yard, v.base || 'Jaraguá-SP (Nacional)', v.baseDestino || '', v.manager || '', v.chassis || '', v.status || 'Aguardando linha', v.maintenance || false, v.maintenanceCategory || '', v.hasAccident || false, v.sascarStatus || 'pendente', v.keys || '', v.notes || '', v.entregarDiversos || false, v.entregarCorreios || false, v.entregue || false, v.entreguePara || '', v.readyTime || null, v.entryTime || new Date().toISOString(), v.exitTime || null, req.session.user.username]);
+                    await pool.query(`INSERT INTO vehicles (plate, type, yard, base, baseDestino, manager, chassis, status, maintenance, maintenanceCategory, hasAccident, documentIssue, sascarStatus, keys, notes, entregar_diversos, entregar_correios, entregue, entreguePara, readyTime, entryTime, exitTime, updatedBy) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)`,
+                        [v.plate ? v.plate.toUpperCase() : '', v.type, v.yard, v.base || 'Jaraguá-SP (Nacional)', v.baseDestino || '', v.manager || '', v.chassis || '', v.status || 'Aguardando linha', v.maintenance || false, v.maintenanceCategory || '', v.hasAccident || false, v.documentIssue || false, v.sascarStatus || 'pendente', v.keys || '', v.notes || '', v.entregarDiversos || false, v.entregarCorreios || false, v.entregue || false, v.entreguePara || '', v.readyTime || null, v.entryTime || new Date().toISOString(), v.exitTime || null, req.session.user.username]);
                 }
             }
             if (Array.isArray(importedSwaps) && importedSwaps.length > 0) {
@@ -646,15 +953,23 @@ app.post('/api/import', requireAuth, requireRole(['admin']), async (req, res) =>
                     }
                 }
             }
+            if (Array.isArray(importedConjuntos) && importedConjuntos.length > 0) {
+                for (const c of importedConjuntos) {
+                    await pool.query(`INSERT INTO conjuntos (date, cavaloPlate, carretaPlate, yard, base, baseDestino, leaderName, notes, updatedBy) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+                        [c.date || new Date().toISOString(), c.cavaloPlate.toUpperCase(), c.carretaPlate.toUpperCase(), c.yard || '', c.base || '', c.baseDestino || '', c.leaderName || '', c.notes || '', req.session.user.username]);
+                }
+            }
         } else {
             db.exec('DELETE FROM vehicles');
             db.exec('DELETE FROM swaps');
+            db.exec('DELETE FROM conjuntos');
             db.exec("DELETE FROM sqlite_sequence WHERE name='vehicles'");
             db.exec("DELETE FROM sqlite_sequence WHERE name='swaps'");
-            const vehicleStmt = db.prepare(`INSERT INTO vehicles (plate, type, yard, base, baseDestino, manager, chassis, status, maintenance, maintenanceCategory, hasAccident, sascarStatus, keys, notes, entregar_diversos, entregar_correios, entregue, entreguePara, readyTime, entryTime, exitTime, updatedBy) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+            db.exec("DELETE FROM sqlite_sequence WHERE name='conjuntos'");
+            const vehicleStmt = db.prepare(`INSERT INTO vehicles (plate, type, yard, base, baseDestino, manager, chassis, status, maintenance, maintenanceCategory, hasAccident, documentIssue, sascarStatus, keys, notes, entregar_diversos, entregar_correios, entregue, entreguePara, readyTime, entryTime, exitTime, updatedBy) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
             for (const v of importedVehicles) {
                 if (v.plate || v.chassis) {
-                    vehicleStmt.run(v.plate ? v.plate.toUpperCase() : '', v.type, v.yard, v.base || 'Jaraguá-SP (Nacional)', v.baseDestino || '', v.manager || '', v.chassis || '', v.status || 'Aguardando linha', v.maintenance ? 1 : 0, v.maintenanceCategory || '', v.hasAccident ? 1 : 0, v.sascarStatus || 'pendente', v.keys || '', v.notes || '', v.entregarDiversos ? 1 : 0, v.entregarCorreios ? 1 : 0, v.entregue ? 1 : 0, v.entreguePara || '', v.readyTime || null, v.entryTime || new Date().toISOString(), v.exitTime || null, req.session.user.username);
+                    vehicleStmt.run(v.plate ? v.plate.toUpperCase() : '', v.type, v.yard, v.base || 'Jaraguá-SP (Nacional)', v.baseDestino || '', v.manager || '', v.chassis || '', v.status || 'Aguardando linha', v.maintenance ? 1 : 0, v.maintenanceCategory || '', v.hasAccident ? 1 : 0, v.documentIssue ? 1 : 0, v.sascarStatus || 'pendente', v.keys || '', v.notes || '', v.entregarDiversos ? 1 : 0, v.entregarCorreios ? 1 : 0, v.entregue ? 1 : 0, v.entreguePara || '', v.readyTime || null, v.entryTime || new Date().toISOString(), v.exitTime || null, req.session.user.username);
                 }
             }
             if (Array.isArray(importedSwaps) && importedSwaps.length > 0) {
@@ -665,9 +980,16 @@ app.post('/api/import', requireAuth, requireRole(['admin']), async (req, res) =>
                     }
                 }
             }
+            if (Array.isArray(importedConjuntos) && importedConjuntos.length > 0) {
+                const conjuntoStmt = db.prepare(`INSERT INTO conjuntos (date, cavaloPlate, carretaPlate, yard, base, baseDestino, leaderName, notes, updatedBy) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+                for (const c of importedConjuntos) {
+                    conjuntoStmt.run(c.date || new Date().toISOString(), c.cavaloPlate.toUpperCase(), c.carretaPlate.toUpperCase(), c.yard || '', c.base || '', c.baseDestino || '', c.leaderName || '', c.notes || '', req.session.user.username);
+                }
+            }
         }
         const swapsCount = Array.isArray(importedSwaps) ? importedSwaps.length : 0;
-        res.json({ success: true, imported: importedVehicles.length, swapsImported: swapsCount, message: `✅ Importação concluída: ${importedVehicles.length} veículo(s) e ${swapsCount} troca(s)` });
+        const conjuntosCount = Array.isArray(importedConjuntos) ? importedConjuntos.length : 0;
+        res.json({ success: true, imported: importedVehicles.length, swapsImported: swapsCount, conjuntosImported: conjuntosCount, message: `✅ Importação concluída: ${importedVehicles.length} veículo(s), ${swapsCount} troca(s) e ${conjuntosCount} conjunto(s)` });
     } catch (err) {
         console.error('❌ Erro ao importar:', err);
         res.status(500).json({ error: 'Erro ao importar: ' + err.message });
@@ -676,15 +998,17 @@ app.post('/api/import', requireAuth, requireRole(['admin']), async (req, res) =>
 
 app.get('/api/export', requireAuth, async (req, res) => {
     try {
-        let vehicles, swaps;
+        let vehicles, swaps, conjuntos;
         if (isProduction) {
-            vehicles = (await pool.query('SELECT * FROM vehicles')).rows;
-            swaps = (await pool.query('SELECT * FROM swaps')).rows;
+            vehicles = (await pool.query('SELECT * FROM vehicles')).rows.map(mapPostgresRow);
+            swaps = (await pool.query('SELECT * FROM swaps')).rows.map(mapSwapRow);
+            conjuntos = (await pool.query('SELECT * FROM conjuntos')).rows.map(mapConjuntoRow);
         } else {
             vehicles = db.prepare('SELECT * FROM vehicles').all();
             swaps = db.prepare('SELECT * FROM swaps').all();
+            conjuntos = db.prepare('SELECT * FROM conjuntos').all();
         }
-        res.json({ vehicles, swaps, exportedAt: new Date().toISOString(), version: '5.9.5', exportedBy: req.session.user.username });
+        res.json({ vehicles, swaps, conjuntos, exportedAt: new Date().toISOString(), version: '6.0.0', exportedBy: req.session.user.username });
     } catch (err) { res.status(500).json({ error: 'Erro ao exportar' }); }
 });
 
@@ -719,3 +1043,4 @@ app.listen(PORT, () => {
     console.log('   📍 jaragua / Jaragua2026');
     console.log('='.repeat(60) + '\n');
 });
+
