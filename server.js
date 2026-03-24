@@ -76,9 +76,13 @@ function mapUserRow(row) {
 function mapSwapRow(row) {
     if (!row) return null;
     return {
-        id: row.id, date: row.date, plateIn: row.platein, plateOut: row.plateout,
-        base: row.base, baseDestino: row.basedestino || '', notes: row.notes, tipo: row.tipo || 'troca',
-        createdAt: row.createdat, updatedBy: row.updatedby
+        id: row.id, date: row.date, plateIn: row.platein || row.plateIn, plateOut: row.plateout || row.plateOut,
+        base: row.base, baseDestino: row.basedestino || row.baseDestino || '', notes: row.notes, tipo: row.tipo || 'troca',
+        returnedAt: row.returnedat || row.returnedAt || null,
+        returnYard: row.returnyard || row.returnYard || '',
+        returnVehicleId: row.returnvehicleid || row.returnVehicleId || null,
+        returnDetectedBy: row.returndetectedby || row.returnDetectedBy || '',
+        createdAt: row.createdat || row.createdAt, updatedBy: row.updatedby || row.updatedBy
     };
 }
 
@@ -126,7 +130,7 @@ function canonicalizeVehicleType(type) {
     const normalized = canonicalText(type);
     if (normalized.includes('cavalo mec')) return 'Cavalo Mecânico';
     if (normalized.includes('carreta')) return 'Carreta';
-    if (normalized.includes('van')) return 'Vans';
+    if (normalized.includes('van')) return 'Van';
     if (normalized.includes('truck')) return 'Caminhão Truck';
     if (normalized.includes('toco')) return 'Caminhão Toco';
     if (normalized.includes('visitante')) return 'Veículo Visitante';
@@ -140,10 +144,15 @@ function canonicalizeVehicleStatus(status) {
     if (normalized.includes('aguardando abaste')) return 'Aguardando abastecimento';
     if (normalized.includes('aguardando manut')) return 'Aguardando manutenção';
     if (normalized.includes('em manut')) return 'Em manutenção';
+    if (normalized.includes('funilar')) return 'Funilaria';
     if (normalized.includes('borrachar')) return 'Borracharia';
     if (normalized.includes('liberad')) return 'Liberado';
     if (normalized.includes('sinistro')) return 'Sinistro';
     return String(status || 'Aguardando linha').trim() || 'Aguardando linha';
+}
+
+function normalizePlateValue(value) {
+    return String(value || '').trim().toUpperCase();
 }
 
 function canonicalizeSascarStatus(status) {
@@ -155,6 +164,7 @@ function canonicalizeSascarStatus(status) {
 
 function canonicalizeMaintenanceCategory(category) {
     const normalized = canonicalText(category);
+    if (normalized.includes('funilar')) return 'funilaria';
     if (normalized.includes('mecan')) return 'mecanica';
     if (normalized.includes('borrach')) return 'borracharia';
     if (normalized.includes('eletr')) return 'eletrica';
@@ -217,7 +227,11 @@ function normalizeImportedSwap(s) {
         base: pickFirstDefined(s, ['base', 'Base'], ''),
         baseDestino: pickFirstDefined(s, ['baseDestino', 'basedestino', 'base_destino', 'BaseDestino'], ''),
         notes: pickFirstDefined(s, ['notes', 'Notes', 'observacoes', 'observação', 'observacao'], ''),
-        tipo: pickFirstDefined(s, ['tipo', 'type', 'Tipo'], 'troca')
+        tipo: pickFirstDefined(s, ['tipo', 'type', 'Tipo'], 'troca'),
+        returnedAt: pickFirstDefined(s, ['returnedAt', 'returnedat', 'returned_at'], null),
+        returnYard: pickFirstDefined(s, ['returnYard', 'returnyard', 'return_yard'], ''),
+        returnVehicleId: pickFirstDefined(s, ['returnVehicleId', 'returnvehicleid', 'return_vehicle_id'], null),
+        returnDetectedBy: pickFirstDefined(s, ['returnDetectedBy', 'returndetectedby', 'return_detected_by'], '')
     };
 }
 
@@ -285,6 +299,65 @@ function canChangeLiberadoStatus(user) {
            (user.yards || []).includes('Pátio Jaraguá');
 }
 
+const occurrenceSeed = {
+    branches: ['Cajamar', 'Bandeirantes', 'Jaraguá'],
+    tripTypes: ['Entrega', 'Coleta', 'Transferência'],
+    lines: ['Linha 1', 'Linha 2', 'Linha 3'],
+    plates: ['ABC1D23', 'DEF4G56', 'HIJ7K89'],
+    vehicleTypes: ['Truck', 'Carreta', 'Van'],
+    reasons: ['Manutenção', 'Avaria', 'Abastecimento'],
+    subcategories: ['Motor', 'Pneu', 'Freio'],
+    details: ['Troca de óleo', 'Troca de pneu', 'Revisão geral']
+};
+
+function normalizeOccurrenceRow(row) {
+    if (!row) return null;
+    return {
+        id: row.id,
+        tripNumber: row.tripnumber ?? row.tripNumber,
+        tripDate: row.tripdate ?? row.tripDate,
+        branch: row.branch,
+        tripType: row.triptype ?? row.tripType,
+        line: row.line,
+        plate: row.plate,
+        vehicleType: row.vehicletype ?? row.vehicleType,
+        reason: row.reason,
+        subcategory: row.subcategory,
+        detail: row.detail,
+        serviceOrder: row.serviceorder ?? row.serviceOrder ?? '',
+        observation: row.observation ?? '',
+        createdAt: row.createdat ?? row.createdAt,
+        updatedAt: row.updatedat ?? row.updatedAt
+    };
+}
+
+function validateOccurrencePayload(payload) {
+    const tripNumber = Number.parseInt(payload?.tripNumber, 10);
+    if (!Number.isInteger(tripNumber) || tripNumber <= 0) {
+        return { error: 'Número da viagem inválido' };
+    }
+
+    const tripDate = String(payload?.tripDate || '').trim();
+    if (!tripDate) return { error: 'Data da viagem é obrigatória' };
+
+    return {
+        value: {
+            tripNumber,
+            tripDate,
+            branch: String(payload?.branch || '').trim(),
+            tripType: String(payload?.tripType || '').trim(),
+            line: String(payload?.line || '').trim(),
+            plate: String(payload?.plate || '').trim().toUpperCase(),
+            vehicleType: String(payload?.vehicleType || '').trim(),
+            reason: String(payload?.reason || '').trim(),
+            subcategory: String(payload?.subcategory || '').trim(),
+            detail: String(payload?.detail || '').trim(),
+            serviceOrder: String(payload?.serviceOrder || '').trim(),
+            observation: String(payload?.observation || '').trim()
+        }
+    };
+}
+
 async function initDatabase() {
     if (isProduction) {
         try {
@@ -312,6 +385,8 @@ async function initDatabase() {
                     plateIn TEXT DEFAULT '0000', plateOut TEXT NOT NULL,
                     base TEXT DEFAULT '', baseDestino TEXT DEFAULT '',
                     notes TEXT DEFAULT '', tipo TEXT DEFAULT 'troca',
+                    returnedAt TIMESTAMP, returnYard TEXT DEFAULT '',
+                    returnVehicleId INTEGER, returnDetectedBy TEXT DEFAULT '',
                     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updatedBy TEXT DEFAULT 'system'
                 );
@@ -337,8 +412,58 @@ async function initDatabase() {
                     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     lastLogin TIMESTAMP
                 );
+                CREATE TABLE IF NOT EXISTS occurrence_branches (
+                    id SERIAL PRIMARY KEY,
+                    name TEXT UNIQUE NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS occurrence_trip_types (
+                    id SERIAL PRIMARY KEY,
+                    name TEXT UNIQUE NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS occurrence_lines (
+                    id SERIAL PRIMARY KEY,
+                    name TEXT UNIQUE NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS occurrence_plates (
+                    id SERIAL PRIMARY KEY,
+                    name TEXT UNIQUE NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS occurrence_vehicle_types (
+                    id SERIAL PRIMARY KEY,
+                    name TEXT UNIQUE NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS occurrence_reasons (
+                    id SERIAL PRIMARY KEY,
+                    name TEXT UNIQUE NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS occurrence_subcategories (
+                    id SERIAL PRIMARY KEY,
+                    name TEXT UNIQUE NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS occurrence_details (
+                    id SERIAL PRIMARY KEY,
+                    name TEXT UNIQUE NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS occurrences (
+                    id SERIAL PRIMARY KEY,
+                    tripNumber INTEGER NOT NULL UNIQUE,
+                    tripDate DATE NOT NULL,
+                    branch TEXT DEFAULT '',
+                    tripType TEXT DEFAULT '',
+                    line TEXT DEFAULT '',
+                    plate TEXT DEFAULT '',
+                    vehicleType TEXT DEFAULT '',
+                    reason TEXT DEFAULT '',
+                    subcategory TEXT DEFAULT '',
+                    detail TEXT DEFAULT '',
+                    serviceOrder TEXT DEFAULT '',
+                    observation TEXT DEFAULT '',
+                    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
                 CREATE INDEX IF NOT EXISTS idx_vehicles_plate ON vehicles(plate);
                 CREATE INDEX IF NOT EXISTS idx_vehicles_status ON vehicles(status);
+                CREATE INDEX IF NOT EXISTS idx_occurrences_tripnumber ON occurrences(tripNumber);
             `);
             
             await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS manager TEXT DEFAULT ''`);
@@ -355,10 +480,24 @@ async function initDatabase() {
             await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS baseDestino TEXT DEFAULT ''`);
             await pool.query(`ALTER TABLE swaps ADD COLUMN IF NOT EXISTS tipo TEXT DEFAULT 'troca'`);
             await pool.query(`ALTER TABLE swaps ADD COLUMN IF NOT EXISTS baseDestino TEXT DEFAULT ''`);
+            await pool.query(`ALTER TABLE swaps ADD COLUMN IF NOT EXISTS returnedAt TIMESTAMP`);
+            await pool.query(`ALTER TABLE swaps ADD COLUMN IF NOT EXISTS returnYard TEXT DEFAULT ''`);
+            await pool.query(`ALTER TABLE swaps ADD COLUMN IF NOT EXISTS returnVehicleId INTEGER`);
+            await pool.query(`ALTER TABLE swaps ADD COLUMN IF NOT EXISTS returnDetectedBy TEXT DEFAULT ''`);
             await pool.query(`ALTER TABLE conjuntos ADD COLUMN IF NOT EXISTS yard TEXT DEFAULT ''`);
             await pool.query(`ALTER TABLE conjuntos ADD COLUMN IF NOT EXISTS baseDestino TEXT DEFAULT ''`);
             await pool.query(`ALTER TABLE conjuntos ADD COLUMN IF NOT EXISTS leaderName TEXT DEFAULT ''`);
             await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS yards JSONB DEFAULT '[]'`);
+            await pool.query(`ALTER TABLE occurrences ADD COLUMN IF NOT EXISTS branch TEXT DEFAULT ''`);
+            await pool.query(`ALTER TABLE occurrences ADD COLUMN IF NOT EXISTS tripType TEXT DEFAULT ''`);
+            await pool.query(`ALTER TABLE occurrences ADD COLUMN IF NOT EXISTS line TEXT DEFAULT ''`);
+            await pool.query(`ALTER TABLE occurrences ADD COLUMN IF NOT EXISTS plate TEXT DEFAULT ''`);
+            await pool.query(`ALTER TABLE occurrences ADD COLUMN IF NOT EXISTS vehicleType TEXT DEFAULT ''`);
+            await pool.query(`ALTER TABLE occurrences ADD COLUMN IF NOT EXISTS reason TEXT DEFAULT ''`);
+            await pool.query(`ALTER TABLE occurrences ADD COLUMN IF NOT EXISTS subcategory TEXT DEFAULT ''`);
+            await pool.query(`ALTER TABLE occurrences ADD COLUMN IF NOT EXISTS detail TEXT DEFAULT ''`);
+            await pool.query(`ALTER TABLE occurrences ADD COLUMN IF NOT EXISTS serviceOrder TEXT DEFAULT ''`);
+            await pool.query(`ALTER TABLE occurrences ADD COLUMN IF NOT EXISTS observation TEXT DEFAULT ''`);
             
             const users = [
                 { username: 'admin', password: process.env.ADMIN_PASSWORD || 'Print@2026', role: 'admin', yards: ['Pátio Jaraguá', 'Pátio Bandeirantes', 'Pátio Superior', 'Pátio Cajamar'] },
@@ -372,6 +511,23 @@ async function initDatabase() {
                 if (exists.rows.length === 0) {
                     const hash = bcrypt.hashSync(user.password, 10);
                     await pool.query('INSERT INTO users (username, passwordHash, role, yards) VALUES ($1, $2, $3, $4)', [user.username, hash, user.role, JSON.stringify(user.yards)]);
+                }
+            }
+
+            const optionTables = [
+                ['occurrence_branches', occurrenceSeed.branches],
+                ['occurrence_trip_types', occurrenceSeed.tripTypes],
+                ['occurrence_lines', occurrenceSeed.lines],
+                ['occurrence_plates', occurrenceSeed.plates],
+                ['occurrence_vehicle_types', occurrenceSeed.vehicleTypes],
+                ['occurrence_reasons', occurrenceSeed.reasons],
+                ['occurrence_subcategories', occurrenceSeed.subcategories],
+                ['occurrence_details', occurrenceSeed.details]
+            ];
+
+            for (const [table, values] of optionTables) {
+                for (const value of values) {
+                    await pool.query(`INSERT INTO ${table} (name) VALUES ($1) ON CONFLICT (name) DO NOTHING`, [value]);
                 }
             }
             console.log('✅ PostgreSQL inicializado');
@@ -402,6 +558,8 @@ async function initDatabase() {
                     plateIn TEXT DEFAULT '0000', plateOut TEXT NOT NULL,
                     base TEXT DEFAULT '', baseDestino TEXT DEFAULT '',
                     notes TEXT DEFAULT '', tipo TEXT DEFAULT 'troca',
+                    returnedAt TEXT, returnYard TEXT DEFAULT '',
+                    returnVehicleId INTEGER, returnDetectedBy TEXT DEFAULT '',
                     createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
                     updatedBy TEXT DEFAULT 'system'
                 );
@@ -427,6 +585,55 @@ async function initDatabase() {
                     createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
                     lastLogin TEXT
                 );
+                CREATE TABLE IF NOT EXISTS occurrence_branches (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT UNIQUE NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS occurrence_trip_types (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT UNIQUE NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS occurrence_lines (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT UNIQUE NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS occurrence_plates (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT UNIQUE NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS occurrence_vehicle_types (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT UNIQUE NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS occurrence_reasons (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT UNIQUE NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS occurrence_subcategories (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT UNIQUE NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS occurrence_details (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT UNIQUE NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS occurrences (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    tripNumber INTEGER NOT NULL UNIQUE,
+                    tripDate TEXT NOT NULL,
+                    branch TEXT DEFAULT '',
+                    tripType TEXT DEFAULT '',
+                    line TEXT DEFAULT '',
+                    plate TEXT DEFAULT '',
+                    vehicleType TEXT DEFAULT '',
+                    reason TEXT DEFAULT '',
+                    subcategory TEXT DEFAULT '',
+                    detail TEXT DEFAULT '',
+                    serviceOrder TEXT DEFAULT '',
+                    observation TEXT DEFAULT '',
+                    createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+                    updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
+                );
             `);
             
             try { db.exec('ALTER TABLE vehicles ADD COLUMN manager TEXT DEFAULT ""'); } catch(e) {}
@@ -443,6 +650,20 @@ async function initDatabase() {
             try { db.exec('ALTER TABLE vehicles ADD COLUMN baseDestino TEXT DEFAULT ""'); } catch(e) {}
             try { db.exec('ALTER TABLE swaps ADD COLUMN tipo TEXT DEFAULT "troca"'); } catch(e) {}
             try { db.exec('ALTER TABLE swaps ADD COLUMN baseDestino TEXT DEFAULT ""'); } catch(e) {}
+            try { db.exec('ALTER TABLE swaps ADD COLUMN returnedAt TEXT'); } catch(e) {}
+            try { db.exec('ALTER TABLE swaps ADD COLUMN returnYard TEXT DEFAULT ""'); } catch(e) {}
+            try { db.exec('ALTER TABLE swaps ADD COLUMN returnVehicleId INTEGER'); } catch(e) {}
+            try { db.exec('ALTER TABLE swaps ADD COLUMN returnDetectedBy TEXT DEFAULT ""'); } catch(e) {}
+            try { db.exec('ALTER TABLE occurrences ADD COLUMN branch TEXT DEFAULT ""'); } catch(e) {}
+            try { db.exec('ALTER TABLE occurrences ADD COLUMN tripType TEXT DEFAULT ""'); } catch(e) {}
+            try { db.exec('ALTER TABLE occurrences ADD COLUMN line TEXT DEFAULT ""'); } catch(e) {}
+            try { db.exec('ALTER TABLE occurrences ADD COLUMN plate TEXT DEFAULT ""'); } catch(e) {}
+            try { db.exec('ALTER TABLE occurrences ADD COLUMN vehicleType TEXT DEFAULT ""'); } catch(e) {}
+            try { db.exec('ALTER TABLE occurrences ADD COLUMN reason TEXT DEFAULT ""'); } catch(e) {}
+            try { db.exec('ALTER TABLE occurrences ADD COLUMN subcategory TEXT DEFAULT ""'); } catch(e) {}
+            try { db.exec('ALTER TABLE occurrences ADD COLUMN detail TEXT DEFAULT ""'); } catch(e) {}
+            try { db.exec('ALTER TABLE occurrences ADD COLUMN serviceOrder TEXT DEFAULT ""'); } catch(e) {}
+            try { db.exec('ALTER TABLE occurrences ADD COLUMN observation TEXT DEFAULT ""'); } catch(e) {}
             
             const users = [
                 { username: 'admin', password: process.env.ADMIN_PASSWORD || 'Print@2026', role: 'admin', yards: ['Pátio Jaraguá', 'Pátio Bandeirantes', 'Pátio Superior', 'Pátio Cajamar'] },
@@ -458,6 +679,26 @@ async function initDatabase() {
                     db.prepare('INSERT INTO users (username, passwordHash, role, yards) VALUES (?, ?, ?, ?)').run(user.username, hash, user.role, JSON.stringify(user.yards));
                 }
             }
+
+            const sqliteOptionStatements = {
+                occurrence_branches: db.prepare('INSERT OR IGNORE INTO occurrence_branches (name) VALUES (?)'),
+                occurrence_trip_types: db.prepare('INSERT OR IGNORE INTO occurrence_trip_types (name) VALUES (?)'),
+                occurrence_lines: db.prepare('INSERT OR IGNORE INTO occurrence_lines (name) VALUES (?)'),
+                occurrence_plates: db.prepare('INSERT OR IGNORE INTO occurrence_plates (name) VALUES (?)'),
+                occurrence_vehicle_types: db.prepare('INSERT OR IGNORE INTO occurrence_vehicle_types (name) VALUES (?)'),
+                occurrence_reasons: db.prepare('INSERT OR IGNORE INTO occurrence_reasons (name) VALUES (?)'),
+                occurrence_subcategories: db.prepare('INSERT OR IGNORE INTO occurrence_subcategories (name) VALUES (?)'),
+                occurrence_details: db.prepare('INSERT OR IGNORE INTO occurrence_details (name) VALUES (?)')
+            };
+
+            occurrenceSeed.branches.forEach(value => sqliteOptionStatements.occurrence_branches.run(value));
+            occurrenceSeed.tripTypes.forEach(value => sqliteOptionStatements.occurrence_trip_types.run(value));
+            occurrenceSeed.lines.forEach(value => sqliteOptionStatements.occurrence_lines.run(value));
+            occurrenceSeed.plates.forEach(value => sqliteOptionStatements.occurrence_plates.run(value));
+            occurrenceSeed.vehicleTypes.forEach(value => sqliteOptionStatements.occurrence_vehicle_types.run(value));
+            occurrenceSeed.reasons.forEach(value => sqliteOptionStatements.occurrence_reasons.run(value));
+            occurrenceSeed.subcategories.forEach(value => sqliteOptionStatements.occurrence_subcategories.run(value));
+            occurrenceSeed.details.forEach(value => sqliteOptionStatements.occurrence_details.run(value));
             console.log('✅ SQLite inicializado');
         } catch (err) { console.error('❌ Erro SQLite:', err.message); }
     }
@@ -467,6 +708,9 @@ initDatabase();
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static('public'));
+app.get('/ocorrencias', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'ocorrencias.html'));
+});
 app.use(session({
     secret: process.env.SESSION_SECRET || 'print2026secretkey123456789',
     resave: false,
@@ -484,6 +728,70 @@ const requireRole = (allowedRoles) => (req, res, next) => {
     if (!allowedRoles.includes(req.session.user.role)) return res.status(403).json({ error: 'Acesso negado' });
     next();
 };
+
+function buildLoanReturnPayload(swap, vehicle) {
+    if (!swap || !vehicle) return null;
+    return {
+        swapId: swap.id,
+        plate: normalizePlateValue(vehicle.plate || swap.plateOut),
+        returnedAt: swap.returnedAt || vehicle.entryTime || new Date().toISOString(),
+        yard: swap.returnYard || vehicle.yard || '',
+        base: swap.base || '',
+        baseDestino: swap.baseDestino || '',
+        notes: swap.notes || '',
+        tipo: swap.tipo || 'emprestimo'
+    };
+}
+
+async function detectLoanReturnOnEntry(vehicle, updatedBy) {
+    const plate = normalizePlateValue(vehicle?.plate);
+    const yard = String(vehicle?.yard || '').trim();
+    if (!plate || plate === '0000' || !yard) return null;
+
+    if (isProduction) {
+        const existing = await pool.query(
+            `SELECT * FROM swaps
+             WHERE tipo = 'emprestimo'
+             AND UPPER(plateOut) = UPPER($1)
+             AND returnedAt IS NULL
+             ORDER BY date DESC
+             LIMIT 1`,
+            [plate]
+        );
+        if (!existing.rows.length) return null;
+
+        const returnedAt = vehicle.entryTime ? new Date(vehicle.entryTime).toISOString() : new Date().toISOString();
+        const updated = await pool.query(
+            `UPDATE swaps
+             SET returnedAt = $1, returnYard = $2, returnVehicleId = $3, returnDetectedBy = $4
+             WHERE id = $5
+             RETURNING *`,
+            [returnedAt, yard, vehicle.id, updatedBy || 'system', existing.rows[0].id]
+        );
+        const swap = mapSwapRow(updated.rows[0]);
+        return buildLoanReturnPayload(swap, vehicle);
+    }
+
+    const existing = db.prepare(
+        `SELECT * FROM swaps
+         WHERE tipo = 'emprestimo'
+         AND UPPER(plateOut) = UPPER(?)
+         AND returnedAt IS NULL
+         ORDER BY date DESC
+         LIMIT 1`
+    ).get(plate);
+    if (!existing) return null;
+
+    const returnedAt = vehicle.entryTime ? new Date(vehicle.entryTime).toISOString() : new Date().toISOString();
+    db.prepare(
+        `UPDATE swaps
+         SET returnedAt = ?, returnYard = ?, returnVehicleId = ?, returnDetectedBy = ?
+         WHERE id = ?`
+    ).run(returnedAt, yard, vehicle.id, updatedBy || 'system', existing.id);
+
+    const swap = db.prepare('SELECT * FROM swaps WHERE id = ?').get(existing.id);
+    return buildLoanReturnPayload(mapSwapRow(swap), vehicle);
+}
 
 app.post('/api/auth/login', async (req, res) => {
     const { username, password } = req.body;
@@ -515,6 +823,152 @@ app.get('/api/auth/me', (req, res) => {
     if (req.session?.user) {
         res.json({ authenticated: true, user: req.session.user, permissions: getPermissions(req.session.user.role), canChangeLiberado: canChangeLiberadoStatus(req.session.user) });
     } else { res.json({ authenticated: false }); }
+});
+
+app.get('/api/occurrences/options', async (req, res) => {
+    try {
+        if (isProduction) {
+            const [branches, tripTypes, lines, plates, vehicleTypes, reasons, subcategories, details] = await Promise.all([
+                pool.query('SELECT name FROM occurrence_branches ORDER BY name'),
+                pool.query('SELECT name FROM occurrence_trip_types ORDER BY name'),
+                pool.query('SELECT name FROM occurrence_lines ORDER BY name'),
+                pool.query('SELECT name FROM occurrence_plates ORDER BY name'),
+                pool.query('SELECT name FROM occurrence_vehicle_types ORDER BY name'),
+                pool.query('SELECT name FROM occurrence_reasons ORDER BY name'),
+                pool.query('SELECT name FROM occurrence_subcategories ORDER BY name'),
+                pool.query('SELECT name FROM occurrence_details ORDER BY name')
+            ]);
+
+            return res.json({
+                branches: branches.rows.map(row => row.name),
+                tripTypes: tripTypes.rows.map(row => row.name),
+                lines: lines.rows.map(row => row.name),
+                plates: plates.rows.map(row => row.name),
+                vehicleTypes: vehicleTypes.rows.map(row => row.name),
+                reasons: reasons.rows.map(row => row.name),
+                subcategories: subcategories.rows.map(row => row.name),
+                details: details.rows.map(row => row.name)
+            });
+        }
+
+        res.json({
+            branches: db.prepare('SELECT name FROM occurrence_branches ORDER BY name').all().map(row => row.name),
+            tripTypes: db.prepare('SELECT name FROM occurrence_trip_types ORDER BY name').all().map(row => row.name),
+            lines: db.prepare('SELECT name FROM occurrence_lines ORDER BY name').all().map(row => row.name),
+            plates: db.prepare('SELECT name FROM occurrence_plates ORDER BY name').all().map(row => row.name),
+            vehicleTypes: db.prepare('SELECT name FROM occurrence_vehicle_types ORDER BY name').all().map(row => row.name),
+            reasons: db.prepare('SELECT name FROM occurrence_reasons ORDER BY name').all().map(row => row.name),
+            subcategories: db.prepare('SELECT name FROM occurrence_subcategories ORDER BY name').all().map(row => row.name),
+            details: db.prepare('SELECT name FROM occurrence_details ORDER BY name').all().map(row => row.name)
+        });
+    } catch (err) {
+        console.error('Erro ao carregar opções de ocorrências:', err);
+        res.status(500).json({ error: 'Erro ao carregar opções de ocorrências' });
+    }
+});
+
+app.get('/api/occurrences', async (req, res) => {
+    try {
+        if (isProduction) {
+            const result = await pool.query('SELECT * FROM occurrences ORDER BY tripDate DESC, tripNumber DESC');
+            return res.json(result.rows.map(normalizeOccurrenceRow));
+        }
+
+        const rows = db.prepare('SELECT * FROM occurrences ORDER BY tripDate DESC, tripNumber DESC').all();
+        res.json(rows.map(normalizeOccurrenceRow));
+    } catch (err) {
+        console.error('Erro ao listar ocorrências:', err);
+        res.status(500).json({ error: 'Erro ao listar ocorrências' });
+    }
+});
+
+app.post('/api/occurrences', async (req, res) => {
+    const parsed = validateOccurrencePayload(req.body);
+    if (parsed.error) return res.status(400).json({ error: parsed.error });
+
+    const data = parsed.value;
+
+    try {
+        if (isProduction) {
+            const result = await pool.query(
+                `INSERT INTO occurrences (tripNumber, tripDate, branch, tripType, line, plate, vehicleType, reason, subcategory, detail, serviceOrder, observation)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+                 RETURNING *`,
+                [data.tripNumber, data.tripDate, data.branch, data.tripType, data.line, data.plate, data.vehicleType, data.reason, data.subcategory, data.detail, data.serviceOrder, data.observation]
+            );
+            return res.status(201).json(normalizeOccurrenceRow(result.rows[0]));
+        }
+
+        const info = db.prepare(
+            `INSERT INTO occurrences (tripNumber, tripDate, branch, tripType, line, plate, vehicleType, reason, subcategory, detail, serviceOrder, observation)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ).run(data.tripNumber, data.tripDate, data.branch, data.tripType, data.line, data.plate, data.vehicleType, data.reason, data.subcategory, data.detail, data.serviceOrder, data.observation);
+
+        const row = db.prepare('SELECT * FROM occurrences WHERE id = ?').get(info.lastInsertRowid);
+        res.status(201).json(normalizeOccurrenceRow(row));
+    } catch (err) {
+        console.error('Erro ao criar ocorrência:', err);
+        const status = String(err.message || '').includes('UNIQUE') ? 409 : 500;
+        res.status(status).json({ error: status === 409 ? 'Número da viagem já cadastrado' : 'Erro ao criar ocorrência' });
+    }
+});
+
+app.put('/api/occurrences/:id', async (req, res) => {
+    const parsed = validateOccurrencePayload(req.body);
+    if (parsed.error) return res.status(400).json({ error: parsed.error });
+
+    const id = Number.parseInt(req.params.id, 10);
+    if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'ID inválido' });
+
+    const data = parsed.value;
+
+    try {
+        if (isProduction) {
+            const result = await pool.query(
+                `UPDATE occurrences
+                 SET tripNumber = $1, tripDate = $2, branch = $3, tripType = $4, line = $5, plate = $6, vehicleType = $7, reason = $8, subcategory = $9, detail = $10, serviceOrder = $11, observation = $12, updatedAt = CURRENT_TIMESTAMP
+                 WHERE id = $13
+                 RETURNING *`,
+                [data.tripNumber, data.tripDate, data.branch, data.tripType, data.line, data.plate, data.vehicleType, data.reason, data.subcategory, data.detail, data.serviceOrder, data.observation, id]
+            );
+            if (!result.rows.length) return res.status(404).json({ error: 'Ocorrência não encontrada' });
+            return res.json(normalizeOccurrenceRow(result.rows[0]));
+        }
+
+        const info = db.prepare(
+            `UPDATE occurrences
+             SET tripNumber = ?, tripDate = ?, branch = ?, tripType = ?, line = ?, plate = ?, vehicleType = ?, reason = ?, subcategory = ?, detail = ?, serviceOrder = ?, observation = ?, updatedAt = CURRENT_TIMESTAMP
+             WHERE id = ?`
+        ).run(data.tripNumber, data.tripDate, data.branch, data.tripType, data.line, data.plate, data.vehicleType, data.reason, data.subcategory, data.detail, data.serviceOrder, data.observation, id);
+
+        if (!info.changes) return res.status(404).json({ error: 'Ocorrência não encontrada' });
+        const row = db.prepare('SELECT * FROM occurrences WHERE id = ?').get(id);
+        res.json(normalizeOccurrenceRow(row));
+    } catch (err) {
+        console.error('Erro ao atualizar ocorrência:', err);
+        const status = String(err.message || '').includes('UNIQUE') ? 409 : 500;
+        res.status(status).json({ error: status === 409 ? 'Número da viagem já cadastrado' : 'Erro ao atualizar ocorrência' });
+    }
+});
+
+app.delete('/api/occurrences/:id', async (req, res) => {
+    const id = Number.parseInt(req.params.id, 10);
+    if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'ID inválido' });
+
+    try {
+        if (isProduction) {
+            const result = await pool.query('DELETE FROM occurrences WHERE id = $1 RETURNING id', [id]);
+            if (!result.rows.length) return res.status(404).json({ error: 'Ocorrência não encontrada' });
+            return res.json({ success: true });
+        }
+
+        const info = db.prepare('DELETE FROM occurrences WHERE id = ?').run(id);
+        if (!info.changes) return res.status(404).json({ error: 'Ocorrência não encontrada' });
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Erro ao excluir ocorrência:', err);
+        res.status(500).json({ error: 'Erro ao excluir ocorrência' });
+    }
 });
 
 function getPermissions(role) {
@@ -558,15 +1012,18 @@ app.post('/api/vehicles', requireAuth, async (req, res) => {
     if (!plate && !chassis) return res.status(400).json({ error: 'Placa ou Chassi obrigatórios' });
     if (!type || !yard) return res.status(400).json({ error: 'Tipo e pátio obrigatórios' });
     try {
+        let createdVehicle;
         if (isProduction) {
             const result = await pool.query(`INSERT INTO vehicles (plate, type, yard, base, baseDestino, manager, chassis, keys, notes, entregar_diversos, entregar_correios, hasAccident, documentIssue, sascarStatus, maintenanceCategory, entryTime, updatedBy) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING *`,
                 [plate ? plate.toUpperCase() : '', type, yard, base || 'Jaraguá-SP (Nacional)', baseDestino || '', manager || '', chassis || '', keys || '', notes || '', entregarDiversos ? true : false, entregarCorreios ? true : false, hasAccident ? true : false, documentIssue ? true : false, sascarStatus || 'pendente', maintenanceCategory || '', entryDate ? new Date(entryDate).toISOString() : new Date().toISOString(), req.session.user.username]);
-            res.json(mapPostgresRow(result.rows[0]));
+            createdVehicle = normalizeVehicleRecord(mapPostgresRow(result.rows[0]));
         } else {
             const stmt = db.prepare(`INSERT INTO vehicles (plate, type, yard, base, baseDestino, manager, chassis, keys, notes, entregar_diversos, entregar_correios, hasAccident, documentIssue, sascarStatus, maintenanceCategory, entryTime, updatedBy) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
             const result = stmt.run(plate ? plate.toUpperCase() : '', type, yard, base || 'Jaraguá-SP (Nacional)', baseDestino || '', manager || '', chassis || '', keys || '', notes || '', entregarDiversos ? 1 : 0, entregarCorreios ? 1 : 0, hasAccident ? 1 : 0, documentIssue ? 1 : 0, sascarStatus || 'pendente', maintenanceCategory || '', entryDate ? new Date(entryDate).toISOString() : new Date().toISOString(), req.session.user.username);
-            res.json({ ...db.prepare('SELECT * FROM vehicles WHERE id = ?').get(result.lastInsertRowid) });
+            createdVehicle = normalizeVehicleRecord({ ...db.prepare('SELECT * FROM vehicles WHERE id = ?').get(result.lastInsertRowid) });
         }
+        const loanReturn = await detectLoanReturnOnEntry(createdVehicle, req.session.user.username);
+        res.json({ ...createdVehicle, loanReturn });
     } catch (err) {
         console.error('Erro ao criar veículo:', err);
         res.status(500).json({ error: 'Erro ao criar veículo' });
@@ -623,7 +1080,7 @@ app.put('/api/vehicles/:id/undo-liberado', requireAuth, async (req, res) => {
     const { newStatus } = req.body;
     const canChangeLiberado = canChangeLiberadoStatus(req.session.user);
     if (!canChangeLiberado) return res.status(403).json({ error: 'Apenas admin, Bandeirantes e Jaraguá podem desfazer liberação' });
-    const validStatuses = ['Aguardando linha', 'Aguardando abastecimento', 'Aguardando manutenção', 'Em manutenção', 'Borracharia'];
+    const validStatuses = ['Aguardando linha', 'Aguardando abastecimento', 'Aguardando manutenção', 'Em manutenção', 'Funilaria', 'Borracharia'];
     if (!validStatuses.includes(newStatus)) return res.status(400).json({ error: 'Status inválido' });
     try {
         if (isProduction) {
@@ -640,13 +1097,13 @@ app.put('/api/vehicles/:id/undo-liberado', requireAuth, async (req, res) => {
 app.put('/api/vehicles/:id/status', requireAuth, async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
-    const validStatuses = ['Aguardando linha', 'Aguardando abastecimento', 'Aguardando manutenção', 'Em manutenção', 'Borracharia', 'Liberado', 'Sinistro'];
+    const validStatuses = ['Aguardando linha', 'Aguardando abastecimento', 'Aguardando manutenção', 'Em manutenção', 'Funilaria', 'Borracharia', 'Liberado', 'Sinistro'];
     if (!validStatuses.includes(status)) return res.status(400).json({ error: 'Status inválido' });
     try {
         if (isProduction) {
-            await pool.query(`UPDATE vehicles SET status = $1, maintenance = $2, updatedAt = CURRENT_TIMESTAMP WHERE id = $3`, [status, status === 'Em manutenção' || status === 'Borracharia', id]);
+            await pool.query(`UPDATE vehicles SET status = $1, maintenance = $2, updatedAt = CURRENT_TIMESTAMP WHERE id = $3`, [status, status === 'Em manutenção' || status === 'Funilaria' || status === 'Borracharia', id]);
         } else {
-            db.prepare(`UPDATE vehicles SET status = ?, maintenance = ?, updatedAt = ? WHERE id = ?`).run(status, (status === 'Em manutenção' || status === 'Borracharia') ? 1 : 0, new Date().toISOString(), id);
+            db.prepare(`UPDATE vehicles SET status = ?, maintenance = ?, updatedAt = ? WHERE id = ?`).run(status, (status === 'Em manutenção' || status === 'Funilaria' || status === 'Borracharia') ? 1 : 0, new Date().toISOString(), id);
         }
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: 'Erro ao atualizar status' }); }
@@ -680,7 +1137,7 @@ app.get('/api/swaps', requireAuth, async (req, res) => {
             const result = await pool.query('SELECT * FROM swaps ORDER BY date DESC LIMIT 100');
             swaps = result.rows.map(mapSwapRow);
         } else {
-            swaps = db.prepare('SELECT * FROM swaps ORDER BY date DESC LIMIT 100').all();
+            swaps = db.prepare('SELECT * FROM swaps ORDER BY date DESC LIMIT 100').all().map(mapSwapRow);
         }
         res.json(swaps.map(s => ({ ...s, dateFormatted: formatDateBR(s.date) })));
     } catch (err) { res.status(500).json({ error: 'Erro ao buscar trocas' }); }
@@ -692,12 +1149,12 @@ app.post('/api/swaps', requireAuth, async (req, res) => {
         let swapResult;
         if (isProduction) {
             const result = await pool.query(`INSERT INTO swaps (date, plateIn, plateOut, base, baseDestino, notes, tipo, updatedBy) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-                [date ? new Date(date).toISOString() : new Date().toISOString(), plateIn?.toUpperCase() || '0000', plateOut?.toUpperCase() || '0000', base || '', baseDestino || '', notes || '', tipo || 'troca', req.session.user.username]);
+                [date ? new Date(date).toISOString() : new Date().toISOString(), normalizePlateValue(plateIn) || '0000', normalizePlateValue(plateOut) || '0000', base || '', baseDestino || '', notes || '', tipo || 'troca', req.session.user.username]);
             swapResult = mapSwapRow(result.rows[0]);
         } else {
             const stmt = db.prepare(`INSERT INTO swaps (date, plateIn, plateOut, base, baseDestino, notes, tipo, updatedBy) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
-            const result = stmt.run(date ? new Date(date).toISOString() : new Date().toISOString(), plateIn?.toUpperCase() || '0000', plateOut?.toUpperCase() || '0000', base || '', baseDestino || '', notes || '', tipo || 'troca', req.session.user.username);
-            swapResult = db.prepare('SELECT * FROM swaps WHERE id = ?').get(result.lastInsertRowid);
+            const result = stmt.run(date ? new Date(date).toISOString() : new Date().toISOString(), normalizePlateValue(plateIn) || '0000', normalizePlateValue(plateOut) || '0000', base || '', baseDestino || '', notes || '', tipo || 'troca', req.session.user.username);
+            swapResult = mapSwapRow(db.prepare('SELECT * FROM swaps WHERE id = ?').get(result.lastInsertRowid));
         }
         
         let vehicleMarkedAsEntregue = false;
@@ -721,12 +1178,47 @@ app.put('/api/swaps/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
     const updates = req.body;
     try {
+        const shouldResetReturn = updates.tipo && updates.tipo !== 'emprestimo';
         if (isProduction) {
-            await pool.query(`UPDATE swaps SET date = COALESCE($1, date), plateIn = COALESCE($2, plateIn), plateOut = COALESCE($3, plateOut), base = COALESCE($4, base), baseDestino = COALESCE($5, baseDestino), notes = COALESCE($6, notes), tipo = COALESCE($7, tipo) WHERE id = $8`,
-                [updates.date ? new Date(updates.date).toISOString() : null, updates.plateIn, updates.plateOut, updates.base, updates.baseDestino || null, updates.notes, updates.tipo, id]);
+            await pool.query(
+                `UPDATE swaps
+                 SET date = COALESCE($1, date),
+                     plateIn = COALESCE($2, plateIn),
+                     plateOut = COALESCE($3, plateOut),
+                     base = COALESCE($4, base),
+                     baseDestino = COALESCE($5, baseDestino),
+                     notes = COALESCE($6, notes),
+                     tipo = COALESCE($7, tipo),
+                     returnedAt = CASE WHEN $8 THEN NULL ELSE returnedAt END,
+                     returnYard = CASE WHEN $8 THEN '' ELSE returnYard END,
+                     returnVehicleId = CASE WHEN $8 THEN NULL ELSE returnVehicleId END,
+                     returnDetectedBy = CASE WHEN $8 THEN '' ELSE returnDetectedBy END
+                 WHERE id = $9`,
+                [updates.date ? new Date(updates.date).toISOString() : null, normalizePlateValue(updates.plateIn) || '0000', normalizePlateValue(updates.plateOut) || null, updates.base, updates.baseDestino || null, updates.notes, updates.tipo, shouldResetReturn, id]
+            );
         } else {
-            db.prepare(`UPDATE swaps SET date = ?, plateIn = ?, plateOut = ?, base = ?, baseDestino = ?, notes = ?, tipo = ? WHERE id = ?`).run(
-                updates.date ? new Date(updates.date).toISOString() : null, updates.plateIn, updates.plateOut, updates.base, updates.baseDestino || null, updates.notes, updates.tipo || 'troca', id);
+            db.prepare(
+                `UPDATE swaps
+                 SET date = ?, plateIn = ?, plateOut = ?, base = ?, baseDestino = ?, notes = ?, tipo = ?,
+                     returnedAt = CASE WHEN ? THEN NULL ELSE returnedAt END,
+                     returnYard = CASE WHEN ? THEN '' ELSE returnYard END,
+                     returnVehicleId = CASE WHEN ? THEN NULL ELSE returnVehicleId END,
+                     returnDetectedBy = CASE WHEN ? THEN '' ELSE returnDetectedBy END
+                 WHERE id = ?`
+            ).run(
+                updates.date ? new Date(updates.date).toISOString() : null,
+                normalizePlateValue(updates.plateIn) || '0000',
+                normalizePlateValue(updates.plateOut) || null,
+                updates.base,
+                updates.baseDestino || null,
+                updates.notes,
+                updates.tipo || 'troca',
+                shouldResetReturn ? 1 : 0,
+                shouldResetReturn ? 1 : 0,
+                shouldResetReturn ? 1 : 0,
+                shouldResetReturn ? 1 : 0,
+                id
+            );
         }
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: 'Erro ao atualizar' }); }
@@ -826,6 +1318,7 @@ app.get('/api/management/dashboard', requireAuth, async (req, res) => {
         const sascarManutencao = vehicles.filter(v => v.sascarStatus === 'manutencao').length;
         const sascarInstalado = vehicles.filter(v => v.sascarStatus === 'instalado').length;
         const maintenanceByCategory = {
+            funilaria: vehicles.filter(v => v.maintenance && v.maintenanceCategory === 'funilaria').length,
             mecanica: vehicles.filter(v => v.maintenance && v.maintenanceCategory === 'mecanica').length,
             bau: vehicles.filter(v => v.maintenance && v.maintenanceCategory === 'bau').length,
             borracharia: vehicles.filter(v => v.maintenance && v.maintenanceCategory === 'borracharia').length,
@@ -892,12 +1385,13 @@ app.get('/api/stats', requireAuth, async (req, res) => {
         const readyForBoarding = liberated.filter(v => !v.entregue).length;
         const sascarIssues = vehicles.filter(v => ['pendente', 'manutencao'].includes(v.sascarStatus)).length;
         const documentationIssues = vehicles.filter(v => v.documentIssue).length;
-        const maintenanceOrAccident = vehicles.filter(v => v.status === 'Em manutenção' || v.status === 'Borracharia' || v.maintenance || v.hasAccident).length;
+        const maintenanceOrAccident = vehicles.filter(v => v.status === 'Em manutenção' || v.status === 'Funilaria' || v.status === 'Borracharia' || v.maintenance || v.hasAccident).length;
         res.json({
             cavalosMecanicos: active.filter(v => v.type === 'Cavalo Mecânico').length,
             carretas: active.filter(v => v.type === 'Carreta').length,
             conjuntosMontados: conjuntos.length,
             emManutencao: active.filter(v => v.status === 'Em manutenção').length,
+            emFunilaria: active.filter(v => v.status === 'Funilaria').length,
             emBorracharia: active.filter(v => v.status === 'Borracharia').length,
             liberados: liberated.length,
             entreguesDiversos,
@@ -948,8 +1442,11 @@ app.post('/api/import', requireAuth, requireRole(['admin']), async (req, res) =>
             if (Array.isArray(importedSwaps) && importedSwaps.length > 0) {
                 for (const s of importedSwaps) {
                     if (s.plateOut) {
-                        await pool.query(`INSERT INTO swaps (date, plateIn, plateOut, base, baseDestino, notes, tipo, updatedBy) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-                            [s.date || new Date().toISOString(), s.plateIn || '0000', s.plateOut, s.base || '', s.baseDestino || '', s.notes || '', s.tipo || 'troca', req.session.user.username]);
+                        await pool.query(
+                            `INSERT INTO swaps (date, plateIn, plateOut, base, baseDestino, notes, tipo, returnedAt, returnYard, returnVehicleId, returnDetectedBy, updatedBy)
+                             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+                            [s.date || new Date().toISOString(), s.plateIn || '0000', s.plateOut, s.base || '', s.baseDestino || '', s.notes || '', s.tipo || 'troca', s.returnedAt || null, s.returnYard || '', s.returnVehicleId || null, s.returnDetectedBy || '', req.session.user.username]
+                        );
                     }
                 }
             }
@@ -973,10 +1470,10 @@ app.post('/api/import', requireAuth, requireRole(['admin']), async (req, res) =>
                 }
             }
             if (Array.isArray(importedSwaps) && importedSwaps.length > 0) {
-                const swapStmt = db.prepare(`INSERT INTO swaps (date, plateIn, plateOut, base, baseDestino, notes, tipo, updatedBy) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
+                const swapStmt = db.prepare(`INSERT INTO swaps (date, plateIn, plateOut, base, baseDestino, notes, tipo, returnedAt, returnYard, returnVehicleId, returnDetectedBy, updatedBy) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
                 for (const s of importedSwaps) {
                     if (s.plateOut) {
-                        swapStmt.run(s.date || new Date().toISOString(), s.plateIn || '0000', s.plateOut, s.base || '', s.baseDestino || '', s.notes || '', s.tipo || 'troca', req.session.user.username);
+                        swapStmt.run(s.date || new Date().toISOString(), s.plateIn || '0000', s.plateOut, s.base || '', s.baseDestino || '', s.notes || '', s.tipo || 'troca', s.returnedAt || null, s.returnYard || '', s.returnVehicleId || null, s.returnDetectedBy || '', req.session.user.username);
                     }
                 }
             }
