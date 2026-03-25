@@ -739,7 +739,7 @@ function buildLoanReturnPayload(swap, vehicle) {
         base: swap.base || '',
         baseDestino: swap.baseDestino || '',
         notes: swap.notes || '',
-        tipo: swap.tipo || 'emprestimo'
+        tipo: swap.tipo || 'troca'
     };
 }
 
@@ -751,7 +751,7 @@ async function detectLoanReturnOnEntry(vehicle, updatedBy) {
     if (isProduction) {
         const existing = await pool.query(
             `SELECT * FROM swaps
-             WHERE tipo = 'emprestimo'
+             WHERE tipo IN ('emprestimo', 'troca')
              AND UPPER(plateOut) = UPPER($1)
              AND returnedAt IS NULL
              ORDER BY date DESC
@@ -774,7 +774,7 @@ async function detectLoanReturnOnEntry(vehicle, updatedBy) {
 
     const existing = db.prepare(
         `SELECT * FROM swaps
-         WHERE tipo = 'emprestimo'
+         WHERE tipo IN ('emprestimo', 'troca')
          AND UPPER(plateOut) = UPPER(?)
          AND returnedAt IS NULL
          ORDER BY date DESC
@@ -1178,7 +1178,7 @@ app.put('/api/swaps/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
     const updates = req.body;
     try {
-        const shouldResetReturn = updates.tipo && updates.tipo !== 'emprestimo';
+        const shouldResetReturn = updates.tipo && !['emprestimo', 'troca'].includes(updates.tipo);
         if (isProduction) {
             await pool.query(
                 `UPDATE swaps
