@@ -880,7 +880,7 @@ placeholder="Senha" required autocomplete="current-password">
 <small class="text-white-50"><span id="userRole">Administrador</span> <span class="role-badge" id="userRoleBadge">ADMIN</span></small>
 </div>
 </div>
-<button class="btn btn-light btn-sm" id="loanAudioToggleBtn" onclick="toggleLoanAudio()" title="Alertas sonoros de empréstimo">
+<button class="btn btn-light btn-sm" id="loanAudioToggleBtn" onclick="toggleLoanAudio()" title="Alertas sonoros de retorno">
 <i class="bi bi-volume-up-fill" id="loanAudioToggleIcon"></i>
 </button>
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Alternar tema">
@@ -1060,6 +1060,23 @@ O relatório será gerado com o escopo selecionado acima.
 <div class="modal-footer">
 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
 <button type="button" class="btn btn-primary" id="confirmExportBtn" onclick="confirmExport()">Gerar</button>
+</div>
+</div>
+</div>
+</div>
+
+<div class="modal fade" id="returnAlertModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+<div class="modal-dialog modal-dialog-centered">
+<div class="modal-content border-warning">
+<div class="modal-header bg-warning-subtle">
+<h5 class="modal-title"><i class="bi bi-bell-fill me-2"></i><span id="returnAlertTitle">Retorno detectado</span></h5>
+</div>
+<div class="modal-body">
+<p class="mb-2" id="returnAlertMessage">Um veículo retornou ao pátio.</p>
+<div class="small text-muted" id="returnAlertMeta"></div>
+</div>
+<div class="modal-footer">
+<button type="button" class="btn btn-warning" id="returnAlertOkBtn" onclick="acknowledgeReturnAlert()">OK</button>
 </div>
 </div>
 </div>
@@ -1864,8 +1881,21 @@ let canChangeLiberado = false;
 let readyCounterInterval = null;
 let hdmiPanelWindow = null;
 let loanReturnBaselineInitialized = false;
-let loanAudioContext = null;
 let loanAudioEnabled = localStorage.getItem('print-loan-audio-enabled') !== 'false';
+let activeReturnAlert = null;
+let returnAlertQueue = [];
+let appAudioUnlocked = false;
+const appSoundPlayers = new Map();
+const appSoundLoadErrors = new Set();
+const APP_SOUND_BASE_PATH = '/audio';
+const APP_SOUND_FILES = Object.freeze({
+returnAlert: 'atenção-veiculo-retornando.mp3',
+vehicleSuccess: 'veiculo-sucesso.mp3',
+vehicleReleased: 'veiculo-liberado.mp3',
+welcome: 'bem-vindo-controle.mp3',
+loanSuccess: 'empréstimo-sucesso.mp3',
+swapSuccess: 'troca-com-sucesso.mp3'
+});
 let notifiedLoanReturnIds = new Set((() => {
 try {
 return JSON.parse(localStorage.getItem('print-loan-return-notified') || '[]').map(String);
@@ -1902,8 +1932,16 @@ console.log('Tesseract disponível:', typeof Tesseract !== 'undefined');
 document.addEventListener('DOMContentLoaded', async () => {
 initTheme();
 updateLoanAudioToggleUI();
-document.addEventListener('pointerdown', unlockLoanAudioContext, { passive: true });
-document.addEventListener('keydown', unlockLoanAudioContext);
+primeAppAudio();
+document.addEventListener('pointerdown', unlockAppAudio, { passive: true });
+document.addEventListener('keydown', unlockAppAudio);
+document.getElementById('returnAlertModal')?.addEventListener('hidden.bs.modal', () => {
+stopPersistentReturnAlertSound();
+activeReturnAlert = null;
+if (returnAlertQueue.length > 0) {
+setTimeout(showNextReturnAlertFromQueue, 100);
+}
+});
 await checkAuth();
 updateClock();
 setInterval(updateClock, 1000);
@@ -1957,53 +1995,177 @@ const btn = document.getElementById('loanAudioToggleBtn');
 const icon = document.getElementById('loanAudioToggleIcon');
 if (!btn || !icon) return;
 btn.className = loanAudioEnabled ? 'btn btn-light btn-sm' : 'btn btn-outline-light btn-sm';
-btn.title = loanAudioEnabled ? 'Desativar alerta sonoro de empréstimo' : 'Ativar alerta sonoro de empréstimo';
+btn.title = loanAudioEnabled ? 'Desativar alerta sonoro de retorno' : 'Ativar alerta sonoro de retorno';
 icon.className = loanAudioEnabled ? 'bi bi-volume-up-fill' : 'bi bi-volume-mute-fill';
 }
 
-function unlockLoanAudioContext() {
-if (!loanAudioEnabled) return;
-const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-if (!AudioContextClass) return;
-if (!loanAudioContext) {
-loanAudioContext = new AudioContextClass();
+function getAppSoundUrl(key) {
+const fileName = APP_SOUND_FILES[key];
+return fileName ? `${APP_SOUND_BASE_PATH}/${encodeURIComponent(fileName)}` : '';
 }
-if (loanAudioContext.state === 'suspended') {
-loanAudioContext.resume().catch(() => {});
+
+function getAppSoundPlayer(key) {
+const fileName = APP_SOUND_FILES[key];
+if (!fileName) return null;
+if (!appSoundPlayers.has(key)) {
+const audio = new Audio(getAppSoundUrl(key));
+audio.preload = 'auto';
+audio.loop = key === 'returnAlert';
+audio.addEventListener('error', () => {
+if (appSoundLoadErrors.has(key)) return;
+appSoundLoadErrors.add(key);
+console.warn(`Arquivo de áudio indisponível: ${fileName}`);
+});
+appSoundPlayers.set(key, audio);
+}
+return appSoundPlayers.get(key);
+}
+
+function primeAppAudio() {
+Object.keys(APP_SOUND_FILES).forEach(key => {
+const audio = getAppSoundPlayer(key);
+try {
+audio?.load();
+} catch (err) {}
+});
+}
+
+function unlockAppAudio() {
+primeAppAudio();
+if (appAudioUnlocked) {
+if (activeReturnAlert && loanAudioEnabled) {
+setTimeout(startPersistentReturnAlertSound, 0);
+}
+return;
+}
+appAudioUnlocked = true;
+Object.keys(APP_SOUND_FILES).forEach(key => {
+const audio = getAppSoundPlayer(key);
+if (!audio) return;
+const originalLoop = audio.loop;
+audio.loop = false;
+audio.muted = true;
+audio.currentTime = 0;
+const playPromise = audio.play();
+if (playPromise && typeof playPromise.then === 'function') {
+playPromise
+.then(() => {
+audio.pause();
+audio.currentTime = 0;
+})
+.catch(() => {})
+.finally(() => {
+audio.muted = false;
+audio.loop = originalLoop;
+});
+return;
+}
+audio.pause();
+audio.currentTime = 0;
+audio.muted = false;
+audio.loop = originalLoop;
+});
+if (activeReturnAlert && loanAudioEnabled) {
+setTimeout(startPersistentReturnAlertSound, 0);
 }
 }
 
-function playLoanReturnSound() {
-if (!loanAudioEnabled) return;
-unlockLoanAudioContext();
-if (!loanAudioContext || loanAudioContext.state !== 'running') return;
-const notes = [523.25, 659.25, 783.99];
-const startAt = loanAudioContext.currentTime;
-notes.forEach((frequency, index) => {
-const oscillator = loanAudioContext.createOscillator();
-const gainNode = loanAudioContext.createGain();
-const noteStart = startAt + (index * 0.16);
-const noteEnd = noteStart + 0.14;
-oscillator.type = 'sine';
-oscillator.frequency.setValueAtTime(frequency, noteStart);
-gainNode.gain.setValueAtTime(0.0001, noteStart);
-gainNode.gain.exponentialRampToValueAtTime(0.11, noteStart + 0.015);
-gainNode.gain.exponentialRampToValueAtTime(0.0001, noteEnd);
-oscillator.connect(gainNode);
-gainNode.connect(loanAudioContext.destination);
-oscillator.start(noteStart);
-oscillator.stop(noteEnd);
-});
+function playAppSound(key, { loop = false, respectReturnToggle = false } = {}) {
+if (respectReturnToggle && !loanAudioEnabled) return false;
+const audio = getAppSoundPlayer(key);
+if (!audio) return false;
+audio.loop = loop;
+audio.pause();
+audio.currentTime = 0;
+const playPromise = audio.play();
+if (playPromise && typeof playPromise.catch === 'function') {
+playPromise.catch(() => {});
+}
+return true;
+}
+
+function stopAppSound(key) {
+const audio = getAppSoundPlayer(key);
+if (!audio) return;
+audio.pause();
+audio.currentTime = 0;
+}
+
+function getLoanReturnTypeLabel(tipo) {
+return tipo === 'emprestimo' ? 'Empréstimo' : 'Troca';
+}
+
+function getLoanReturnTypeLabelLower(tipo) {
+return tipo === 'emprestimo' ? 'empréstimo' : 'troca';
+}
+
+function getLoanReturnBadgeLabel(tipo, returned = false) {
+if (tipo === 'emprestimo') {
+return returned ? 'Empréstimo retornado' : 'Empréstimo';
+}
+return returned ? 'Troca retornada' : 'Troca';
+}
+
+function stopPersistentReturnAlertSound() {
+stopAppSound('returnAlert');
+}
+
+function startPersistentReturnAlertSound() {
+if (!loanAudioEnabled || !activeReturnAlert || activeReturnAlert.playSound === false) return;
+playAppSound('returnAlert', { loop: true, respectReturnToggle: true });
+}
+
+function buildLoanReturnAlertMeta(loanReturn) {
+const details = [];
+if (loanReturn.returnedAt) {
+details.push(`Retorno: ${new Date(loanReturn.returnedAt).toLocaleString('pt-BR')}`);
+}
+if (loanReturn.yard) {
+details.push(`Pátio: ${loanReturn.yard}`);
+}
+if (loanReturn.base) {
+details.push(`Origem: ${loanReturn.base}`);
+}
+if (loanReturn.baseDestino) {
+details.push(`Destino: ${loanReturn.baseDestino}`);
+}
+return details.join(' • ');
+}
+
+function showNextReturnAlertFromQueue() {
+if (activeReturnAlert || returnAlertQueue.length === 0) return;
+const modalEl = document.getElementById('returnAlertModal');
+if (!modalEl) return;
+activeReturnAlert = returnAlertQueue.shift();
+const typeLabel = getLoanReturnTypeLabelLower(activeReturnAlert.tipo);
+document.getElementById('returnAlertTitle').textContent = `Retorno de ${typeLabel}`;
+document.getElementById('returnAlertMessage').textContent = `O veículo ${activeReturnAlert.plate || 'sem placa'} retornou ao pátio após ${typeLabel}.`;
+document.getElementById('returnAlertMeta').textContent = buildLoanReturnAlertMeta(activeReturnAlert);
+bootstrap.Modal.getOrCreateInstance(modalEl).show();
+document.getElementById('returnAlertOkBtn')?.focus();
+startPersistentReturnAlertSound();
+}
+
+function acknowledgeReturnAlert() {
+stopPersistentReturnAlertSound();
+const modalEl = document.getElementById('returnAlertModal');
+if (!modalEl) return;
+bootstrap.Modal.getOrCreateInstance(modalEl).hide();
 }
 
 function toggleLoanAudio() {
 loanAudioEnabled = !loanAudioEnabled;
 localStorage.setItem('print-loan-audio-enabled', loanAudioEnabled ? 'true' : 'false');
 if (loanAudioEnabled) {
-unlockLoanAudioContext();
+unlockAppAudio();
+if (activeReturnAlert) {
+startPersistentReturnAlertSound();
+}
+} else {
+stopPersistentReturnAlertSound();
 }
 updateLoanAudioToggleUI();
-showToast(loanAudioEnabled ? '🔊 Alerta sonoro de empréstimo ativado' : '🔇 Alerta sonoro de empréstimo desativado', loanAudioEnabled ? 'success' : 'secondary');
+showToast(loanAudioEnabled ? '🔊 Alerta sonoro de retorno ativado' : '🔇 Alerta sonoro de retorno desativado', loanAudioEnabled ? 'success' : 'secondary');
 }
 
 function markLoanReturnNotified(swapId) {
@@ -2016,6 +2178,7 @@ function createLoanReturnPayload(swap) {
 if (!swap) return null;
 return {
 swapId: swap.id,
+tipo: swap.tipo,
 plate: swap.plateOut,
 returnedAt: swap.returnedAt,
 yard: swap.returnYard,
@@ -2029,20 +2192,21 @@ function showLoanReturnAlert(loanReturn, { playSound = true, force = false } = {
 if (!loanReturn || loanReturn.swapId === undefined || loanReturn.swapId === null) return;
 const swapId = String(loanReturn.swapId);
 if (!force && notifiedLoanReturnIds.has(swapId)) return;
+const alreadyQueued = (activeReturnAlert && String(activeReturnAlert.swapId) === swapId) || returnAlertQueue.some(item => String(item.swapId) === swapId);
 markLoanReturnNotified(swapId);
-if (playSound) {
-playLoanReturnSound();
+if (alreadyQueued) {
+if (activeReturnAlert && String(activeReturnAlert.swapId) === swapId && playSound) {
+activeReturnAlert.playSound = true;
+startPersistentReturnAlertSound();
 }
-const yard = loanReturn.yard || 'o pátio';
-const returnedAt = loanReturn.returnedAt ? new Date(loanReturn.returnedAt).toLocaleString('pt-BR') : '';
-const baseInfo = loanReturn.base ? ` Base origem: ${loanReturn.base}.` : '';
-const message = `Veículo ${loanReturn.plate || 'sem placa'} retornou para ${yard}.${returnedAt ? ` Retorno registrado em ${returnedAt}.` : ''}${baseInfo}`;
-showNotification('Retorno de empréstimo', message, 'warning', 10000);
-showToast(`🔔 Empréstimo retornou: ${loanReturn.plate || 'sem placa'} em ${yard}`, 'warning');
+return;
+}
+returnAlertQueue.push({ ...loanReturn, playSound });
+showNextReturnAlertFromQueue();
 }
 
 function processLoanReturnNotifications(swaps, { suppressInitialAlert = false } = {}) {
-const returnedLoans = (Array.isArray(swaps) ? swaps : []).filter(s => s.tipo === 'emprestimo' && s.returnedAt);
+const returnedLoans = (Array.isArray(swaps) ? swaps : []).filter(s => ['emprestimo', 'troca'].includes(s.tipo) && s.returnedAt);
 if (!loanReturnBaselineInitialized && suppressInitialAlert) {
 returnedLoans.forEach(swap => markLoanReturnNotified(swap.id));
 loanReturnBaselineInitialized = true;
@@ -2442,6 +2606,7 @@ const username = document.getElementById('loginUsername').value.trim();
 const password = document.getElementById('loginPassword').value;
 const errorDiv = document.getElementById('loginError');
 errorDiv.classList.add('hidden');
+unlockAppAudio();
 try {
 const res = await fetch(`${API_URL}/auth/login`, {
 method: 'POST',
@@ -2453,7 +2618,8 @@ if (data.success) {
 currentUser = data.user;
 userYards = data.user.yards || [];
 canChangeLiberado = data.canChangeLiberado || false;
-showMainApp();
+await showMainApp();
+playAppSound('welcome');
 showToast(data.message, 'success');
 } else {
 errorDiv.textContent = data.error;
@@ -2472,6 +2638,9 @@ userPermissions = {};
 userYards = [];
 canChangeLiberado = false;
 loanReturnBaselineInitialized = false;
+returnAlertQueue = [];
+activeReturnAlert = null;
+stopPersistentReturnAlertSound();
 stopCamera('entry');
 stopCamera('exit');
 closeManagementDashboard();
@@ -2733,10 +2902,12 @@ async function confirmExitVehicle() {
 if (!vehicleToExit) { showToast('âš ï¸ Nenhum veículo para liberar', 'warning'); return; }
 if (!confirm(`âœ… Confirmar SAÍDA do veículo ${vehicleToExit.plate}?`)) return;
 try {
+unlockAppAudio();
 await fetch(`${API_URL}/vehicles/${vehicleToExit.id}/exit`, { method: 'POST' });
 bootstrap.Modal.getInstance(document.getElementById('scanExitModal')).hide();
 loadStats();
 loadVehicles();
+playAppSound('vehicleReleased');
 showToast('ðŸšª Saída registrada com sucesso!', 'success');
 } catch (err) {
 showToast('âŒ Erro ao registrar saída', 'danger');
@@ -3106,9 +3277,9 @@ allSwaps = Array.isArray(swaps) ? swaps : [];
 processLoanReturnNotifications(allSwaps, { suppressInitialAlert });
 const tbody = document.getElementById('swapsTableBody');
 tbody.innerHTML = allSwaps.slice(0, 20).map(s => {
-const isReturnedLoan = s.tipo === 'emprestimo' && s.returnedAt;
-const tipoBadge = isReturnedLoan ? '<span class="badge bg-success">Empréstimo retornado</span>' : s.tipo === 'emprestimo' ? '<span class="badge bg-info">Empréstimo</span>' : '<span class="badge bg-secondary">Troca</span>';
-const returnInfo = isReturnedLoan ? `<div class="small text-success mt-1"><i class="bi bi-bell-fill me-1"></i>Retornou em ${new Date(s.returnedAt).toLocaleString('pt-BR')}${s.returnYard ? ` • ${s.returnYard}` : ''}</div>` : '';
+const isReturnedSwap = ['emprestimo', 'troca'].includes(s.tipo) && s.returnedAt;
+const tipoBadge = isReturnedSwap ? `<span class="badge bg-success">${getLoanReturnBadgeLabel(s.tipo, true)}</span>` : s.tipo === 'emprestimo' ? `<span class="badge bg-info">${getLoanReturnBadgeLabel(s.tipo)}</span>` : `<span class="badge bg-secondary">${getLoanReturnBadgeLabel(s.tipo)}</span>`;
+const returnInfo = isReturnedSwap ? `<div class="small text-success mt-1"><i class="bi bi-bell-fill me-1"></i>Retornou em ${new Date(s.returnedAt).toLocaleString('pt-BR')}${s.returnYard ? ` • ${s.returnYard}` : ''}</div>` : '';
 return `<tr><td><small>${new Date(s.date).toLocaleDateString('pt-BR')}</small></td><td>${tipoBadge}</td><td><strong>${s.plateIn}</strong></td><td><strong>${s.plateOut}</strong></td><td><small>${s.base || '—'}</small></td><td><small>${s.baseDestino || '—'}</small></td><td><small class="text-muted">${s.notes || '—'}</small>${returnInfo}</td><td><button class="btn btn-sm btn-link" onclick="openEditSwap(${s.id})"><i class="bi bi-pencil"></i></button><button class="btn btn-sm btn-link text-danger" onclick="deleteSwap(${s.id})"><i class="bi bi-trash"></i></button></td></tr>`;
 }).join('') || '<tr><td colspan="8" class="text-center text-muted py-3">Nenhuma troca</td></tr>';
 } catch (err) {
@@ -3289,6 +3460,7 @@ const type = document.getElementById('type').value;
 const yard = document.getElementById('yard').value;
 if (!plate && !document.getElementById('chassis').value) { alert('âš ï¸ Preencha: Placa ou Chassi'); return; }
 if (!type || !yard) { alert('âš ï¸ Preencha: Tipo e Pátio'); return; }
+unlockAppAudio();
 try {
 const res = await fetch(`${API_URL}/vehicles`, {
 method: 'POST',
@@ -3324,6 +3496,8 @@ document.getElementById('vehicleHistory').classList.add('hidden');
 document.getElementById('plateAlert').classList.add('hidden');
 if (result.loanReturn) {
 showLoanReturnAlert(result.loanReturn, { playSound: true, force: true });
+} else {
+playAppSound('vehicleSuccess');
 }
 await Promise.all([loadStats(), loadVehicles(), loadSwaps()]);
 showToast('âœ… Veículo registrado!', 'success');
@@ -3483,7 +3657,7 @@ if (exitTime && canEditDates) {
 updates.exitTime = new Date(exitTime).toISOString();
 }
 
-console.log('ðŸ’¾ Salvando edição:', updates);
+console.log('Salvando edição:', updates);
 try {
 const res = await fetch(`${API_URL}/vehicles/${id}`, {
 method: 'PUT',
@@ -3491,16 +3665,16 @@ headers: {'Content-Type': 'application/json'},
 body: JSON.stringify(updates)
 });
 const result = await res.json().catch(() => ({ error: 'Resposta inválida do servidor' }));
-console.log('ðŸ“¡ Resposta do servidor:', result);
+console.log('Resposta do servidor:', result);
 if (res.ok && result.success) {
 bootstrap.Modal.getInstance(document.getElementById('editVehicleModal')).hide();
 loadStats(); loadVehicles();
-showToast('âœï¸ Veículo atualizado!', 'success');
+showToast('Veículo atualizado!', 'success');
 } else {
 alert('Erro: ' + (result.error || `Falha ao salvar (HTTP ${res.status})`));
 }
 } catch (err) {
-console.error('âŒ Erro ao salvar:', err);
+console.error('Erro ao salvar:', err);
 alert('Erro de conexão ao salvar alterações: ' + err.message);
 }
 }
@@ -3512,13 +3686,15 @@ loadStats(); loadVehicles();
 
 async function exitVehicle(id) {
 if (!confirm('âœ… Confirmar SAÍDA?')) return;
+unlockAppAudio();
 await fetch(`${API_URL}/vehicles/${id}/exit`, { method: 'POST' });
 loadStats(); loadVehicles();
+playAppSound('vehicleReleased');
 showToast('ðŸšª Saída registrada!', 'success');
 }
 
 async function deleteVehicle(id) {
-if (!confirm('ðŸ—‘ï¸ EXCLUIR veículo?')) return;
+if (!confirm('EXCLUIR veículo?')) return;
 const res = await fetch(`${API_URL}/vehicles/${id}`, { method: 'DELETE' });
 const data = await res.json();
 if (res.status === 403) {
@@ -3537,6 +3713,7 @@ const entregarSaida = document.getElementById('swapEntregarSaida').value;
 const tipo = document.getElementById('swapTipo').value;
 
 if (!plateOut) { alert('Placa que Sai é obrigatória'); return; }
+unlockAppAudio();
 
 try {
 const payload = {
@@ -3562,15 +3739,23 @@ document.getElementById('swapForm').reset();
 document.getElementById('editSwapId').value = '';
 document.getElementById('swapBtnText').textContent = 'Registrar';
 loadSwaps();
+if (!editId) {
+playAppSound(tipo === 'emprestimo' ? 'loanSuccess' : 'swapSuccess');
+}
 
 if (!editId && plateIn && plateIn !== '0000') {
 setTimeout(() => {
 openEntryModal();
 document.getElementById('plate').value = plateIn.toUpperCase();
-showToast(`ðŸ”„ Troca registrada! Abrindo cadastro para ${plateIn.toUpperCase()}...`, 'success');
+showToast(tipo === 'emprestimo' ? `🤝 Empréstimo registrado! Abrindo cadastro para ${plateIn.toUpperCase()}...` : `🔄 Troca registrada! Abrindo cadastro para ${plateIn.toUpperCase()}...`, 'success');
 }, 500);
 } else {
-showToast(editId ? 'ðŸ”„ Troca atualizada!' : 'ðŸ”„ Troca registrada!', 'success');
+showToast(
+editId
+? (tipo === 'emprestimo' ? '🤝 Empréstimo atualizado!' : '🔄 Troca atualizada!')
+: (tipo === 'emprestimo' ? '🤝 Empréstimo registrado!' : '🔄 Troca registrada!'),
+'success'
+);
 }
 
 if (result.vehicleMarkedAsEntregue) {
