@@ -186,6 +186,38 @@ vertical-align: middle; border-bottom: 1px solid #eee;
 }
 .vehicle-table tr:hover { background-color: #f8f9ff; }
 
+.form-control,
+.form-select,
+textarea.form-control,
+.input-group-text {
+background-color: #ffffff;
+color: var(--app-text);
+border-color: rgba(15, 23, 42, 0.12);
+}
+.form-control:focus,
+.form-select:focus,
+textarea.form-control:focus {
+background-color: #ffffff;
+color: var(--app-text);
+}
+.form-control:disabled,
+.form-control[readonly],
+.form-select:disabled,
+textarea.form-control:disabled {
+background-color: #eef2f7;
+color: #475569;
+opacity: 1;
+}
+.form-control:-webkit-autofill,
+.form-control:-webkit-autofill:hover,
+.form-control:-webkit-autofill:focus,
+.form-select:-webkit-autofill,
+textarea.form-control:-webkit-autofill {
+-webkit-text-fill-color: var(--app-text);
+-webkit-box-shadow: 0 0 0 1000px #ffffff inset;
+transition: background-color 9999s ease-in-out 0s;
+}
+
 .placa-container {
 display: inline-block;
 min-width: 106px;
@@ -234,7 +266,7 @@ z-index: 0;
 .placa-mercosul .placa-texto {
 position: relative;
 z-index: 1;
-color: #8b0000;
+color: #b30f14;
 letter-spacing: 1.6px;
 text-shadow: 0 0 1px rgba(0,0,0,0.2);
 display: block;
@@ -691,6 +723,14 @@ border: 1px solid rgba(148, 163, 184, 0.22);
 body[data-theme="dark"] .vehicle-icon i {
 color: #f4f8ff;
 }
+body[data-theme="dark"] .placa-mercosul {
+background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+border-color: #b30f14;
+}
+body[data-theme="dark"] .placa-mercosul .placa-texto {
+color: #8b0000 !important;
+text-shadow: none;
+}
 body[data-theme="dark"] .stat-card .label,
 body[data-theme="dark"] .signal-card .label,
 body[data-theme="dark"] .signal-card .helper,
@@ -703,11 +743,27 @@ color: var(--app-text-soft) !important;
 body[data-theme="dark"] .vehicle-table th {
 background: linear-gradient(135deg, #193357 0%, #11243d 100%);
 }
+body[data-theme="dark"] .vehicle-table .table-responsive,
+body[data-theme="dark"] .vehicle-table table {
+background: transparent;
+}
+body[data-theme="dark"] .vehicle-table tbody tr {
+background: rgba(9, 21, 40, 0.62);
+}
+body[data-theme="dark"] .vehicle-table tbody tr:nth-child(even) {
+background: rgba(13, 30, 55, 0.82);
+}
 body[data-theme="dark"] .vehicle-table td {
+background: transparent;
+color: var(--app-text);
 border-bottom-color: rgba(154, 176, 208, 0.1);
 }
 body[data-theme="dark"] .vehicle-table tr:hover {
 background: rgba(59, 130, 246, 0.08);
+}
+body[data-theme="dark"] #emptyMessage {
+background: transparent;
+color: var(--app-text-soft);
 }
 body[data-theme="dark"] .table-light,
 body[data-theme="dark"] .bg-light {
@@ -719,6 +775,7 @@ color: var(--app-text);
 }
 body[data-theme="dark"] .form-control,
 body[data-theme="dark"] .form-select,
+body[data-theme="dark"] textarea.form-control,
 body[data-theme="dark"] .input-group-text {
 background: #0c1930;
 color: var(--app-text);
@@ -728,11 +785,64 @@ body[data-theme="dark"] .form-control::placeholder {
 color: #7f96b8;
 }
 body[data-theme="dark"] .form-control:focus,
-body[data-theme="dark"] .form-select:focus {
+body[data-theme="dark"] .form-select:focus,
+body[data-theme="dark"] textarea.form-control:focus {
 background: #10203b;
 color: var(--app-text);
 border-color: rgba(56,189,248,0.4);
 box-shadow: 0 0 0 0.25rem rgba(56,189,248,0.12);
+}
+body[data-theme="dark"] .form-control:disabled,
+body[data-theme="dark"] .form-control[readonly],
+body[data-theme="dark"] .form-select:disabled,
+body[data-theme="dark"] textarea.form-control:disabled {
+background: #132744;
+color: var(--app-text-soft);
+opacity: 1;
+}
+body[data-theme="dark"] .form-control:-webkit-autofill,
+body[data-theme="dark"] .form-control:-webkit-autofill:hover,
+body[data-theme="dark"] .form-control:-webkit-autofill:focus,
+body[data-theme="dark"] .form-select:-webkit-autofill,
+body[data-theme="dark"] textarea.form-control:-webkit-autofill {
+-webkit-text-fill-color: var(--app-text);
+-webkit-box-shadow: 0 0 0 1000px #0c1930 inset;
+transition: background-color 9999s ease-in-out 0s;
+}
+body[data-theme="dark"] input[type="datetime-local"] {
+background: transparent;
+color: var(--app-text);
+font-weight: 700;
+border-color: rgba(154, 176, 208, 0.18);
+color-scheme: dark;
+}
+body[data-theme="dark"] input[type="datetime-local"]::-webkit-datetime-edit,
+body[data-theme="dark"] input[type="datetime-local"]::-webkit-date-and-time-value,
+body[data-theme="dark"] input[type="datetime-local"]::-webkit-datetime-edit-text,
+body[data-theme="dark"] input[type="datetime-local"]::-webkit-datetime-edit-month-field,
+body[data-theme="dark"] input[type="datetime-local"]::-webkit-datetime-edit-day-field,
+body[data-theme="dark"] input[type="datetime-local"]::-webkit-datetime-edit-year-field,
+body[data-theme="dark"] input[type="datetime-local"]::-webkit-datetime-edit-hour-field,
+body[data-theme="dark"] input[type="datetime-local"]::-webkit-datetime-edit-minute-field {
+color: var(--app-text);
+-webkit-text-fill-color: var(--app-text);
+opacity: 1;
+}
+body[data-theme="dark"] input[type="datetime-local"]:focus {
+background: transparent;
+color: var(--app-text);
+border-color: rgba(56,189,248,0.4);
+}
+body[data-theme="dark"] input[type="datetime-local"]:disabled,
+body[data-theme="dark"] input[type="datetime-local"][readonly] {
+background: transparent;
+color: var(--app-text-soft);
+-webkit-text-fill-color: var(--app-text-soft);
+opacity: 1;
+}
+body[data-theme="dark"] input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+filter: invert(1) brightness(1.25);
+opacity: 0.95;
 }
 body[data-theme="dark"] .management-dashboard::before {
 content: '';
@@ -984,12 +1094,12 @@ placeholder="Senha" required autocomplete="current-password">
 </div>
 <div class="col-6 col-md-3">
 <div class="quick-action-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);" onclick="openExportModal('pdf')">
-<i class="bi bi-file-earmark-pdf"></i><div><strong>Exportar PDF</strong></div><small>Escolher escopo</small>
+<i class="bi bi-file-earmark-pdf"></i><div><strong>Exportar PDF</strong></div><small>Imprimir/visualizar</small>
 </div>
 </div>
 <div class="col-6 col-md-3">
 <div class="quick-action-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);" onclick="openExportModal('excel')">
-<i class="bi bi-file-earmark-excel"></i><div><strong>Exportar Excel</strong></div><small>Escolher escopo</small>
+<i class="bi bi-file-earmark-excel"></i><div><strong>Exportar Excel</strong></div><small>Imprimir/visualizar</small>
 </div>
 </div>
 <div class="col-6 col-md-3">
@@ -2849,12 +2959,12 @@ const historyDiv = document.getElementById('vehicleHistory');
 const historyContent = document.getElementById('historyContent');
 const plateAlert = document.getElementById('plateAlert');
 if (existingVehicle) {
-plateAlert.innerHTML = `<i class="bi bi-exclamation-triangle-fill"></i> <strong>Veículo já está no pátio!</strong><br>ðŸ“ Local: ${existingVehicle.yard}<br>â±ï¸ Entrada: ${existingVehicle.entryDate}<br>â³ Tempo: ${existingVehicle.timeInYard}`;
+plateAlert.innerHTML = `<i class="bi bi-exclamation-triangle-fill"></i> <strong>Veículo já está no pátio!</strong><br>Local: ${existingVehicle.yard}<br>Entrada: ${existingVehicle.entryDate}<br>â³ Tempo: ${existingVehicle.timeInYard}`;
 plateAlert.classList.remove('hidden');
 document.getElementById('entryForm').querySelectorAll('input, select, textarea').forEach(el => el.disabled = true);
 document.getElementById('plate').disabled = false;
 historyDiv.classList.remove('hidden');
-historyContent.innerHTML = `<div class="history-item alert"><strong>âš ï¸ VEÍCULO JÁ ESTÁ NO PÁTIO</strong><br><small>Não é possível cadastrar entrada duplicada</small></div>`;
+historyContent.innerHTML = `<div class="history-item alert"><strong>VEÍCULO JÁ ESTÁ NO PÁTIO</strong><br><small>Não é possível cadastrar entrada duplicada</small></div>`;
 } else {
 const vehicleHistory = vehicles.filter(v => v.plate.toUpperCase() === plate.toUpperCase());
 plateAlert.classList.add('hidden');
@@ -2899,8 +3009,8 @@ showToast('âŒ Erro ao buscar veículo', 'danger');
 }
 
 async function confirmExitVehicle() {
-if (!vehicleToExit) { showToast('âš ï¸ Nenhum veículo para liberar', 'warning'); return; }
-if (!confirm(`âœ… Confirmar SAÍDA do veículo ${vehicleToExit.plate}?`)) return;
+if (!vehicleToExit) { showToast('Nenhum veículo para liberar', 'warning'); return; }
+if (!confirm(`Confirmar SAÍDA do veículo ${vehicleToExit.plate}?`)) return;
 try {
 unlockAppAudio();
 await fetch(`${API_URL}/vehicles/${vehicleToExit.id}/exit`, { method: 'POST' });
@@ -2908,7 +3018,7 @@ bootstrap.Modal.getInstance(document.getElementById('scanExitModal')).hide();
 loadStats();
 loadVehicles();
 playAppSound('vehicleReleased');
-showToast('ðŸšª Saída registrada com sucesso!', 'success');
+showToast('Saída registrada com sucesso!', 'success');
 } catch (err) {
 showToast('âŒ Erro ao registrar saída', 'danger');
 }
@@ -3685,7 +3795,7 @@ loadStats(); loadVehicles();
 }
 
 async function exitVehicle(id) {
-if (!confirm('âœ… Confirmar SAÍDA?')) return;
+if (!confirm('Confirmar SAÍDA?')) return;
 unlockAppAudio();
 await fetch(`${API_URL}/vehicles/${id}/exit`, { method: 'POST' });
 loadStats(); loadVehicles();
