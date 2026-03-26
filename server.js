@@ -54,6 +54,17 @@ function mapPostgresRow(row) {
         maintenance: row.maintenance, maintenanceCategory: row.maintenancecategory || '',
         hasAccident: row.hasaccident || false, documentIssue: row.documentissue || false, sascarStatus: row.sascarstatus || 'pendente',
         keys: row.keys, notes: row.notes,
+        isNewVehicle: row.isnewvehicle || false,
+        newVehiclePlotagem: row.newvehicleplotagem || false,
+        newVehicleTesteDrive: row.newvehiculetestedrive || false,
+        newVehicleAdesivoCorreios: row.newvehicleadesivocorreios || false,
+        newVehicleAdesivoPrint: row.newvehicleadesivoprint || false,
+        newVehicleMarcacaoPneus: row.newvehiclemarcacaopneus || false,
+        newVehicleForracaoInterna: row.newvehicleforracaointerna || false,
+        newVehicleNotes: row.newvehiclenotes || '',
+        hasNewLine: row.hasnewline || false,
+        newLineName: row.newlinename || '',
+        newLineState: row.newlinestate || '',
         entregarDiversos: row.entregar_diversos || false,
         entregarCorreios: row.entregar_correios || false,
         entregue: row.entregue || false, entreguePara: row.entreguepara || '',
@@ -155,10 +166,29 @@ function normalizePlateValue(value) {
     return String(value || '').trim().toUpperCase();
 }
 
+function normalizeBooleanFlag(value) {
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'number') return value === 1;
+    const normalized = canonicalText(value);
+    if (!normalized) return false;
+    if (['1', 'true', 'sim', 'yes', 'on', 'checked'].includes(normalized)) return true;
+    if (['0', 'false', 'nao', 'no', 'off'].includes(normalized)) return false;
+    return Boolean(value);
+}
+
+function canonicalizeBaseLocation(value) {
+    const trimmed = String(value || '').trim();
+    if (!trimmed) return '';
+    const normalized = canonicalText(trimmed);
+    if (normalized.includes('vitoria da conquista')) return 'Vitória da Conquista BA';
+    return trimmed;
+}
+
 function canonicalizeSascarStatus(status) {
     const normalized = canonicalText(status);
     if (normalized.includes('instal')) return 'instalado';
     if (normalized.includes('manut')) return 'manutencao';
+    if (normalized.includes('nao aplic')) return 'nao_aplicavel';
     return 'pendente';
 }
 
@@ -175,15 +205,29 @@ function canonicalizeMaintenanceCategory(category) {
 
 function normalizeVehicleRecord(vehicle) {
     if (!vehicle || typeof vehicle !== 'object') return vehicle;
+    const normalizedType = canonicalizeVehicleType(vehicle.type);
     return {
         ...vehicle,
-        type: canonicalizeVehicleType(vehicle.type),
+        type: normalizedType,
         status: canonicalizeVehicleStatus(vehicle.status),
+        base: canonicalizeBaseLocation(vehicle.base),
+        baseDestino: canonicalizeBaseLocation(vehicle.baseDestino ?? vehicle.basedestino),
         sascarStatus: canonicalizeSascarStatus(vehicle.sascarStatus),
         maintenanceCategory: canonicalizeMaintenanceCategory(vehicle.maintenanceCategory),
         maintenance: Boolean(vehicle.maintenance),
         hasAccident: Boolean(vehicle.hasAccident),
         documentIssue: Boolean(vehicle.documentIssue),
+        isNewVehicle: Boolean(vehicle.isNewVehicle ?? vehicle.isnewvehicle),
+        newVehiclePlotagem: Boolean(vehicle.newVehiclePlotagem ?? vehicle.newvehicleplotagem),
+        newVehicleTesteDrive: Boolean(vehicle.newVehicleTesteDrive ?? vehicle.newvehiculetestedrive),
+        newVehicleAdesivoCorreios: Boolean(vehicle.newVehicleAdesivoCorreios ?? vehicle.newvehicleadesivocorreios),
+        newVehicleAdesivoPrint: Boolean(vehicle.newVehicleAdesivoPrint ?? vehicle.newvehicleadesivoprint),
+        newVehicleMarcacaoPneus: Boolean(vehicle.newVehicleMarcacaoPneus ?? vehicle.newvehiclemarcacaopneus),
+        newVehicleForracaoInterna: normalizedType === 'Van' && Boolean(vehicle.newVehicleForracaoInterna ?? vehicle.newvehicleforracaointerna),
+        newVehicleNotes: String(vehicle.newVehicleNotes ?? vehicle.newvehiclenotes ?? '').trim(),
+        hasNewLine: Boolean(vehicle.hasNewLine ?? vehicle.hasnewline),
+        newLineName: String(vehicle.newLineName ?? vehicle.newlinename ?? '').trim(),
+        newLineState: String(vehicle.newLineState ?? vehicle.newlinestate ?? '').trim(),
         entregarDiversos: Boolean(vehicle.entregarDiversos ?? vehicle.entregar_diversos),
         entregarCorreios: Boolean(vehicle.entregarCorreios ?? vehicle.entregar_correios),
         entregue: Boolean(vehicle.entregue)
@@ -196,21 +240,32 @@ function normalizeImportedVehicle(v) {
         plate: pickFirstDefined(v, ['plate', 'Plate'], ''),
         type: pickFirstDefined(v, ['type', 'Type'], ''),
         yard: pickFirstDefined(v, ['yard', 'Yard'], ''),
-        base: pickFirstDefined(v, ['base', 'Base'], 'Jaraguá-SP (Nacional)'),
-        baseDestino: pickFirstDefined(v, ['baseDestino', 'basedestino', 'base_destino', 'BaseDestino'], ''),
+        base: canonicalizeBaseLocation(pickFirstDefined(v, ['base', 'Base'], 'Jaraguá-SP (Nacional)')),
+        baseDestino: canonicalizeBaseLocation(pickFirstDefined(v, ['baseDestino', 'basedestino', 'base_destino', 'BaseDestino'], '')),
         manager: pickFirstDefined(v, ['manager', 'Manager'], ''),
         chassis: pickFirstDefined(v, ['chassis', 'Chassis'], ''),
         status: pickFirstDefined(v, ['status', 'Status'], 'Aguardando linha'),
-        maintenance: !!pickFirstDefined(v, ['maintenance', 'Maintenance'], false),
+        maintenance: normalizeBooleanFlag(pickFirstDefined(v, ['maintenance', 'Maintenance'], false)),
         maintenanceCategory: pickFirstDefined(v, ['maintenanceCategory', 'maintenancecategory', 'maintenance_category'], ''),
-        hasAccident: !!pickFirstDefined(v, ['hasAccident', 'hasaccident', 'has_accident'], false),
-        documentIssue: !!pickFirstDefined(v, ['documentIssue', 'documentissue', 'document_issue', 'problemaDocumentacao', 'problema_documentacao'], false),
+        hasAccident: normalizeBooleanFlag(pickFirstDefined(v, ['hasAccident', 'hasaccident', 'has_accident'], false)),
+        documentIssue: normalizeBooleanFlag(pickFirstDefined(v, ['documentIssue', 'documentissue', 'document_issue', 'problemaDocumentacao', 'problema_documentacao'], false)),
         sascarStatus: pickFirstDefined(v, ['sascarStatus', 'sascarstatus', 'sascar_status'], 'pendente'),
         keys: pickFirstDefined(v, ['keys', 'Keys'], ''),
         notes: pickFirstDefined(v, ['notes', 'Notes'], ''),
-        entregarDiversos: !!pickFirstDefined(v, ['entregarDiversos', 'entregar_diversos'], false),
-        entregarCorreios: !!pickFirstDefined(v, ['entregarCorreios', 'entregar_correios'], false),
-        entregue: !!pickFirstDefined(v, ['entregue', 'Entregue'], false),
+        isNewVehicle: normalizeBooleanFlag(pickFirstDefined(v, ['isNewVehicle', 'isnewvehicle', 'is_new_vehicle'], false)),
+        newVehiclePlotagem: normalizeBooleanFlag(pickFirstDefined(v, ['newVehiclePlotagem', 'newvehicleplotagem', 'new_vehicle_plotagem'], false)),
+        newVehicleTesteDrive: normalizeBooleanFlag(pickFirstDefined(v, ['newVehicleTesteDrive', 'newvehiculetestedrive', 'new_vehicle_teste_drive'], false)),
+        newVehicleAdesivoCorreios: normalizeBooleanFlag(pickFirstDefined(v, ['newVehicleAdesivoCorreios', 'newvehicleadesivocorreios', 'new_vehicle_adesivo_correios'], false)),
+        newVehicleAdesivoPrint: normalizeBooleanFlag(pickFirstDefined(v, ['newVehicleAdesivoPrint', 'newvehicleadesivoprint', 'new_vehicle_adesivo_print'], false)),
+        newVehicleMarcacaoPneus: normalizeBooleanFlag(pickFirstDefined(v, ['newVehicleMarcacaoPneus', 'newvehiclemarcacaopneus', 'new_vehicle_marcacao_pneus'], false)),
+        newVehicleForracaoInterna: normalizeBooleanFlag(pickFirstDefined(v, ['newVehicleForracaoInterna', 'newvehicleforracaointerna', 'new_vehicle_forracao_interna'], false)),
+        newVehicleNotes: pickFirstDefined(v, ['newVehicleNotes', 'newvehiclenotes', 'new_vehicle_notes'], ''),
+        hasNewLine: normalizeBooleanFlag(pickFirstDefined(v, ['hasNewLine', 'hasnewline', 'has_new_line'], false)),
+        newLineName: pickFirstDefined(v, ['newLineName', 'newlinename', 'new_line_name'], ''),
+        newLineState: pickFirstDefined(v, ['newLineState', 'newlinestate', 'new_line_state'], ''),
+        entregarDiversos: normalizeBooleanFlag(pickFirstDefined(v, ['entregarDiversos', 'entregar_diversos'], false)),
+        entregarCorreios: normalizeBooleanFlag(pickFirstDefined(v, ['entregarCorreios', 'entregar_correios'], false)),
+        entregue: normalizeBooleanFlag(pickFirstDefined(v, ['entregue', 'Entregue'], false)),
         entreguePara: pickFirstDefined(v, ['entreguePara', 'entreguepara', 'entregue_para'], ''),
         readyTime: pickFirstDefined(v, ['readyTime', 'readytime'], null),
         entryTime: pickFirstDefined(v, ['entryTime', 'entrytime'], new Date().toISOString()),
@@ -224,8 +279,8 @@ function normalizeImportedSwap(s) {
         date: pickFirstDefined(s, ['date', 'Date'], new Date().toISOString()),
         plateIn: pickFirstDefined(s, ['plateIn', 'platein', 'plate_in'], '0000'),
         plateOut: pickFirstDefined(s, ['plateOut', 'plateout', 'plate_out'], ''),
-        base: pickFirstDefined(s, ['base', 'Base'], ''),
-        baseDestino: pickFirstDefined(s, ['baseDestino', 'basedestino', 'base_destino', 'BaseDestino'], ''),
+        base: canonicalizeBaseLocation(pickFirstDefined(s, ['base', 'Base'], '')),
+        baseDestino: canonicalizeBaseLocation(pickFirstDefined(s, ['baseDestino', 'basedestino', 'base_destino', 'BaseDestino'], '')),
         notes: pickFirstDefined(s, ['notes', 'Notes', 'observacoes', 'observação', 'observacao'], ''),
         tipo: pickFirstDefined(s, ['tipo', 'type', 'Tipo'], 'troca'),
         returnedAt: pickFirstDefined(s, ['returnedAt', 'returnedat', 'returned_at'], null),
@@ -252,8 +307,8 @@ function normalizeImportedConjunto(c) {
         cavaloPlate: pickFirstDefined(c, ['cavaloPlate', 'cavaloplate', 'cavalo_plate', 'placaCavalo'], ''),
         carretaPlate: pickFirstDefined(c, ['carretaPlate', 'carretaplate', 'carreta_plate', 'placaCarreta'], ''),
         yard: pickFirstDefined(c, ['yard', 'Yard'], ''),
-        base: pickFirstDefined(c, ['base', 'Base'], ''),
-        baseDestino: pickFirstDefined(c, ['baseDestino', 'basedestino', 'base_destino', 'BaseDestino'], ''),
+        base: canonicalizeBaseLocation(pickFirstDefined(c, ['base', 'Base'], '')),
+        baseDestino: canonicalizeBaseLocation(pickFirstDefined(c, ['baseDestino', 'basedestino', 'base_destino', 'BaseDestino'], '')),
         leaderName: pickFirstDefined(c, ['leaderName', 'leadername', 'leader_name', 'nomeLider', 'nome_lider'], ''),
         notes: pickFirstDefined(c, ['notes', 'Notes', 'observacoes', 'observacao'], '')
     };
@@ -371,6 +426,17 @@ async function initDatabase() {
                     maintenance BOOLEAN DEFAULT false, maintenanceCategory TEXT DEFAULT '',
                     hasAccident BOOLEAN DEFAULT false, documentIssue BOOLEAN DEFAULT false, sascarStatus TEXT DEFAULT 'pendente',
                     keys TEXT DEFAULT '', notes TEXT DEFAULT '',
+                    isNewVehicle BOOLEAN DEFAULT false,
+                    newVehiclePlotagem BOOLEAN DEFAULT false,
+                    newVehicleTesteDrive BOOLEAN DEFAULT false,
+                    newVehicleAdesivoCorreios BOOLEAN DEFAULT false,
+                    newVehicleAdesivoPrint BOOLEAN DEFAULT false,
+                    newVehicleMarcacaoPneus BOOLEAN DEFAULT false,
+                    newVehicleForracaoInterna BOOLEAN DEFAULT false,
+                    newVehicleNotes TEXT DEFAULT '',
+                    hasNewLine BOOLEAN DEFAULT false,
+                    newLineName TEXT DEFAULT '',
+                    newLineState TEXT DEFAULT '',
                     entregar_diversos BOOLEAN DEFAULT false,
                     entregar_correios BOOLEAN DEFAULT false,
                     entregue BOOLEAN DEFAULT false, entreguePara TEXT DEFAULT '',
@@ -473,6 +539,17 @@ async function initDatabase() {
             await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS sascarStatus TEXT DEFAULT 'pendente'`);
             await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS maintenanceCategory TEXT DEFAULT ''`);
             await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS readyTime TIMESTAMP`);
+            await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS isNewVehicle BOOLEAN DEFAULT false`);
+            await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS newVehiclePlotagem BOOLEAN DEFAULT false`);
+            await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS newVehicleTesteDrive BOOLEAN DEFAULT false`);
+            await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS newVehicleAdesivoCorreios BOOLEAN DEFAULT false`);
+            await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS newVehicleAdesivoPrint BOOLEAN DEFAULT false`);
+            await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS newVehicleMarcacaoPneus BOOLEAN DEFAULT false`);
+            await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS newVehicleForracaoInterna BOOLEAN DEFAULT false`);
+            await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS newVehicleNotes TEXT DEFAULT ''`);
+            await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS hasNewLine BOOLEAN DEFAULT false`);
+            await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS newLineName TEXT DEFAULT ''`);
+            await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS newLineState TEXT DEFAULT ''`);
             await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS entregar_diversos BOOLEAN DEFAULT false`);
             await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS entregar_correios BOOLEAN DEFAULT false`);
             await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS entregue BOOLEAN DEFAULT false`);
@@ -544,6 +621,17 @@ async function initDatabase() {
                     maintenance INTEGER DEFAULT 0, maintenanceCategory TEXT DEFAULT '',
                     hasAccident INTEGER DEFAULT 0, documentIssue INTEGER DEFAULT 0, sascarStatus TEXT DEFAULT 'pendente',
                     keys TEXT DEFAULT '', notes TEXT DEFAULT '',
+                    isNewVehicle INTEGER DEFAULT 0,
+                    newVehiclePlotagem INTEGER DEFAULT 0,
+                    newVehicleTesteDrive INTEGER DEFAULT 0,
+                    newVehicleAdesivoCorreios INTEGER DEFAULT 0,
+                    newVehicleAdesivoPrint INTEGER DEFAULT 0,
+                    newVehicleMarcacaoPneus INTEGER DEFAULT 0,
+                    newVehicleForracaoInterna INTEGER DEFAULT 0,
+                    newVehicleNotes TEXT DEFAULT '',
+                    hasNewLine INTEGER DEFAULT 0,
+                    newLineName TEXT DEFAULT '',
+                    newLineState TEXT DEFAULT '',
                     entregar_diversos INTEGER DEFAULT 0,
                     entregar_correios INTEGER DEFAULT 0,
                     entregue INTEGER DEFAULT 0, entreguePara TEXT DEFAULT '',
@@ -643,6 +731,17 @@ async function initDatabase() {
             try { db.exec('ALTER TABLE vehicles ADD COLUMN sascarStatus TEXT DEFAULT "pendente"'); } catch(e) {}
             try { db.exec('ALTER TABLE vehicles ADD COLUMN maintenanceCategory TEXT DEFAULT ""'); } catch(e) {}
             try { db.exec('ALTER TABLE vehicles ADD COLUMN readyTime TEXT'); } catch(e) {}
+            try { db.exec('ALTER TABLE vehicles ADD COLUMN isNewVehicle INTEGER DEFAULT 0'); } catch(e) {}
+            try { db.exec('ALTER TABLE vehicles ADD COLUMN newVehiclePlotagem INTEGER DEFAULT 0'); } catch(e) {}
+            try { db.exec('ALTER TABLE vehicles ADD COLUMN newVehicleTesteDrive INTEGER DEFAULT 0'); } catch(e) {}
+            try { db.exec('ALTER TABLE vehicles ADD COLUMN newVehicleAdesivoCorreios INTEGER DEFAULT 0'); } catch(e) {}
+            try { db.exec('ALTER TABLE vehicles ADD COLUMN newVehicleAdesivoPrint INTEGER DEFAULT 0'); } catch(e) {}
+            try { db.exec('ALTER TABLE vehicles ADD COLUMN newVehicleMarcacaoPneus INTEGER DEFAULT 0'); } catch(e) {}
+            try { db.exec('ALTER TABLE vehicles ADD COLUMN newVehicleForracaoInterna INTEGER DEFAULT 0'); } catch(e) {}
+            try { db.exec('ALTER TABLE vehicles ADD COLUMN newVehicleNotes TEXT DEFAULT ""'); } catch(e) {}
+            try { db.exec('ALTER TABLE vehicles ADD COLUMN hasNewLine INTEGER DEFAULT 0'); } catch(e) {}
+            try { db.exec('ALTER TABLE vehicles ADD COLUMN newLineName TEXT DEFAULT ""'); } catch(e) {}
+            try { db.exec('ALTER TABLE vehicles ADD COLUMN newLineState TEXT DEFAULT ""'); } catch(e) {}
             try { db.exec('ALTER TABLE vehicles ADD COLUMN entregar_diversos INTEGER DEFAULT 0'); } catch(e) {}
             try { db.exec('ALTER TABLE vehicles ADD COLUMN entregar_correios INTEGER DEFAULT 0'); } catch(e) {}
             try { db.exec('ALTER TABLE vehicles ADD COLUMN entregue INTEGER DEFAULT 0'); } catch(e) {}
@@ -1011,15 +1110,30 @@ app.post('/api/vehicles', requireAuth, async (req, res) => {
     if (allowedYards.length > 0 && !allowedYards.includes(yard)) return res.status(403).json({ error: 'Você não tem permissão para este pátio' });
     if (!plate && !chassis) return res.status(400).json({ error: 'Placa ou Chassi obrigatórios' });
     if (!type || !yard) return res.status(400).json({ error: 'Tipo e pátio obrigatórios' });
+    const normalizedType = canonicalizeVehicleType(type);
+    const normalizedBase = canonicalizeBaseLocation(base || 'Jaraguá-SP (Nacional)');
+    const normalizedBaseDestino = canonicalizeBaseLocation(baseDestino || '');
+    const isNewVehicle = normalizeBooleanFlag(req.body?.isNewVehicle);
+    const newVehiclePlotagem = isNewVehicle && normalizeBooleanFlag(req.body?.newVehiclePlotagem);
+    const newVehicleTesteDrive = isNewVehicle && normalizeBooleanFlag(req.body?.newVehicleTesteDrive);
+    const newVehicleAdesivoCorreios = isNewVehicle && normalizeBooleanFlag(req.body?.newVehicleAdesivoCorreios);
+    const newVehicleAdesivoPrint = isNewVehicle && normalizeBooleanFlag(req.body?.newVehicleAdesivoPrint);
+    const newVehicleMarcacaoPneus = isNewVehicle && normalizeBooleanFlag(req.body?.newVehicleMarcacaoPneus);
+    const newVehicleForracaoInterna = isNewVehicle && normalizedType === 'Van' && normalizeBooleanFlag(req.body?.newVehicleForracaoInterna);
+    const newVehicleNotes = isNewVehicle ? String(req.body?.newVehicleNotes || '').trim() : '';
+    const hasNewLine = normalizeBooleanFlag(req.body?.hasNewLine);
+    const newLineName = hasNewLine ? String(req.body?.newLineName || '').trim() : '';
+    const newLineState = hasNewLine ? String(req.body?.newLineState || '').trim() : '';
+    if (hasNewLine && (!newLineName || !newLineState)) return res.status(400).json({ error: 'Preencha o nome e o estado/UF da nova linha' });
     try {
         let createdVehicle;
         if (isProduction) {
-            const result = await pool.query(`INSERT INTO vehicles (plate, type, yard, base, baseDestino, manager, chassis, keys, notes, entregar_diversos, entregar_correios, hasAccident, documentIssue, sascarStatus, maintenanceCategory, entryTime, updatedBy) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING *`,
-                [plate ? plate.toUpperCase() : '', type, yard, base || 'Jaraguá-SP (Nacional)', baseDestino || '', manager || '', chassis || '', keys || '', notes || '', entregarDiversos ? true : false, entregarCorreios ? true : false, hasAccident ? true : false, documentIssue ? true : false, sascarStatus || 'pendente', maintenanceCategory || '', entryDate ? new Date(entryDate).toISOString() : new Date().toISOString(), req.session.user.username]);
+            const result = await pool.query(`INSERT INTO vehicles (plate, type, yard, base, baseDestino, manager, chassis, keys, notes, isNewVehicle, newVehiclePlotagem, newVehicleTesteDrive, newVehicleAdesivoCorreios, newVehicleAdesivoPrint, newVehicleMarcacaoPneus, newVehicleForracaoInterna, newVehicleNotes, hasNewLine, newLineName, newLineState, entregar_diversos, entregar_correios, hasAccident, documentIssue, sascarStatus, maintenanceCategory, entryTime, updatedBy) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28) RETURNING *`,
+                [plate ? plate.toUpperCase() : '', normalizedType, yard, normalizedBase, normalizedBaseDestino, manager || '', chassis || '', keys || '', notes || '', isNewVehicle, newVehiclePlotagem, newVehicleTesteDrive, newVehicleAdesivoCorreios, newVehicleAdesivoPrint, newVehicleMarcacaoPneus, newVehicleForracaoInterna, newVehicleNotes, hasNewLine, newLineName, newLineState, entregarDiversos ? true : false, entregarCorreios ? true : false, hasAccident ? true : false, documentIssue ? true : false, sascarStatus || 'pendente', maintenanceCategory || '', entryDate ? new Date(entryDate).toISOString() : new Date().toISOString(), req.session.user.username]);
             createdVehicle = normalizeVehicleRecord(mapPostgresRow(result.rows[0]));
         } else {
-            const stmt = db.prepare(`INSERT INTO vehicles (plate, type, yard, base, baseDestino, manager, chassis, keys, notes, entregar_diversos, entregar_correios, hasAccident, documentIssue, sascarStatus, maintenanceCategory, entryTime, updatedBy) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-            const result = stmt.run(plate ? plate.toUpperCase() : '', type, yard, base || 'Jaraguá-SP (Nacional)', baseDestino || '', manager || '', chassis || '', keys || '', notes || '', entregarDiversos ? 1 : 0, entregarCorreios ? 1 : 0, hasAccident ? 1 : 0, documentIssue ? 1 : 0, sascarStatus || 'pendente', maintenanceCategory || '', entryDate ? new Date(entryDate).toISOString() : new Date().toISOString(), req.session.user.username);
+            const stmt = db.prepare(`INSERT INTO vehicles (plate, type, yard, base, baseDestino, manager, chassis, keys, notes, isNewVehicle, newVehiclePlotagem, newVehicleTesteDrive, newVehicleAdesivoCorreios, newVehicleAdesivoPrint, newVehicleMarcacaoPneus, newVehicleForracaoInterna, newVehicleNotes, hasNewLine, newLineName, newLineState, entregar_diversos, entregar_correios, hasAccident, documentIssue, sascarStatus, maintenanceCategory, entryTime, updatedBy) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+            const result = stmt.run(plate ? plate.toUpperCase() : '', normalizedType, yard, normalizedBase, normalizedBaseDestino, manager || '', chassis || '', keys || '', notes || '', isNewVehicle ? 1 : 0, newVehiclePlotagem ? 1 : 0, newVehicleTesteDrive ? 1 : 0, newVehicleAdesivoCorreios ? 1 : 0, newVehicleAdesivoPrint ? 1 : 0, newVehicleMarcacaoPneus ? 1 : 0, newVehicleForracaoInterna ? 1 : 0, newVehicleNotes, hasNewLine ? 1 : 0, newLineName, newLineState, entregarDiversos ? 1 : 0, entregarCorreios ? 1 : 0, hasAccident ? 1 : 0, documentIssue ? 1 : 0, sascarStatus || 'pendente', maintenanceCategory || '', entryDate ? new Date(entryDate).toISOString() : new Date().toISOString(), req.session.user.username);
             createdVehicle = normalizeVehicleRecord({ ...db.prepare('SELECT * FROM vehicles WHERE id = ?').get(result.lastInsertRowid) });
         }
         const loanReturn = await detectLoanReturnOnEntry(createdVehicle, req.session.user.username);
@@ -1038,16 +1152,32 @@ app.put('/api/vehicles/:id', requireAuth, async (req, res) => {
         const allowedYards = getUserAllowedYards(req.session.user.username);
         if (allowedYards.length > 0 && !allowedYards.includes(updates.yard)) return res.status(403).json({ error: 'Você não tem permissão para este pátio' });
     }
+    const normalizedUpdateType = updates.type ? canonicalizeVehicleType(updates.type) : null;
+    const normalizedUpdateBase = updates.base ? canonicalizeBaseLocation(updates.base) : null;
+    const normalizedUpdateBaseDestino = updates.baseDestino !== undefined ? canonicalizeBaseLocation(updates.baseDestino) : null;
+    const isNewVehicle = normalizeBooleanFlag(updates.isNewVehicle);
+    const newVehiclePlotagem = isNewVehicle && normalizeBooleanFlag(updates.newVehiclePlotagem);
+    const newVehicleTesteDrive = isNewVehicle && normalizeBooleanFlag(updates.newVehicleTesteDrive);
+    const newVehicleAdesivoCorreios = isNewVehicle && normalizeBooleanFlag(updates.newVehicleAdesivoCorreios);
+    const newVehicleAdesivoPrint = isNewVehicle && normalizeBooleanFlag(updates.newVehicleAdesivoPrint);
+    const newVehicleMarcacaoPneus = isNewVehicle && normalizeBooleanFlag(updates.newVehicleMarcacaoPneus);
+    const newVehicleForracaoInterna = isNewVehicle && normalizedUpdateType === 'Van' && normalizeBooleanFlag(updates.newVehicleForracaoInterna);
+    const newVehicleNotes = isNewVehicle ? String(updates.newVehicleNotes ?? '').trim() : '';
+    const hasNewLine = normalizeBooleanFlag(updates.hasNewLine);
+    const newLineName = hasNewLine ? String(updates.newLineName ?? '').trim() : '';
+    const newLineState = hasNewLine ? String(updates.newLineState ?? '').trim() : '';
+    if (hasNewLine && (!newLineName || !newLineState)) return res.status(400).json({ error: 'Preencha o nome e o estado/UF da nova linha' });
     try {
         if (isProduction) {
-            await pool.query(`UPDATE vehicles SET plate = COALESCE($1::TEXT, plate), type = COALESCE($2::TEXT, type), yard = COALESCE($3::TEXT, yard), base = COALESCE($4::TEXT, base), baseDestino = COALESCE($5::TEXT, baseDestino), manager = COALESCE($6::TEXT, manager), chassis = COALESCE($7::TEXT, chassis), keys = COALESCE($8::TEXT, keys), status = COALESCE($9::TEXT, status), maintenance = COALESCE($10::BOOLEAN, maintenance), hasAccident = COALESCE($11::BOOLEAN, hasAccident), documentIssue = COALESCE($12::BOOLEAN, documentIssue), sascarStatus = COALESCE($13::TEXT, sascarStatus), maintenanceCategory = COALESCE($14::TEXT, maintenanceCategory), notes = COALESCE($15::TEXT, notes), entregar_diversos = COALESCE($16::BOOLEAN, entregar_diversos), entregar_correios = COALESCE($17::BOOLEAN, entregar_correios), entregue = COALESCE($18::BOOLEAN, entregue), entreguePara = COALESCE($19::TEXT, entreguePara), entryTime = CASE WHEN $20::TEXT IS NOT NULL AND ${canEditDates} THEN $20::TIMESTAMP ELSE entryTime END, exitTime = CASE WHEN $21::TEXT IS NOT NULL AND ${canEditDates} THEN $21::TIMESTAMP ELSE exitTime END, updatedAt = CURRENT_TIMESTAMP, updatedBy = $22::TEXT WHERE id = $23::INTEGER`,
-                [updates.plate || null, updates.type || null, updates.yard || null, updates.base || null, updates.baseDestino || null, updates.manager || null, updates.chassis || null, updates.keys || null, updates.status || null, updates.maintenance !== undefined ? Boolean(updates.maintenance) : null, updates.hasAccident !== undefined ? Boolean(updates.hasAccident) : null, updates.documentIssue !== undefined ? Boolean(updates.documentIssue) : null, updates.sascarStatus || null, updates.maintenanceCategory || null, updates.notes || null, updates.entregarDiversos !== undefined ? Boolean(updates.entregarDiversos) : null, updates.entregarCorreios !== undefined ? Boolean(updates.entregarCorreios) : null, updates.entregue !== undefined ? Boolean(updates.entregue) : null, updates.entreguePara || null, canEditDates && updates.entryTime ? updates.entryTime : null, canEditDates && updates.exitTime ? updates.exitTime : null, req.session.user.username, id]);
+            await pool.query(`UPDATE vehicles SET plate = COALESCE($1::TEXT, plate), type = COALESCE($2::TEXT, type), yard = COALESCE($3::TEXT, yard), base = COALESCE($4::TEXT, base), baseDestino = COALESCE($5::TEXT, baseDestino), manager = COALESCE($6::TEXT, manager), chassis = COALESCE($7::TEXT, chassis), keys = COALESCE($8::TEXT, keys), status = COALESCE($9::TEXT, status), maintenance = COALESCE($10::BOOLEAN, maintenance), hasAccident = COALESCE($11::BOOLEAN, hasAccident), documentIssue = COALESCE($12::BOOLEAN, documentIssue), sascarStatus = COALESCE($13::TEXT, sascarStatus), maintenanceCategory = COALESCE($14::TEXT, maintenanceCategory), notes = COALESCE($15::TEXT, notes), entregar_diversos = COALESCE($16::BOOLEAN, entregar_diversos), entregar_correios = COALESCE($17::BOOLEAN, entregar_correios), entregue = COALESCE($18::BOOLEAN, entregue), entreguePara = COALESCE($19::TEXT, entreguePara), entryTime = CASE WHEN $20::TEXT IS NOT NULL AND ${canEditDates} THEN $20::TIMESTAMP ELSE entryTime END, exitTime = CASE WHEN $21::TEXT IS NOT NULL AND ${canEditDates} THEN $21::TIMESTAMP ELSE exitTime END, isNewVehicle = COALESCE($22::BOOLEAN, isNewVehicle), newVehiclePlotagem = COALESCE($23::BOOLEAN, newVehiclePlotagem), newVehicleTesteDrive = COALESCE($24::BOOLEAN, newVehicleTesteDrive), newVehicleAdesivoCorreios = COALESCE($25::BOOLEAN, newVehicleAdesivoCorreios), newVehicleAdesivoPrint = COALESCE($26::BOOLEAN, newVehicleAdesivoPrint), newVehicleMarcacaoPneus = COALESCE($27::BOOLEAN, newVehicleMarcacaoPneus), newVehicleForracaoInterna = COALESCE($28::BOOLEAN, newVehicleForracaoInterna), newVehicleNotes = COALESCE($29::TEXT, newVehicleNotes), hasNewLine = COALESCE($30::BOOLEAN, hasNewLine), newLineName = COALESCE($31::TEXT, newLineName), newLineState = COALESCE($32::TEXT, newLineState), updatedAt = CURRENT_TIMESTAMP, updatedBy = $33::TEXT WHERE id = $34::INTEGER`,
+                [updates.plate || null, normalizedUpdateType, updates.yard || null, normalizedUpdateBase, normalizedUpdateBaseDestino, updates.manager || null, updates.chassis || null, updates.keys || null, updates.status || null, updates.maintenance !== undefined ? Boolean(updates.maintenance) : null, updates.hasAccident !== undefined ? Boolean(updates.hasAccident) : null, updates.documentIssue !== undefined ? Boolean(updates.documentIssue) : null, updates.sascarStatus || null, updates.maintenanceCategory || null, updates.notes || null, updates.entregarDiversos !== undefined ? Boolean(updates.entregarDiversos) : null, updates.entregarCorreios !== undefined ? Boolean(updates.entregarCorreios) : null, updates.entregue !== undefined ? Boolean(updates.entregue) : null, updates.entreguePara || null, canEditDates && updates.entryTime ? updates.entryTime : null, canEditDates && updates.exitTime ? updates.exitTime : null, isNewVehicle, newVehiclePlotagem, newVehicleTesteDrive, newVehicleAdesivoCorreios, newVehicleAdesivoPrint, newVehicleMarcacaoPneus, newVehicleForracaoInterna, newVehicleNotes ?? null, hasNewLine, newLineName ?? null, newLineState ?? null, req.session.user.username, id]);
         } else {
-            db.prepare(`UPDATE vehicles SET plate = ?, type = ?, yard = ?, base = ?, baseDestino = ?, manager = ?, chassis = ?, keys = ?, status = ?, maintenance = ?, hasAccident = ?, documentIssue = ?, sascarStatus = ?, maintenanceCategory = ?, notes = ?, entregar_diversos = ?, entregar_correios = ?, entregue = ?, entreguePara = ?, entryTime = ?, exitTime = ?, updatedAt = ?, updatedBy = ? WHERE id = ?`).run(
-                updates.plate || null, updates.type || null, updates.yard || null, updates.base || null, updates.baseDestino || null, updates.manager || null, updates.chassis || null, updates.keys || null, updates.status || null,
+            db.prepare(`UPDATE vehicles SET plate = ?, type = ?, yard = ?, base = ?, baseDestino = ?, manager = ?, chassis = ?, keys = ?, status = ?, maintenance = ?, hasAccident = ?, documentIssue = ?, sascarStatus = ?, maintenanceCategory = ?, notes = ?, entregar_diversos = ?, entregar_correios = ?, entregue = ?, entreguePara = ?, entryTime = ?, exitTime = ?, isNewVehicle = ?, newVehiclePlotagem = ?, newVehicleTesteDrive = ?, newVehicleAdesivoCorreios = ?, newVehicleAdesivoPrint = ?, newVehicleMarcacaoPneus = ?, newVehicleForracaoInterna = ?, newVehicleNotes = ?, hasNewLine = ?, newLineName = ?, newLineState = ?, updatedAt = ?, updatedBy = ? WHERE id = ?`).run(
+                updates.plate || null, normalizedUpdateType, updates.yard || null, normalizedUpdateBase, normalizedUpdateBaseDestino, updates.manager || null, updates.chassis || null, updates.keys || null, updates.status || null,
                 updates.maintenance ? 1 : 0, updates.hasAccident ? 1 : 0, updates.documentIssue ? 1 : 0, updates.sascarStatus || 'pendente', updates.maintenanceCategory || '', updates.notes || null,
                 updates.entregarDiversos ? 1 : 0, updates.entregarCorreios ? 1 : 0, updates.entregue ? 1 : 0, updates.entreguePara || '',
                 canEditDates && updates.entryTime ? updates.entryTime : null, canEditDates && updates.exitTime ? updates.exitTime : null,
+                isNewVehicle ? 1 : 0, newVehiclePlotagem ? 1 : 0, newVehicleTesteDrive ? 1 : 0, newVehicleAdesivoCorreios ? 1 : 0, newVehicleAdesivoPrint ? 1 : 0, newVehicleMarcacaoPneus ? 1 : 0, newVehicleForracaoInterna ? 1 : 0, newVehicleNotes, hasNewLine ? 1 : 0, newLineName, newLineState,
                 new Date().toISOString(), req.session.user.username, id);
         }
         res.json({ success: true, message: 'Veículo atualizado com sucesso' });
@@ -1380,6 +1510,7 @@ app.get('/api/stats', requireAuth, async (req, res) => {
         const entreguesDiversos = vehicles.filter(v => v.entregarDiversos).length;
         const entreguesCorreios = vehicles.filter(v => v.entregarCorreios).length;
         const comSinistro = vehicles.filter(v => v.hasAccident).length;
+        const veiculosNovos = vehicles.filter(v => v.isNewVehicle).length;
         const now = new Date();
         const stalledVehicles = active.filter(v => (now - new Date(v.entryTime)) / (1000 * 60 * 60) > 24 && v.status === 'Aguardando linha');
         const readyForBoarding = liberated.filter(v => !v.entregue).length;
@@ -1397,6 +1528,7 @@ app.get('/api/stats', requireAuth, async (req, res) => {
             entreguesDiversos,
             entreguesCorreios,
             comSinistro,
+            veiculosNovos,
             readyForBoarding,
             sascarIssues,
             documentationIssues,
@@ -1409,6 +1541,39 @@ app.get('/api/stats', requireAuth, async (req, res) => {
         });
     } catch (err) { res.status(500).json({ error: 'Erro ao buscar estatísticas' }); }
 });
+
+async function buildExportPayload(exportedBy = 'system') {
+    let vehicles, swaps, conjuntos;
+    if (isProduction) {
+        vehicles = (await pool.query('SELECT * FROM vehicles')).rows.map(mapPostgresRow);
+        swaps = (await pool.query('SELECT * FROM swaps')).rows.map(mapSwapRow);
+        conjuntos = (await pool.query('SELECT * FROM conjuntos')).rows.map(mapConjuntoRow);
+    } else {
+        vehicles = db.prepare('SELECT * FROM vehicles').all();
+        swaps = db.prepare('SELECT * FROM swaps').all();
+        conjuntos = db.prepare('SELECT * FROM conjuntos').all();
+    }
+    return {
+        vehicles,
+        swaps,
+        conjuntos,
+        exportedAt: new Date().toISOString(),
+        version: '6.0.0',
+        exportedBy
+    };
+}
+
+async function createPreImportBackup(exportedBy = 'system') {
+    const backupDir = path.join(__dirname, 'backups');
+    if (!fs.existsSync(backupDir)) {
+        fs.mkdirSync(backupDir, { recursive: true });
+    }
+    const backupFile = `backup-pre-import-${Date.now()}.json`;
+    const backupPath = path.join(backupDir, backupFile);
+    const payload = await buildExportPayload(exportedBy);
+    fs.writeFileSync(backupPath, JSON.stringify(payload, null, 2), 'utf8');
+    return { backupFile, backupPath };
+}
 
 app.post('/api/import', requireAuth, requireRole(['admin']), async (req, res) => {
     const importedVehiclesRaw = Array.isArray(req.body?.vehicles) ? req.body.vehicles : [];
@@ -1428,65 +1593,83 @@ app.post('/api/import', requireAuth, requireRole(['admin']), async (req, res) =>
         .map(normalizeImportedConjunto)
         .filter(c => c && c.cavaloPlate && c.carretaPlate);
 
+    if (importedVehicles.length === 0 && importedSwaps.length === 0 && importedConjuntos.length === 0) {
+        return res.status(400).json({ error: 'Arquivo de importação vazio ou sem registros válidos. Nenhum dado foi alterado.' });
+    }
+
     try {
+        const backup = await createPreImportBackup(req.session.user.username);
         if (isProduction) {
-            await pool.query('DELETE FROM vehicles');
-            await pool.query('DELETE FROM swaps');
-            await pool.query('DELETE FROM conjuntos');
-            for (const v of importedVehicles) {
-                if (v.plate || v.chassis) {
-                    await pool.query(`INSERT INTO vehicles (plate, type, yard, base, baseDestino, manager, chassis, status, maintenance, maintenanceCategory, hasAccident, documentIssue, sascarStatus, keys, notes, entregar_diversos, entregar_correios, entregue, entreguePara, readyTime, entryTime, exitTime, updatedBy) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)`,
-                        [v.plate ? v.plate.toUpperCase() : '', v.type, v.yard, v.base || 'Jaraguá-SP (Nacional)', v.baseDestino || '', v.manager || '', v.chassis || '', v.status || 'Aguardando linha', v.maintenance || false, v.maintenanceCategory || '', v.hasAccident || false, v.documentIssue || false, v.sascarStatus || 'pendente', v.keys || '', v.notes || '', v.entregarDiversos || false, v.entregarCorreios || false, v.entregue || false, v.entreguePara || '', v.readyTime || null, v.entryTime || new Date().toISOString(), v.exitTime || null, req.session.user.username]);
-                }
-            }
-            if (Array.isArray(importedSwaps) && importedSwaps.length > 0) {
-                for (const s of importedSwaps) {
-                    if (s.plateOut) {
-                        await pool.query(
-                            `INSERT INTO swaps (date, plateIn, plateOut, base, baseDestino, notes, tipo, returnedAt, returnYard, returnVehicleId, returnDetectedBy, updatedBy)
-                             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-                            [s.date || new Date().toISOString(), s.plateIn || '0000', s.plateOut, s.base || '', s.baseDestino || '', s.notes || '', s.tipo || 'troca', s.returnedAt || null, s.returnYard || '', s.returnVehicleId || null, s.returnDetectedBy || '', req.session.user.username]
-                        );
+            const client = await pool.connect();
+            try {
+                await client.query('BEGIN');
+                await client.query('DELETE FROM vehicles');
+                await client.query('DELETE FROM swaps');
+                await client.query('DELETE FROM conjuntos');
+                for (const v of importedVehicles) {
+                    if (v.plate || v.chassis) {
+                        await client.query(`INSERT INTO vehicles (plate, type, yard, base, baseDestino, manager, chassis, status, maintenance, maintenanceCategory, hasAccident, documentIssue, sascarStatus, keys, notes, isNewVehicle, newVehiclePlotagem, newVehicleTesteDrive, newVehicleAdesivoCorreios, newVehicleAdesivoPrint, newVehicleMarcacaoPneus, newVehicleForracaoInterna, newVehicleNotes, hasNewLine, newLineName, newLineState, entregar_diversos, entregar_correios, entregue, entreguePara, readyTime, entryTime, exitTime, updatedBy) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34)`,
+                            [v.plate ? v.plate.toUpperCase() : '', v.type, v.yard, v.base || 'Jaraguá-SP (Nacional)', v.baseDestino || '', v.manager || '', v.chassis || '', v.status || 'Aguardando linha', v.maintenance || false, v.maintenanceCategory || '', v.hasAccident || false, v.documentIssue || false, v.sascarStatus || 'pendente', v.keys || '', v.notes || '', v.isNewVehicle || false, v.newVehiclePlotagem || false, v.newVehicleTesteDrive || false, v.newVehicleAdesivoCorreios || false, v.newVehicleAdesivoPrint || false, v.newVehicleMarcacaoPneus || false, v.newVehicleForracaoInterna || false, v.newVehicleNotes || '', v.hasNewLine || false, v.newLineName || '', v.newLineState || '', v.entregarDiversos || false, v.entregarCorreios || false, v.entregue || false, v.entreguePara || '', v.readyTime || null, v.entryTime || new Date().toISOString(), v.exitTime || null, req.session.user.username]);
                     }
                 }
-            }
-            if (Array.isArray(importedConjuntos) && importedConjuntos.length > 0) {
-                for (const c of importedConjuntos) {
-                    await pool.query(`INSERT INTO conjuntos (date, cavaloPlate, carretaPlate, yard, base, baseDestino, leaderName, notes, updatedBy) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-                        [c.date || new Date().toISOString(), c.cavaloPlate.toUpperCase(), c.carretaPlate.toUpperCase(), c.yard || '', c.base || '', c.baseDestino || '', c.leaderName || '', c.notes || '', req.session.user.username]);
+                if (Array.isArray(importedSwaps) && importedSwaps.length > 0) {
+                    for (const s of importedSwaps) {
+                        if (s.plateOut) {
+                            await client.query(
+                                `INSERT INTO swaps (date, plateIn, plateOut, base, baseDestino, notes, tipo, returnedAt, returnYard, returnVehicleId, returnDetectedBy, updatedBy)
+                                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+                                [s.date || new Date().toISOString(), s.plateIn || '0000', s.plateOut, s.base || '', s.baseDestino || '', s.notes || '', s.tipo || 'troca', s.returnedAt || null, s.returnYard || '', s.returnVehicleId || null, s.returnDetectedBy || '', req.session.user.username]
+                            );
+                        }
+                    }
                 }
+                if (Array.isArray(importedConjuntos) && importedConjuntos.length > 0) {
+                    for (const c of importedConjuntos) {
+                        await client.query(`INSERT INTO conjuntos (date, cavaloPlate, carretaPlate, yard, base, baseDestino, leaderName, notes, updatedBy) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+                            [c.date || new Date().toISOString(), c.cavaloPlate.toUpperCase(), c.carretaPlate.toUpperCase(), c.yard || '', c.base || '', c.baseDestino || '', c.leaderName || '', c.notes || '', req.session.user.username]);
+                    }
+                }
+                await client.query('COMMIT');
+            } catch (err) {
+                await client.query('ROLLBACK');
+                throw err;
+            } finally {
+                client.release();
             }
         } else {
-            db.exec('DELETE FROM vehicles');
-            db.exec('DELETE FROM swaps');
-            db.exec('DELETE FROM conjuntos');
-            db.exec("DELETE FROM sqlite_sequence WHERE name='vehicles'");
-            db.exec("DELETE FROM sqlite_sequence WHERE name='swaps'");
-            db.exec("DELETE FROM sqlite_sequence WHERE name='conjuntos'");
-            const vehicleStmt = db.prepare(`INSERT INTO vehicles (plate, type, yard, base, baseDestino, manager, chassis, status, maintenance, maintenanceCategory, hasAccident, documentIssue, sascarStatus, keys, notes, entregar_diversos, entregar_correios, entregue, entreguePara, readyTime, entryTime, exitTime, updatedBy) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-            for (const v of importedVehicles) {
-                if (v.plate || v.chassis) {
-                    vehicleStmt.run(v.plate ? v.plate.toUpperCase() : '', v.type, v.yard, v.base || 'Jaraguá-SP (Nacional)', v.baseDestino || '', v.manager || '', v.chassis || '', v.status || 'Aguardando linha', v.maintenance ? 1 : 0, v.maintenanceCategory || '', v.hasAccident ? 1 : 0, v.documentIssue ? 1 : 0, v.sascarStatus || 'pendente', v.keys || '', v.notes || '', v.entregarDiversos ? 1 : 0, v.entregarCorreios ? 1 : 0, v.entregue ? 1 : 0, v.entreguePara || '', v.readyTime || null, v.entryTime || new Date().toISOString(), v.exitTime || null, req.session.user.username);
-                }
-            }
-            if (Array.isArray(importedSwaps) && importedSwaps.length > 0) {
-                const swapStmt = db.prepare(`INSERT INTO swaps (date, plateIn, plateOut, base, baseDestino, notes, tipo, returnedAt, returnYard, returnVehicleId, returnDetectedBy, updatedBy) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-                for (const s of importedSwaps) {
-                    if (s.plateOut) {
-                        swapStmt.run(s.date || new Date().toISOString(), s.plateIn || '0000', s.plateOut, s.base || '', s.baseDestino || '', s.notes || '', s.tipo || 'troca', s.returnedAt || null, s.returnYard || '', s.returnVehicleId || null, s.returnDetectedBy || '', req.session.user.username);
+            const vehicleStmt = db.prepare(`INSERT INTO vehicles (plate, type, yard, base, baseDestino, manager, chassis, status, maintenance, maintenanceCategory, hasAccident, documentIssue, sascarStatus, keys, notes, isNewVehicle, newVehiclePlotagem, newVehicleTesteDrive, newVehicleAdesivoCorreios, newVehicleAdesivoPrint, newVehicleMarcacaoPneus, newVehicleForracaoInterna, newVehicleNotes, hasNewLine, newLineName, newLineState, entregar_diversos, entregar_correios, entregue, entreguePara, readyTime, entryTime, exitTime, updatedBy) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+            const runSqliteImport = db.transaction(() => {
+                db.exec('DELETE FROM vehicles');
+                db.exec('DELETE FROM swaps');
+                db.exec('DELETE FROM conjuntos');
+                db.exec("DELETE FROM sqlite_sequence WHERE name='vehicles'");
+                db.exec("DELETE FROM sqlite_sequence WHERE name='swaps'");
+                db.exec("DELETE FROM sqlite_sequence WHERE name='conjuntos'");
+                for (const v of importedVehicles) {
+                    if (v.plate || v.chassis) {
+                        vehicleStmt.run(v.plate ? v.plate.toUpperCase() : '', v.type, v.yard, v.base || 'Jaraguá-SP (Nacional)', v.baseDestino || '', v.manager || '', v.chassis || '', v.status || 'Aguardando linha', v.maintenance ? 1 : 0, v.maintenanceCategory || '', v.hasAccident ? 1 : 0, v.documentIssue ? 1 : 0, v.sascarStatus || 'pendente', v.keys || '', v.notes || '', v.isNewVehicle ? 1 : 0, v.newVehiclePlotagem ? 1 : 0, v.newVehicleTesteDrive ? 1 : 0, v.newVehicleAdesivoCorreios ? 1 : 0, v.newVehicleAdesivoPrint ? 1 : 0, v.newVehicleMarcacaoPneus ? 1 : 0, v.newVehicleForracaoInterna ? 1 : 0, v.newVehicleNotes || '', v.hasNewLine ? 1 : 0, v.newLineName || '', v.newLineState || '', v.entregarDiversos ? 1 : 0, v.entregarCorreios ? 1 : 0, v.entregue ? 1 : 0, v.entreguePara || '', v.readyTime || null, v.entryTime || new Date().toISOString(), v.exitTime || null, req.session.user.username);
                     }
                 }
-            }
-            if (Array.isArray(importedConjuntos) && importedConjuntos.length > 0) {
-                const conjuntoStmt = db.prepare(`INSERT INTO conjuntos (date, cavaloPlate, carretaPlate, yard, base, baseDestino, leaderName, notes, updatedBy) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-                for (const c of importedConjuntos) {
-                    conjuntoStmt.run(c.date || new Date().toISOString(), c.cavaloPlate.toUpperCase(), c.carretaPlate.toUpperCase(), c.yard || '', c.base || '', c.baseDestino || '', c.leaderName || '', c.notes || '', req.session.user.username);
+                if (Array.isArray(importedSwaps) && importedSwaps.length > 0) {
+                const swapStmt = db.prepare(`INSERT INTO swaps (date, plateIn, plateOut, base, baseDestino, notes, tipo, returnedAt, returnYard, returnVehicleId, returnDetectedBy, updatedBy) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+                    for (const s of importedSwaps) {
+                        if (s.plateOut) {
+                            swapStmt.run(s.date || new Date().toISOString(), s.plateIn || '0000', s.plateOut, s.base || '', s.baseDestino || '', s.notes || '', s.tipo || 'troca', s.returnedAt || null, s.returnYard || '', s.returnVehicleId || null, s.returnDetectedBy || '', req.session.user.username);
+                        }
+                    }
                 }
-            }
+                if (Array.isArray(importedConjuntos) && importedConjuntos.length > 0) {
+                    const conjuntoStmt = db.prepare(`INSERT INTO conjuntos (date, cavaloPlate, carretaPlate, yard, base, baseDestino, leaderName, notes, updatedBy) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+                    for (const c of importedConjuntos) {
+                        conjuntoStmt.run(c.date || new Date().toISOString(), c.cavaloPlate.toUpperCase(), c.carretaPlate.toUpperCase(), c.yard || '', c.base || '', c.baseDestino || '', c.leaderName || '', c.notes || '', req.session.user.username);
+                    }
+                }
+            });
+            runSqliteImport();
         }
         const swapsCount = Array.isArray(importedSwaps) ? importedSwaps.length : 0;
         const conjuntosCount = Array.isArray(importedConjuntos) ? importedConjuntos.length : 0;
-        res.json({ success: true, imported: importedVehicles.length, swapsImported: swapsCount, conjuntosImported: conjuntosCount, message: `✅ Importação concluída: ${importedVehicles.length} veículo(s), ${swapsCount} troca(s) e ${conjuntosCount} conjunto(s)` });
+        res.json({ success: true, imported: importedVehicles.length, swapsImported: swapsCount, conjuntosImported: conjuntosCount, backupFile: backup.backupFile, message: `✅ Importação concluída: ${importedVehicles.length} veículo(s), ${swapsCount} troca(s) e ${conjuntosCount} conjunto(s). Backup salvo em ${backup.backupFile}` });
     } catch (err) {
         console.error('❌ Erro ao importar:', err);
         res.status(500).json({ error: 'Erro ao importar: ' + err.message });
@@ -1495,17 +1678,7 @@ app.post('/api/import', requireAuth, requireRole(['admin']), async (req, res) =>
 
 app.get('/api/export', requireAuth, async (req, res) => {
     try {
-        let vehicles, swaps, conjuntos;
-        if (isProduction) {
-            vehicles = (await pool.query('SELECT * FROM vehicles')).rows.map(mapPostgresRow);
-            swaps = (await pool.query('SELECT * FROM swaps')).rows.map(mapSwapRow);
-            conjuntos = (await pool.query('SELECT * FROM conjuntos')).rows.map(mapConjuntoRow);
-        } else {
-            vehicles = db.prepare('SELECT * FROM vehicles').all();
-            swaps = db.prepare('SELECT * FROM swaps').all();
-            conjuntos = db.prepare('SELECT * FROM conjuntos').all();
-        }
-        res.json({ vehicles, swaps, conjuntos, exportedAt: new Date().toISOString(), version: '6.0.0', exportedBy: req.session.user.username });
+        res.json(await buildExportPayload(req.session.user.username));
     } catch (err) { res.status(500).json({ error: 'Erro ao exportar' }); }
 });
 
