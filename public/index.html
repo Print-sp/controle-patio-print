@@ -375,7 +375,14 @@ padding: 4px 10px; background: #e9ecef; border-radius: 6px;
 background: #e7f1ff; color: #0d6efd; font-size: 0.8rem;
 padding: 3px 8px; border-radius: 4px; font-weight: 500;
 }
-.date-badge { background: #f1f5f9; color: #475569; font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; }
+.date-badge {
+background: transparent;
+color: #475569;
+font-size: 0.75rem;
+padding: 0;
+border-radius: 0;
+font-weight: 500;
+}
 .action-btn { padding: 4px 10px; font-size: 0.8rem; margin: 2px; }
 .modal-header { background: var(--print-blue); color: white; }
 .modal-header .btn-close { filter: brightness(0) invert(1); }
@@ -4384,9 +4391,11 @@ const day = String(d.getDate()).padStart(2, '0');
 const hours = String(d.getHours()).padStart(2, '0');
 const minutes = String(d.getMinutes()).padStart(2, '0');
 document.getElementById('editEntryTime').value = `${year}-${month}-${day}T${hours}:${minutes}`;
+} else {
+document.getElementById('editEntryTime').value = '';
 }
 
-if (v.exitTime) {
+if (v.status === 'Liberado' && v.exitTime) {
 const d = new Date(v.exitTime);
 const year = d.getFullYear();
 const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -4394,6 +4403,8 @@ const day = String(d.getDate()).padStart(2, '0');
 const hours = String(d.getHours()).padStart(2, '0');
 const minutes = String(d.getMinutes()).padStart(2, '0');
 document.getElementById('editExitTime').value = `${year}-${month}-${day}T${hours}:${minutes}`;
+} else {
+document.getElementById('editExitTime').value = '';
 }
 
 const dateField = document.getElementById('editEntryTime');
