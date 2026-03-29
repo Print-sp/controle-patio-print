@@ -617,7 +617,7 @@ background: linear-gradient(135deg, #22c55e 0%, #166534 100%);
 .header-print small { font-size: 0.75rem !important; }
 .header-print img { height: 40px !important; max-width: 150px !important; }
 .voice-control-group { gap: 8px; }
-.voice-status-banner { top: 76px; width: calc(100vw - 20px); padding: 10px 12px; }
+.voice-status-banner { top: 76px; right: 10px; width: min(260px, calc(100vw - 20px)); padding: 10px 12px; }
 .quick-action-card { min-height: 100px !important; padding: 15px 10px !important; }
 .quick-action-card i { font-size: 2rem !important; }
 .quick-action-card div { font-size: 0.9rem !important; }
@@ -787,14 +787,15 @@ transform: none;
 }
 .voice-status-banner {
 position: fixed;
-top: 86px;
-left: 50%;
-transform: translateX(-50%);
-z-index: 1200;
+top: 92px;
+right: 16px;
+left: auto;
+transform: none;
+z-index: 1080;
 display: flex;
 align-items: center;
 gap: 12px;
-width: min(540px, calc(100vw - 24px));
+width: min(320px, calc(100vw - 20px));
 padding: 12px 16px;
 border-radius: 18px;
 background: rgba(255,255,255,0.96);
@@ -802,6 +803,7 @@ color: var(--app-text);
 border: 1px solid rgba(15, 23, 42, 0.08);
 box-shadow: 0 20px 36px rgba(15, 23, 42, 0.16);
 backdrop-filter: blur(14px);
+pointer-events: none;
 }
 .voice-status-banner .icon {
 width: 40px;
@@ -824,6 +826,31 @@ line-height: 1.2;
 font-size: 0.8rem;
 line-height: 1.35;
 color: var(--app-text-soft);
+word-break: break-word;
+display: -webkit-box;
+-webkit-line-clamp: 2;
+-webkit-box-orient: vertical;
+overflow: hidden;
+}
+.modal-open .voice-status-banner {
+top: 14px;
+right: 14px;
+width: min(260px, calc(100vw - 20px));
+padding: 10px 12px;
+gap: 10px;
+}
+.modal-open .voice-status-banner .icon {
+width: 34px;
+height: 34px;
+border-radius: 10px;
+font-size: 0.92rem;
+}
+.modal-open .voice-status-banner .title {
+font-size: 0.82rem;
+}
+.modal-open .voice-status-banner .text {
+font-size: 0.74rem;
+line-height: 1.25;
 }
 .voice-status-banner.is-listening {
 border-color: rgba(13, 110, 253, 0.24);
@@ -2565,7 +2592,12 @@ updateDashboard();
 }
 
 function normalizePlateForComparison(value) {
-return String(value || '').trim().toUpperCase();
+return String(value || '')
+.normalize('NFD')
+.replace(/[\u0300-\u036f]/g, '')
+.toUpperCase()
+.replace(/[^A-Z0-9]/g, '')
+.trim();
 }
 
 function persistLoanReturnNotifications() {
@@ -3143,6 +3175,115 @@ function compactSearchFilterText(value) {
 return normalizeSearchFilterText(value).replace(/[^a-z0-9]/g, '');
 }
 
+const VOICE_SPOKEN_DIGIT_MAP = Object.freeze({
+zero: '0',
+um: '1',
+uma: '1',
+hum: '1',
+dois: '2',
+duas: '2',
+tres: '3',
+quatro: '4',
+cinco: '5',
+seis: '6',
+meia: '6',
+sete: '7',
+oito: '8',
+nove: '9',
+dez: '10',
+onze: '11',
+doze: '12'
+});
+
+const VOICE_SPOKEN_LETTER_MAP = Object.freeze({
+a: 'A',
+be: 'B',
+b: 'B',
+ce: 'C',
+c: 'C',
+de: 'D',
+d: 'D',
+e: 'E',
+efe: 'F',
+f: 'F',
+ge: 'G',
+g: 'G',
+aga: 'H',
+h: 'H',
+i: 'I',
+jota: 'J',
+j: 'J',
+ka: 'K',
+k: 'K',
+ele: 'L',
+l: 'L',
+eme: 'M',
+m: 'M',
+ene: 'N',
+n: 'N',
+o: 'O',
+pe: 'P',
+p: 'P',
+que: 'Q',
+q: 'Q',
+erre: 'R',
+r: 'R',
+esse: 'S',
+s: 'S',
+te: 'T',
+t: 'T',
+u: 'U',
+ve: 'V',
+v: 'V',
+dabliu: 'W',
+w: 'W',
+xis: 'X',
+x: 'X',
+ipsilon: 'Y',
+y: 'Y',
+ze: 'Z',
+z: 'Z'
+});
+
+function looksLikeSpokenPlateValue(value) {
+const compact = normalizePlateForComparison(value);
+return compact.length >= 6 && compact.length <= 8 && /[A-Z]/.test(compact) && /\d/.test(compact);
+}
+
+function convertSpokenPlateToken(token) {
+const normalizedToken = normalizeVoiceCommandText(token);
+if (!normalizedToken) return '';
+if (VOICE_SPOKEN_DIGIT_MAP[normalizedToken]) {
+return VOICE_SPOKEN_DIGIT_MAP[normalizedToken];
+}
+if (VOICE_SPOKEN_LETTER_MAP[normalizedToken]) {
+return VOICE_SPOKEN_LETTER_MAP[normalizedToken];
+}
+if (/^\d+$/.test(normalizedToken)) {
+return normalizedToken;
+}
+if (/^[a-z0-9]+$/.test(normalizedToken)) {
+return normalizedToken.toUpperCase();
+}
+return '';
+}
+
+function extractPlateFromSpokenText(value) {
+const normalized = normalizeVoiceCommandText(value);
+if (!normalized) return '';
+const compactDirect = normalized.replace(/[^a-z0-9]/g, '').toUpperCase();
+if (looksLikeSpokenPlateValue(compactDirect)) {
+return compactDirect;
+}
+const tokens = normalized.split(' ').filter(Boolean);
+if (!tokens.length) return '';
+const combined = tokens.map(convertSpokenPlateToken).join('');
+if (looksLikeSpokenPlateValue(combined)) {
+return combined;
+}
+return '';
+}
+
 function isLooseSearchMatch(searchValue, contentValue) {
 const normalizedSearch = normalizeSearchFilterText(searchValue);
 if (!normalizedSearch) return true;
@@ -3161,13 +3302,16 @@ return compactContent.includes(compactSearch);
 function sanitizeVoiceSearchValue(searchValue) {
 const raw = String(searchValue || '').trim().replace(/\s+/g, ' ');
 if (!raw) return '';
+const spokenPlate = extractPlateFromSpokenText(searchValue);
+if (spokenPlate) {
+return spokenPlate;
+}
 const compact = String(searchValue || '')
 .normalize('NFD')
 .replace(/[\u0300-\u036f]/g, '')
 .replace(/[^a-zA-Z0-9]/g, '')
 .toUpperCase();
-const looksLikePlate = compact.length >= 6 && compact.length <= 8 && /[A-Z]/.test(compact) && /\d/.test(compact);
-return looksLikePlate ? compact : raw;
+return looksLikeSpokenPlateValue(compact) ? compact : raw;
 }
 
 function hasVoicePhrase(text, phrases) {
@@ -3288,6 +3432,7 @@ items: [
 title: 'Busca e Filtros',
 items: [
 { label: 'Buscar texto ou placa', example: 'buscar ABC1234, pesquisar cavalo' },
+{ label: 'Abrir ficha por placa', example: 'abrir placa DSS1D11, ver veículo ABC1234' },
 { label: 'Filtrar pátio', example: 'filtrar pátio cajamar, pátio jaraguá' },
 { label: 'Filtrar status', example: 'filtrar status liberado, status em manutenção' },
 { label: 'Limpar filtros', example: 'limpar filtros, mostrar todos' }
@@ -3534,6 +3679,25 @@ searchInput.value = value;
 handleFilterInputChange();
 focusElementLater('searchInput', 120);
 return { success: true, message: `Buscando por: ${value}.`, tone: 'success' };
+}
+
+function openVehicleReportByVoicePlate(searchValue) {
+const plate = sanitizeVoiceSearchValue(searchValue);
+if (!plate) {
+return { success: false, message: 'Diga a placa do veículo para abrir a ficha.', tone: 'warning' };
+}
+const vehicle = findVehicleRecordByPlate(allVehicles, plate);
+if (!vehicle) {
+applyVoiceSearch(plate);
+return {
+success: false,
+message: `Não encontrei a placa ${plate}. A busca foi aplicada na tabela para ajudar a localizar.`,
+tone: 'warning',
+autoHideMs: 4800
+};
+}
+showVehicleReportModal(vehicle);
+return { success: true, message: `Abrindo a ficha do veículo ${vehicle.plate}.`, tone: 'success' };
 }
 
 function closeModalById(modalId) {
@@ -3805,6 +3969,11 @@ const spokenText = String(transcript || '').trim();
 const normalized = normalizeVoiceCommandText(spokenText);
 if (!normalized) {
 return { success: false, message: 'Não consegui entender o comando. Tente novamente.', tone: 'warning' };
+}
+
+const openPlateMatch = spokenText.match(/^(abrir|mostrar|ver)(?:\s+(?:a|o))?\s+(?:placa|ve[ií]culo|ficha(?:\s+do)?\s+ve[ií]culo|ficha(?:\s+da)?\s+placa)\s+(.+)$/i);
+if (openPlateMatch) {
+return openVehicleReportByVoicePlate(openPlateMatch[2]);
 }
 
 const originalSearch = spokenText.match(/^(buscar|procurar|pesquisar)(?:\s+(?:placa|ve[ií]culo|ve[ií]culos))?\s+(.+)$/i);
