@@ -1380,8 +1380,13 @@ placeholder="Senha" required autocomplete="current-password">
 </div>
 </div>
 <div class="col-6 col-md-3">
-<div class="quick-action-card" style="background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%);" onclick="openBasesModule()">
-<i class="bi bi-pin-map"></i><div><strong>Bases</strong></div><small>Cadastro central</small>
+<div class="quick-action-card" id="cadastrosQuickAction" style="background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%);" onclick="openBasesModule()">
+<i class="bi bi-sliders2"></i><div><strong>Cadastros</strong></div><small>Mestres do sistema</small>
+</div>
+</div>
+<div class="col-6 col-md-3">
+<div class="quick-action-card" id="auditQuickAction" style="background: linear-gradient(135deg, #5b2333 0%, #b33f62 100%);" onclick="openAuditModule()">
+<i class="bi bi-clipboard-data"></i><div><strong>Auditoria</strong></div><small>Histórico de alterações</small>
 </div>
 </div>
 </div>
@@ -1397,7 +1402,8 @@ placeholder="Senha" required autocomplete="current-password">
 <button class="btn btn-outline-success" onclick="openExportModal('excel')"><i class="bi bi-file-earmark-excel"></i> Exportar Excel</button>
 <button class="btn btn-outline-danger" onclick="openExportModal('pdf')"><i class="bi bi-file-earmark-pdf"></i> Exportar PDF</button>
 <button class="btn btn-outline-warning" onclick="openOccurrencesModule()"><i class="bi bi-journal-text"></i> Ocorrências</button>
-<button class="btn btn-outline-info" onclick="openBasesModule()"><i class="bi bi-pin-map"></i> Bases</button>
+<button class="btn btn-outline-info" id="btnCadastros" onclick="openBasesModule()"><i class="bi bi-sliders2"></i> Cadastros</button>
+<button class="btn btn-outline-danger" id="btnAudit" onclick="openAuditModule()"><i class="bi bi-clipboard-data"></i> Auditoria</button>
 <button class="btn btn-outline-dark" onclick="openHdmiPanel()"><i class="bi bi-tv"></i> Abrir Painel HDMI</button>
 <button class="btn btn-outline-secondary" onclick="closeHdmiPanel()"><i class="bi bi-x-square"></i> Encerrar Painel</button>
 <button class="btn btn-outline-info" id="btnImportJSON" data-bs-toggle="modal" data-bs-target="#importModal" style="display: inline-flex !important;"><i class="bi bi-file-earmark-arrow-up"></i> Importar JSON</button>
@@ -2899,13 +2905,24 @@ window.location.href = moduleUrl;
 }
 
 function openBasesModule() {
-const moduleUrl = '/bases';
+const moduleUrl = '/cadastros';
 const basesWindow = window.open(moduleUrl, '_blank', 'noopener');
 if (basesWindow) {
-showToast('Cadastro de bases aberto em outra aba.', 'success');
+showToast('Cadastros mestres abertos em outra aba.', 'success');
 return;
 }
-showToast('Não foi possível abrir outra aba. Abrindo bases nesta tela.', 'warning');
+showToast('Não foi possível abrir outra aba. Abrindo cadastros nesta tela.', 'warning');
+window.location.href = moduleUrl;
+}
+
+function openAuditModule() {
+const moduleUrl = '/auditoria';
+const auditWindow = window.open(moduleUrl, '_blank', 'noopener');
+if (auditWindow) {
+showToast('Auditoria aberta em outra aba.', 'success');
+return;
+}
+showToast('Não foi possível abrir outra aba. Abrindo auditoria nesta tela.', 'warning');
 window.location.href = moduleUrl;
 }
 
@@ -4262,6 +4279,10 @@ setTimeout(warmPlateOcrInBackground, 800);
 
 function applyPermissions() {
 const importBtn = document.getElementById('btnImportJSON');
+const cadastrosQuickAction = document.getElementById('cadastrosQuickAction');
+const auditQuickAction = document.getElementById('auditQuickAction');
+const cadastrosBtn = document.getElementById('btnCadastros');
+const auditBtn = document.getElementById('btnAudit');
 if (importBtn) {
 if (currentUser?.role === 'admin') {
 importBtn.style.display = 'inline-flex';
@@ -4271,6 +4292,16 @@ importBtn.style.display = 'none';
 importBtn.disabled = true;
 }
 }
+const showAdminAreas = currentUser?.role === 'admin';
+[cadastrosQuickAction, auditQuickAction].forEach(element => {
+if (!element) return;
+element.parentElement.style.display = showAdminAreas ? '' : 'none';
+});
+[cadastrosBtn, auditBtn].forEach(element => {
+if (!element) return;
+element.style.display = showAdminAreas ? 'inline-flex' : 'none';
+element.disabled = !showAdminAreas;
+});
 }
 
 function updateYardOptions() {
