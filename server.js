@@ -361,8 +361,33 @@ function resolveImportedConjuntos(payload) {
     return merged;
 }
 
+const systemYardOptions = ['Pátio Jaraguá', 'Pátio Bandeirantes', 'Pátio Superior', 'Pátio Cajamar'];
+const systemBaseOptions = [
+    'Jaraguá-SP (Nacional)',
+    'Brasília',
+    'São Luís MA',
+    'Belém-PA',
+    'Campo Grande-MS',
+    'Feira de Santana BA',
+    'Vitória da Conquista BA',
+    'Salvador-BA',
+    'Vitória-ES',
+    'Recife-PE',
+    'Fortaleza-CE',
+    'São Paulo-SP',
+    'Rio de Janeiro-RJ',
+    'Curitiba-PR',
+    'Porto Alegre-RS',
+    'Minas Gerais',
+    'Manaus',
+    'Tocantins',
+    'Mato Grosso',
+    'Pernambuco',
+    'Alagoas'
+];
+
 const userYardPermissions = {
-    admin: ['Pátio Jaraguá', 'Pátio Bandeirantes', 'Pátio Superior', 'Pátio Cajamar'],
+    admin: systemYardOptions,
     cajamar: ['Pátio Cajamar'],
     bandeirantes: ['Pátio Bandeirantes'],
     jaragua: ['Pátio Jaraguá', 'Pátio Superior']
@@ -370,6 +395,62 @@ const userYardPermissions = {
 
 function getUserAllowedYards(username) {
     return userYardPermissions[username.toLowerCase()] || [];
+}
+
+function canonicalizeOccurrenceBranch(branch) {
+    const canonical = canonicalizeBaseLocation(branch);
+    const normalized = canonicalText(canonical);
+    if (!normalized) return '';
+
+    const exactMatch = systemBaseOptions.find(option => canonicalText(option) === normalized);
+    if (exactMatch) return exactMatch;
+
+    const partialMatches = systemBaseOptions.filter(option => {
+        const optionNormalized = canonicalText(option);
+        return optionNormalized.includes(normalized) || normalized.includes(optionNormalized);
+    });
+
+    if (partialMatches.length === 1) {
+        return partialMatches[0];
+    }
+
+    return canonical;
+}
+
+function sortBaseOptionRecords(records) {
+    return [...records].sort((left, right) => {
+        const leftName = String(left?.name || '');
+        const rightName = String(right?.name || '');
+        if (leftName === systemBaseOptions[0]) return -1;
+        if (rightName === systemBaseOptions[0]) return 1;
+        return leftName.localeCompare(rightName, 'pt-BR', { sensitivity: 'base' });
+    });
+}
+
+async function listBaseOptions() {
+    const fallback = sortBaseOptionRecords(systemBaseOptions.map((name, index) => ({ id: index + 1, name })));
+
+    try {
+        if (isProduction) {
+            const result = await pool.query('SELECT id, name FROM base_options');
+            return sortBaseOptionRecords(result.rows.map(row => ({
+                id: row.id,
+                name: canonicalizeOccurrenceBranch(row.name)
+            })));
+        }
+
+        return sortBaseOptionRecords(db.prepare('SELECT id, name FROM base_options').all().map(row => ({
+            id: row.id,
+            name: canonicalizeOccurrenceBranch(row.name)
+        })));
+    } catch (error) {
+        return fallback;
+    }
+}
+
+async function getOccurrenceBranchOptions() {
+    const baseOptions = await listBaseOptions();
+    return baseOptions.map(option => option.name);
 }
 
 function filterVehiclesByUserYards(vehicles, username) {
@@ -393,7 +474,7 @@ function canChangeLiberadoStatus(user) {
 }
 
 const occurrenceSeed = {
-    branches: ['Cajamar', 'Bandeirantes', 'Jaraguá'],
+    branches: systemBaseOptions,
     tripTypes: ['Entrega', 'Coleta', 'Transferência'],
     lines: ['Linha 1', 'Linha 2', 'Linha 3'],
     plates: ['ABC1D23', 'DEF4G56', 'HIJ7K89'],
@@ -409,7 +490,7 @@ function normalizeOccurrenceRow(row) {
         id: row.id,
         tripNumber: row.tripnumber ?? row.tripNumber,
         tripDate: row.tripdate ?? row.tripDate,
-        branch: row.branch,
+        branch: canonicalizeOccurrenceBranch(row.branch),
         tripType: row.triptype ?? row.tripType,
         line: row.line,
         plate: row.plate,
@@ -437,7 +518,7 @@ function validateOccurrencePayload(payload) {
         value: {
             tripNumber,
             tripDate,
-            branch: String(payload?.branch || '').trim(),
+            branch: canonicalizeOccurrenceBranch(payload?.branch),
             tripType: String(payload?.tripType || '').trim(),
             line: String(payload?.line || '').trim(),
             plate: String(payload?.plate || '').trim().toUpperCase(),
@@ -515,6 +596,11 @@ async function initDatabase() {
                     yards JSONB DEFAULT '[]',
                     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     lastLogin TIMESTAMP
+                );
+                CREATE TABLE IF NOT EXISTS base_options (
+                    id SERIAL PRIMARY KEY,
+                    name TEXT UNIQUE NOT NULL,
+                    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
                 CREATE TABLE IF NOT EXISTS occurrence_branches (
                     id SERIAL PRIMARY KEY,
@@ -630,6 +716,7 @@ async function initDatabase() {
             }
 
             const optionTables = [
+                ['base_options', systemBaseOptions],
                 ['occurrence_branches', occurrenceSeed.branches],
                 ['occurrence_trip_types', occurrenceSeed.tripTypes],
                 ['occurrence_lines', occurrenceSeed.lines],
@@ -712,6 +799,11 @@ async function initDatabase() {
                     yards TEXT DEFAULT '[]',
                     createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
                     lastLogin TEXT
+                );
+                CREATE TABLE IF NOT EXISTS base_options (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT UNIQUE NOT NULL,
+                    createdAt TEXT DEFAULT CURRENT_TIMESTAMP
                 );
                 CREATE TABLE IF NOT EXISTS occurrence_branches (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -820,6 +912,7 @@ async function initDatabase() {
             }
 
             const sqliteOptionStatements = {
+                base_options: db.prepare('INSERT OR IGNORE INTO base_options (name) VALUES (?)'),
                 occurrence_branches: db.prepare('INSERT OR IGNORE INTO occurrence_branches (name) VALUES (?)'),
                 occurrence_trip_types: db.prepare('INSERT OR IGNORE INTO occurrence_trip_types (name) VALUES (?)'),
                 occurrence_lines: db.prepare('INSERT OR IGNORE INTO occurrence_lines (name) VALUES (?)'),
@@ -830,6 +923,7 @@ async function initDatabase() {
                 occurrence_details: db.prepare('INSERT OR IGNORE INTO occurrence_details (name) VALUES (?)')
             };
 
+            systemBaseOptions.forEach(value => sqliteOptionStatements.base_options.run(value));
             occurrenceSeed.branches.forEach(value => sqliteOptionStatements.occurrence_branches.run(value));
             occurrenceSeed.tripTypes.forEach(value => sqliteOptionStatements.occurrence_trip_types.run(value));
             occurrenceSeed.lines.forEach(value => sqliteOptionStatements.occurrence_lines.run(value));
@@ -851,6 +945,9 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.static('public'));
 app.get('/ocorrencias', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'ocorrencias.html'));
+});
+app.get('/bases', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'bases.html'));
 });
 app.use(session({
     secret: process.env.SESSION_SECRET || 'print2026secretkey123456789',
@@ -966,11 +1063,55 @@ app.get('/api/auth/me', (req, res) => {
     } else { res.json({ authenticated: false }); }
 });
 
+app.get('/api/bases', async (req, res) => {
+    try {
+        res.json(await listBaseOptions());
+    } catch (error) {
+        console.error('Erro ao listar bases:', error);
+        res.status(500).json({ error: 'Erro ao carregar bases' });
+    }
+});
+
+app.post('/api/bases', requireAuth, requireRole(['admin']), async (req, res) => {
+    const name = canonicalizeOccurrenceBranch(req.body?.name);
+    if (!name) return res.status(400).json({ error: 'Informe o nome da base' });
+
+    try {
+        const existingBases = await listBaseOptions();
+        if (existingBases.some(option => canonicalText(option.name) === canonicalText(name))) {
+            return res.status(409).json({ error: 'Esta base já está cadastrada' });
+        }
+
+        if (isProduction) {
+            const result = await pool.query(
+                'INSERT INTO base_options (name) VALUES ($1) RETURNING id, name',
+                [name]
+            );
+            return res.status(201).json({
+                id: result.rows[0].id,
+                name: canonicalizeOccurrenceBranch(result.rows[0].name)
+            });
+        }
+
+        const insert = db.prepare('INSERT INTO base_options (name) VALUES (?)').run(name);
+        const row = db.prepare('SELECT id, name FROM base_options WHERE id = ?').get(insert.lastInsertRowid);
+        res.status(201).json({
+            id: row.id,
+            name: canonicalizeOccurrenceBranch(row.name)
+        });
+    } catch (error) {
+        console.error('Erro ao cadastrar base:', error);
+        const isDuplicate = String(error.message || '').toUpperCase().includes('UNIQUE');
+        res.status(isDuplicate ? 409 : 500).json({ error: isDuplicate ? 'Esta base já está cadastrada' : 'Erro ao cadastrar base' });
+    }
+});
+
 app.get('/api/occurrences/options', async (req, res) => {
     try {
+        const branchOptions = await getOccurrenceBranchOptions();
+
         if (isProduction) {
-            const [branches, tripTypes, lines, plates, vehicleTypes, reasons, subcategories, details] = await Promise.all([
-                pool.query('SELECT name FROM occurrence_branches ORDER BY name'),
+            const [tripTypes, lines, plates, vehicleTypes, reasons, subcategories, details] = await Promise.all([
                 pool.query('SELECT name FROM occurrence_trip_types ORDER BY name'),
                 pool.query('SELECT name FROM occurrence_lines ORDER BY name'),
                 pool.query('SELECT name FROM occurrence_plates ORDER BY name'),
@@ -981,7 +1122,7 @@ app.get('/api/occurrences/options', async (req, res) => {
             ]);
 
             return res.json({
-                branches: branches.rows.map(row => row.name),
+                branches: branchOptions,
                 tripTypes: tripTypes.rows.map(row => row.name),
                 lines: lines.rows.map(row => row.name),
                 plates: plates.rows.map(row => row.name),
@@ -993,7 +1134,7 @@ app.get('/api/occurrences/options', async (req, res) => {
         }
 
         res.json({
-            branches: db.prepare('SELECT name FROM occurrence_branches ORDER BY name').all().map(row => row.name),
+            branches: branchOptions,
             tripTypes: db.prepare('SELECT name FROM occurrence_trip_types ORDER BY name').all().map(row => row.name),
             lines: db.prepare('SELECT name FROM occurrence_lines ORDER BY name').all().map(row => row.name),
             plates: db.prepare('SELECT name FROM occurrence_plates ORDER BY name').all().map(row => row.name),
