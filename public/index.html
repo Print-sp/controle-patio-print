@@ -2442,8 +2442,12 @@ let vehicleReportSkipReturn = false;
 let preserveEntryModalStateOnNextShow = false;
 let voiceRecognition = null;
 let voiceListening = false;
+let voiceAssistantEnabled = false;
 let voiceProcessingCommand = false;
 let voiceStatusHideTimer = null;
+let voiceRestartTimer = null;
+let voiceManualStopRequested = false;
+let voiceLastError = '';
 const appSoundPlayers = new Map();
 const appSoundLoadErrors = new Set();
 const VoiceRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition || null;
@@ -3126,6 +3130,46 @@ return String(value || '')
 .trim();
 }
 
+function normalizeSearchFilterText(value) {
+return String(value || '')
+.normalize('NFD')
+.replace(/[\u0300-\u036f]/g, '')
+.toLowerCase()
+.replace(/\s+/g, ' ')
+.trim();
+}
+
+function compactSearchFilterText(value) {
+return normalizeSearchFilterText(value).replace(/[^a-z0-9]/g, '');
+}
+
+function isLooseSearchMatch(searchValue, contentValue) {
+const normalizedSearch = normalizeSearchFilterText(searchValue);
+if (!normalizedSearch) return true;
+const normalizedContent = normalizeSearchFilterText(contentValue);
+if (normalizedContent.includes(normalizedSearch)) {
+return true;
+}
+const compactSearch = compactSearchFilterText(searchValue);
+if (!compactSearch) {
+return false;
+}
+const compactContent = compactSearchFilterText(contentValue);
+return compactContent.includes(compactSearch);
+}
+
+function sanitizeVoiceSearchValue(searchValue) {
+const raw = String(searchValue || '').trim().replace(/\s+/g, ' ');
+if (!raw) return '';
+const compact = String(searchValue || '')
+.normalize('NFD')
+.replace(/[\u0300-\u036f]/g, '')
+.replace(/[^a-zA-Z0-9]/g, '')
+.toUpperCase();
+const looksLikePlate = compact.length >= 6 && compact.length <= 8 && /[A-Z]/.test(compact) && /\d/.test(compact);
+return looksLikePlate ? compact : raw;
+}
+
 function hasVoicePhrase(text, phrases) {
 return phrases.some(phrase => {
 const normalizedPhrase = normalizeVoiceCommandText(phrase);
@@ -3201,12 +3245,12 @@ const icon = document.getElementById('voiceCommandIcon');
 const helpBtn = document.getElementById('voiceHelpBtn');
 if (!btn || !icon) return;
 btn.disabled = !VoiceRecognitionCtor;
-btn.classList.toggle('is-listening', voiceListening);
+btn.classList.toggle('is-listening', voiceAssistantEnabled);
 icon.className = VoiceRecognitionCtor ? 'bi bi-mic-fill' : 'bi bi-mic-mute-fill';
 btn.title = !VoiceRecognitionCtor
 ? 'Comando de voz indisponível neste navegador'
-: voiceListening
-? 'Ouvindo... toque para parar'
+: voiceAssistantEnabled
+? (voiceListening ? 'Ouvindo... toque para parar' : 'Escuta contínua ativa. Toque para parar')
 : 'Comando de voz';
 if (helpBtn) {
 helpBtn.title = VoiceRecognitionCtor
@@ -3252,7 +3296,7 @@ items: [
 {
 title: 'Fechar e Ajuda',
 items: [
-{ label: 'Fechar tela atual', example: 'fechar tela, cancelar, fechar janela' },
+{ label: 'Fechar tela atual', example: 'fechar cadastro de veículo, fechar troca, fechar tela' },
 { label: 'Abrir ajuda de voz', example: 'ajuda de voz, comandos de voz' }
 ]
 }
@@ -3298,7 +3342,62 @@ return 'O reconhecimento de voz falhou. Verifique a conexão e tente novamente.'
 return 'Não foi possível interpretar o comando de voz agora.';
 }
 
+function clearVoiceRestartTimer() {
+if (voiceRestartTimer) {
+clearTimeout(voiceRestartTimer);
+voiceRestartTimer = null;
+}
+}
+
+function isFatalVoiceError(error) {
+return ['not-allowed', 'service-not-allowed', 'audio-capture'].includes(String(error || ''));
+}
+
+function scheduleVoiceRecognitionRestart(delayMs = 650) {
+if (!voiceAssistantEnabled || voiceManualStopRequested || isFatalVoiceError(voiceLastError)) {
+return;
+}
+clearVoiceRestartTimer();
+voiceRestartTimer = setTimeout(() => {
+startVoiceRecognition({ showPreparingStatus: false });
+}, delayMs);
+}
+
+function startVoiceRecognition({ showPreparingStatus = true } = {}) {
+if (!VoiceRecognitionCtor) {
+showVoiceStatus('Comando de voz', 'Este navegador não tem reconhecimento de voz disponível. Abra o mapa para ver os comandos suportados.', { tone: 'warning', autoHideMs: 4200 });
+return;
+}
+if (!voiceRecognition) {
+initVoiceCommands();
+}
+if (!voiceAssistantEnabled || voiceListening) {
+return;
+}
+if (voiceProcessingCommand) {
+scheduleVoiceRecognitionRestart(500);
+return;
+}
+clearVoiceRestartTimer();
+voiceManualStopRequested = false;
+try {
+voiceRecognition.start();
+if (showPreparingStatus) {
+showVoiceStatus('Comando de voz', 'Preparando microfone...', { tone: 'info', autoHideMs: 0 });
+}
+} catch (err) {
+scheduleVoiceRecognitionRestart(700);
+if (showPreparingStatus) {
+showVoiceStatus('Comando de voz', 'Reativando a escuta de voz...', { tone: 'info', autoHideMs: 1800 });
+}
+}
+}
+
 function stopVoiceCommandListening({ message = 'Escuta interrompida.', showMessage = true } = {}) {
+voiceAssistantEnabled = false;
+voiceManualStopRequested = true;
+voiceLastError = '';
+clearVoiceRestartTimer();
 if (voiceRecognition) {
 try {
 voiceRecognition.stop();
@@ -3326,6 +3425,7 @@ voiceRecognition.maxAlternatives = 1;
 voiceRecognition.onstart = () => {
 voiceListening = true;
 voiceProcessingCommand = false;
+voiceLastError = '';
 updateVoiceControlButton();
 showVoiceStatus('Comando de voz', 'Ouvindo... diga um comando como "cadastrar veículo".', { tone: 'listening', autoHideMs: 0 });
 };
@@ -3338,17 +3438,31 @@ voiceProcessingCommand = true;
 handleVoiceCommandTranscript(transcript);
 };
 voiceRecognition.onerror = (event) => {
+const error = String(event.error || '');
 voiceListening = false;
 voiceProcessingCommand = false;
+voiceLastError = error;
 updateVoiceControlButton();
+if (error === 'aborted' && voiceAssistantEnabled && !voiceManualStopRequested) {
+return;
+}
+if (isFatalVoiceError(error)) {
+voiceAssistantEnabled = false;
+voiceManualStopRequested = true;
+clearVoiceRestartTimer();
+updateVoiceControlButton();
+}
 showVoiceStatus('Comando de voz', getVoiceErrorMessage(event.error), {
-tone: event.error === 'not-allowed' || event.error === 'service-not-allowed' ? 'danger' : 'warning',
+tone: error === 'not-allowed' || error === 'service-not-allowed' ? 'danger' : 'warning',
 autoHideMs: 4200
 });
 };
 voiceRecognition.onend = () => {
 voiceListening = false;
 updateVoiceControlButton();
+if (voiceAssistantEnabled && !voiceManualStopRequested) {
+scheduleVoiceRecognitionRestart(voiceProcessingCommand ? 900 : 450);
+}
 };
 }
 
@@ -3357,19 +3471,15 @@ if (!VoiceRecognitionCtor) {
 showVoiceStatus('Comando de voz', 'Este navegador não tem reconhecimento de voz disponível. Abra o mapa para ver os comandos suportados.', { tone: 'warning', autoHideMs: 4200 });
 return;
 }
-if (!voiceRecognition) {
-initVoiceCommands();
-}
-if (voiceListening) {
+if (voiceAssistantEnabled) {
 stopVoiceCommandListening();
 return;
 }
-try {
-voiceRecognition.start();
-showVoiceStatus('Comando de voz', 'Preparando microfone...', { tone: 'info', autoHideMs: 0 });
-} catch (err) {
-showVoiceStatus('Comando de voz', 'O microfone já está em uso. Aguarde um instante e tente novamente.', { tone: 'warning', autoHideMs: 3600 });
-}
+voiceAssistantEnabled = true;
+voiceManualStopRequested = false;
+voiceLastError = '';
+updateVoiceControlButton();
+startVoiceRecognition({ showPreparingStatus: true });
 }
 
 function getVoiceFilterAliases(selectId, optionValue) {
@@ -3416,7 +3526,7 @@ const searchInput = document.getElementById('searchInput');
 if (!searchInput) {
 return { success: false, message: 'Campo de busca não encontrado.', tone: 'warning' };
 }
-const value = String(searchValue || '').trim();
+const value = sanitizeVoiceSearchValue(searchValue);
 if (!value) {
 return { success: false, message: 'Diga o texto que deseja buscar.', tone: 'warning' };
 }
@@ -3505,6 +3615,56 @@ if (!closeModalById('dashboardModal')) {
 return { success: false, message: 'O dashboard já está fechado.', tone: 'warning' };
 }
 return { success: true, message: 'Fechando o dashboard.', tone: 'success' };
+}
+},
+{
+label: 'Fechar cadastro de veículo',
+matches: (text) => hasVoicePhrase(text, ['fechar cadastro de veiculo', 'fechar cadastro', 'fechar novo veiculo']),
+run: () => {
+if (!closeModalById('entryModal')) {
+return { success: false, message: 'O cadastro de veículo não está aberto.', tone: 'warning' };
+}
+return { success: true, message: 'Fechando o cadastro de veículo.', tone: 'success' };
+}
+},
+{
+label: 'Fechar saída',
+matches: (text) => hasVoicePhrase(text, ['fechar saida', 'fechar escanear saida', 'fechar liberar veiculo']),
+run: () => {
+if (!closeModalById('scanExitModal')) {
+return { success: false, message: 'A tela de saída não está aberta.', tone: 'warning' };
+}
+return { success: true, message: 'Fechando a tela de saída.', tone: 'success' };
+}
+},
+{
+label: 'Fechar troca e empréstimo',
+matches: (text) => hasVoicePhrase(text, ['fechar troca', 'fechar emprestimo', 'fechar troca emprestimo']),
+run: () => {
+if (!closeModalById('swapModal')) {
+return { success: false, message: 'A tela de troca ou empréstimo não está aberta.', tone: 'warning' };
+}
+return { success: true, message: 'Fechando a tela de troca ou empréstimo.', tone: 'success' };
+}
+},
+{
+label: 'Fechar conjunto',
+matches: (text) => hasVoicePhrase(text, ['fechar conjunto', 'fechar montar conjunto']),
+run: () => {
+if (!closeModalById('conjuntoModal')) {
+return { success: false, message: 'A tela de conjunto não está aberta.', tone: 'warning' };
+}
+return { success: true, message: 'Fechando a tela de conjunto.', tone: 'success' };
+}
+},
+{
+label: 'Fechar exportação',
+matches: (text) => hasVoicePhrase(text, ['fechar exportacao', 'fechar pdf', 'fechar excel']),
+run: () => {
+if (!closeModalById('exportModal')) {
+return { success: false, message: 'A janela de exportação não está aberta.', tone: 'warning' };
+}
+return { success: true, message: 'Fechando a janela de exportação.', tone: 'success' };
 }
 },
 {
@@ -5521,8 +5681,8 @@ const yardFilter = persistentFilters.yard;
 const statusFilter = persistentFilters.status;
 const cardType = persistentFilters.cardType;
 const cardSpecial = persistentFilters.cardSpecial;
-const searchContent = `${vehicle.plate || ''} ${vehicle.type || ''} ${vehicle.yard || ''} ${vehicle.base || ''} ${vehicle.baseDestino || ''} ${vehicle.notes || ''} ${vehicle.manager || ''} ${vehicle.newLineName || ''} ${vehicle.newLineState || ''} ${vehicle.newVehicleNotes || ''}`.toLowerCase();
-let matches = (!search || searchContent.includes(search)) && (!yardFilter || vehicle.yard === yardFilter);
+const searchContent = `${vehicle.plate || ''} ${vehicle.type || ''} ${vehicle.yard || ''} ${vehicle.base || ''} ${vehicle.baseDestino || ''} ${vehicle.notes || ''} ${vehicle.manager || ''} ${vehicle.newLineName || ''} ${vehicle.newLineState || ''} ${vehicle.newVehicleNotes || ''}`;
+let matches = isLooseSearchMatch(search, searchContent) && (!yardFilter || vehicle.yard === yardFilter);
 
 if (statusFilter === 'Sinistro') {
 matches = matches && Boolean(vehicle.hasAccident);
@@ -5868,7 +6028,7 @@ return icons[type] || 'truck';
 }
 
 function syncPersistentFiltersFromInputs({ clearCardFilters = false } = {}) {
-persistentFilters.search = document.getElementById('searchInput').value.toLowerCase().trim();
+persistentFilters.search = document.getElementById('searchInput').value.trim();
 persistentFilters.yard = document.getElementById('yardFilter').value;
 persistentFilters.status = document.getElementById('statusFilter').value;
 if (clearCardFilters) {
@@ -5904,7 +6064,7 @@ const cardType = persistentFilters.cardType;
 const cardSpecial = persistentFilters.cardSpecial;
 let visibleRows = 0;
 document.querySelectorAll('#vehicleTableBody tr').forEach(row => {
-let matches = (!search || row.dataset.search.toLowerCase().includes(search)) &&
+let matches = isLooseSearchMatch(search, row.dataset.search || '') &&
 (!yardFilter || row.dataset.yard === yardFilter);
 
 if (statusFilter === 'Sinistro') {
