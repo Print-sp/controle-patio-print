@@ -1374,6 +1374,16 @@ placeholder="Senha" required autocomplete="current-password">
 <i class="bi bi-tv"></i><div><strong>Painel HDMI</strong></div><small>Veículos prontos</small>
 </div>
 </div>
+<div class="col-6 col-md-3">
+<div class="quick-action-card" style="background: linear-gradient(135deg, #92400e 0%, #f97316 100%);" onclick="openOccurrencesModule()">
+<i class="bi bi-journal-text"></i><div><strong>Ocorrências</strong></div><small>Módulo separado</small>
+</div>
+</div>
+<div class="col-6 col-md-3">
+<div class="quick-action-card" style="background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%);" onclick="openBasesModule()">
+<i class="bi bi-pin-map"></i><div><strong>Bases</strong></div><small>Cadastro central</small>
+</div>
+</div>
 </div>
 
 <div class="action-bar">
@@ -1386,6 +1396,8 @@ placeholder="Senha" required autocomplete="current-password">
 <button class="btn btn-outline-success" onclick="exportToJSON()"><i class="bi bi-file-earmark-json"></i> Exportar JSON</button>
 <button class="btn btn-outline-success" onclick="openExportModal('excel')"><i class="bi bi-file-earmark-excel"></i> Exportar Excel</button>
 <button class="btn btn-outline-danger" onclick="openExportModal('pdf')"><i class="bi bi-file-earmark-pdf"></i> Exportar PDF</button>
+<button class="btn btn-outline-warning" onclick="openOccurrencesModule()"><i class="bi bi-journal-text"></i> Ocorrências</button>
+<button class="btn btn-outline-info" onclick="openBasesModule()"><i class="bi bi-pin-map"></i> Bases</button>
 <button class="btn btn-outline-dark" onclick="openHdmiPanel()"><i class="bi bi-tv"></i> Abrir Painel HDMI</button>
 <button class="btn btn-outline-secondary" onclick="closeHdmiPanel()"><i class="bi bi-x-square"></i> Encerrar Painel</button>
 <button class="btn btn-outline-info" id="btnImportJSON" data-bs-toggle="modal" data-bs-target="#importModal" style="display: inline-flex !important;"><i class="bi bi-file-earmark-arrow-up"></i> Importar JSON</button>
@@ -2521,6 +2533,17 @@ cardType: '',
 cardSpecial: '',
 activeCard: ''
 };
+let baseOptionsCache = [];
+const BASE_SELECT_CONFIGS = Object.freeze([
+{ id: 'base', allowEmpty: false, defaultValue: 'Jaraguá-SP (Nacional)' },
+{ id: 'baseDestino', allowEmpty: true, defaultValue: '' },
+{ id: 'swapBase', allowEmpty: false, defaultValue: 'Jaraguá-SP (Nacional)' },
+{ id: 'swapBaseDestino', allowEmpty: true, defaultValue: '' },
+{ id: 'editBase', allowEmpty: false, defaultValue: 'Jaraguá-SP (Nacional)' },
+{ id: 'editBaseDestino', allowEmpty: true, defaultValue: '' },
+{ id: 'conjuntoBase', allowEmpty: false, defaultValue: 'Jaraguá-SP (Nacional)' },
+{ id: 'conjuntoBaseDestino', allowEmpty: true, defaultValue: '' }
+]);
 
 console.log('Sistema iniciado');
 console.log('Tesseract disponível:', typeof Tesseract !== 'undefined');
@@ -2529,6 +2552,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 initTheme();
 updateLoanAudioToggleUI();
 initVoiceCommands();
+window.addEventListener('focus', () => {
+if (currentUser) {
+loadBaseOptions({ silent: true });
+}
+});
 primeAppAudio();
 document.addEventListener('pointerdown', unlockAppAudio, { passive: true });
 document.addEventListener('keydown', unlockAppAudio);
@@ -2857,6 +2885,99 @@ showToast('Painel HDMI encerrado.', 'info');
 return;
 }
 showToast('Nenhum painel HDMI aberto no momento.', 'warning');
+}
+
+function openOccurrencesModule() {
+const moduleUrl = '/ocorrencias';
+const occurrencesWindow = window.open(moduleUrl, '_blank', 'noopener');
+if (occurrencesWindow) {
+showToast('Módulo de ocorrências aberto em outra aba.', 'success');
+return;
+}
+showToast('Não foi possível abrir outra aba. Abrindo ocorrências nesta tela.', 'warning');
+window.location.href = moduleUrl;
+}
+
+function openBasesModule() {
+const moduleUrl = '/bases';
+const basesWindow = window.open(moduleUrl, '_blank', 'noopener');
+if (basesWindow) {
+showToast('Cadastro de bases aberto em outra aba.', 'success');
+return;
+}
+showToast('Não foi possível abrir outra aba. Abrindo bases nesta tela.', 'warning');
+window.location.href = moduleUrl;
+}
+
+function getBaseOptionNames(extraValue = '') {
+const names = baseOptionsCache
+.map(option => String(option?.name || '').trim())
+.filter(Boolean);
+const normalizedExtra = String(extraValue || '').trim();
+if (normalizedExtra && !names.includes(normalizedExtra)) {
+names.push(normalizedExtra);
+}
+return names;
+}
+
+function setBaseSelectValue(selectId, value, fallback = '') {
+const select = document.getElementById(selectId);
+if (!select) return;
+const normalizedValue = String(value || '').trim();
+const normalizedFallback = String(fallback || '').trim();
+if (normalizedValue && !Array.from(select.options).some(option => option.value === normalizedValue)) {
+const option = document.createElement('option');
+option.value = normalizedValue;
+option.textContent = normalizedValue;
+select.appendChild(option);
+}
+select.value = normalizedValue || normalizedFallback;
+}
+
+function applyBaseOptionsToSelects() {
+const baseNames = getBaseOptionNames();
+if (!baseNames.length) return;
+
+BASE_SELECT_CONFIGS.forEach(config => {
+const select = document.getElementById(config.id);
+if (!select) return;
+const currentValue = select.value;
+const optionNames = getBaseOptionNames(currentValue);
+const options = [];
+if (config.allowEmpty) {
+options.push('<option value="">Selecione...</option>');
+}
+optionNames.forEach(name => {
+options.push(`<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`);
+});
+select.innerHTML = options.join('');
+
+const nextValue = currentValue && optionNames.includes(currentValue)
+? currentValue
+: (config.allowEmpty
+? ''
+: (optionNames.includes(config.defaultValue) ? config.defaultValue : optionNames[0] || ''));
+select.value = nextValue;
+});
+}
+
+async function loadBaseOptions({ silent = false } = {}) {
+try {
+const res = await fetch(`${API_URL}/bases`);
+const data = await res.json().catch(() => []);
+if (!res.ok) {
+throw new Error(data.error || `HTTP ${res.status}`);
+}
+baseOptionsCache = Array.isArray(data) ? data : [];
+applyBaseOptionsToSelects();
+return baseOptionsCache;
+} catch (error) {
+console.error('Erro ao carregar bases:', error);
+if (!silent) {
+showToast('Não foi possível carregar o cadastro de bases.', 'warning');
+}
+return baseOptionsCache;
+}
 }
 
 function populateLeaderOptions() {
@@ -4010,8 +4131,8 @@ return { success: true, message: 'Atualizando os dados da tela.', tone: 'success
 label: 'Abrir ocorrências',
 matches: (text) => hasVoicePhrase(text, ['abrir ocorrencias', 'ir para ocorrencias', 'ocorrencias']),
 run: () => {
-window.location.href = '/ocorrencias';
-return { success: true, message: 'Abrindo a tela de ocorrências.', tone: 'success' };
+openOccurrencesModule();
+return { success: true, message: 'Abrindo o módulo de ocorrências em separado.', tone: 'success' };
 }
 },
 {
@@ -4133,6 +4254,7 @@ console.log('âœ… Pode alterar Liberado:', canChangeLiberado);
 
 applyPermissions();
 updateYardOptions();
+await loadBaseOptions({ silent: true });
 await loadConjuntos();
 await Promise.all([loadStats(), loadVehicles(), loadSwaps({ suppressInitialAlert: true })]);
 setTimeout(warmPlateOcrInBackground, 800);
@@ -4671,7 +4793,7 @@ document.getElementById('entryForm').querySelectorAll('input, select, textarea')
 if (vehicleHistory.length > 0) {
 const lastRecord = vehicleHistory[0];
 document.getElementById('type').value = lastRecord.type || '';
-document.getElementById('base').value = lastRecord.base || 'Jaraguá-SP (Nacional)';
+setBaseSelectValue('base', lastRecord.base, 'Jaraguá-SP (Nacional)');
 document.getElementById('keys').value = lastRecord.keys || '';
 historyDiv.classList.remove('hidden');
 historyContent.innerHTML = `<div class="history-item info"><strong>Veículo conhecido - Dados preenchidos automaticamente</strong><br><small>Tipo: ${lastRecord.type || '—'} | Base: ${lastRecord.base || '—'}</small></div>${vehicleHistory.slice(0, 3).map(v => `<div class="history-item"><div><strong>${v.entryDate}</strong> - ${v.yard}</div><small class="text-muted">${v.type} • ${v.timeInYard || '—'}</small></div>`).join('')}`;
@@ -5376,8 +5498,8 @@ document.getElementById('editConjuntoId').value = conjunto.id;
 document.getElementById('conjuntoYard').value = conjunto.yard || '';
 document.getElementById('conjuntoCavaloPlate').value = conjunto.cavaloPlate || '';
 document.getElementById('conjuntoCarretaPlate').value = conjunto.carretaPlate || '';
-document.getElementById('conjuntoBase').value = conjunto.base || 'Jaraguá-SP (Nacional)';
-document.getElementById('conjuntoBaseDestino').value = conjunto.baseDestino || '';
+setBaseSelectValue('conjuntoBase', conjunto.base, 'Jaraguá-SP (Nacional)');
+setBaseSelectValue('conjuntoBaseDestino', conjunto.baseDestino || '', '');
 document.getElementById('conjuntoLeaderName').value = conjunto.leaderName || '';
 document.getElementById('conjuntoNotes').value = conjunto.notes || '';
 if (conjunto.date) {
@@ -5513,7 +5635,7 @@ return;
 stopCamera('entry');
 bootstrap.Modal.getInstance(document.getElementById('entryModal')).hide();
 document.getElementById('entryForm').reset();
-document.getElementById('base').value = 'Jaraguá-SP (Nacional)';
+setBaseSelectValue('base', '', 'Jaraguá-SP (Nacional)');
 document.getElementById('vehicleHistory').classList.add('hidden');
 document.getElementById('plateAlert').classList.add('hidden');
 resetVehicleWorkflowFields();
@@ -5558,8 +5680,8 @@ document.getElementById('editVehicleId').value = v.id;
 document.getElementById('editPlate').value = v.plate;
 document.getElementById('editType').value = v.type;
 document.getElementById('editYard').value = v.yard;
-document.getElementById('editBase').value = v.base || '';
-document.getElementById('editBaseDestino').value = v.baseDestino || '';
+setBaseSelectValue('editBase', v.base || '', 'Jaraguá-SP (Nacional)');
+setBaseSelectValue('editBaseDestino', v.baseDestino || '', '');
 document.getElementById('editManager').value = v.manager || '';
 document.getElementById('editChassis').value = v.chassis || '';
 document.getElementById('editKeys').value = v.keys || '';
@@ -5847,8 +5969,8 @@ document.getElementById('editSwapId').value = s.id;
 document.getElementById('swapTipo').value = s.tipo || 'troca';
 document.getElementById('swapPlateIn').value = s.plateIn === '0000' ? '' : s.plateIn;
 document.getElementById('swapPlateOut').value = s.plateOut;
-document.getElementById('swapBase').value = s.base;
-document.getElementById('swapBaseDestino').value = s.baseDestino || '';
+setBaseSelectValue('swapBase', s.base, 'Jaraguá-SP (Nacional)');
+setBaseSelectValue('swapBaseDestino', s.baseDestino || '', '');
 document.getElementById('swapNotes').value = s.notes || '';
 if (s.date) {
 const d = new Date(s.date);
