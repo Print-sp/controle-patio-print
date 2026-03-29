@@ -3202,6 +3202,8 @@ b: 'B',
 ce: 'C',
 c: 'C',
 de: 'D',
+dee: 'D',
+di: 'D',
 d: 'D',
 e: 'E',
 efe: 'F',
@@ -3435,6 +3437,8 @@ items: [
 { label: 'Abrir ficha por placa', example: 'abrir placa DSS1D11, ver veículo ABC1234' },
 { label: 'Filtrar pátio', example: 'filtrar pátio cajamar, pátio jaraguá' },
 { label: 'Filtrar status', example: 'filtrar status liberado, status em manutenção' },
+{ label: 'Atalhos de status', example: 'borracharia, funilaria, aguardando linha' },
+{ label: 'Cards luminosos', example: 'mostrar veículos pronto para embarque, problema com sascar' },
 { label: 'Limpar filtros', example: 'limpar filtros, mostrar todos' }
 ]
 },
@@ -3698,6 +3702,63 @@ autoHideMs: 4800
 }
 showVehicleReportModal(vehicle);
 return { success: true, message: `Abrindo a ficha do veículo ${vehicle.plate}.`, tone: 'success' };
+}
+
+function resetFiltersForVoiceCommand() {
+document.getElementById('searchInput').value = '';
+document.getElementById('yardFilter').value = '';
+document.getElementById('statusFilter').value = '';
+persistentFilters = {
+search: '',
+yard: '',
+status: '',
+cardType: '',
+cardSpecial: '',
+activeCard: ''
+};
+}
+
+function applyVoiceStatusShortcut(statusValue, label = statusValue) {
+resetFiltersForVoiceCommand();
+document.getElementById('statusFilter').value = statusValue;
+persistentFilters.status = statusValue;
+applyCurrentFilters();
+loadStats();
+return { success: true, message: `Mostrando veículos em ${label}.`, tone: 'success' };
+}
+
+function applyVoiceCardSpecialShortcut(cardSpecial, label) {
+resetFiltersForVoiceCommand();
+persistentFilters.cardSpecial = cardSpecial;
+applyCurrentFilters();
+loadStats();
+return { success: true, message: `Mostrando veículos: ${label}.`, tone: 'success' };
+}
+
+function resolveVoiceStatusShortcut(normalizedText) {
+const statusCommands = [
+{ status: 'Aguardando linha', label: 'aguardando linha', phrases: ['mostrar veiculos aguardando linha', 'veiculos aguardando linha', 'status aguardando linha', 'aguardando linha'] },
+{ status: 'Aguardando abastecimento', label: 'aguardando abastecimento', phrases: ['mostrar veiculos aguardando abastecimento', 'veiculos aguardando abastecimento', 'status aguardando abastecimento', 'aguardando abastecimento'] },
+{ status: 'Aguardando manutenção', label: 'aguardando manutenção', phrases: ['mostrar veiculos aguardando manutencao', 'veiculos aguardando manutencao', 'status aguardando manutencao', 'aguardando manutencao'] },
+{ status: 'Em manutenção', label: 'em manutenção', phrases: ['mostrar veiculos em manutencao', 'veiculos em manutencao', 'status em manutencao', 'em manutencao'] },
+{ status: 'Funilaria', label: 'funilaria', phrases: ['mostrar veiculos em funilaria', 'mostrar veiculos funilaria', 'veiculos em funilaria', 'status funilaria', 'funilaria'] },
+{ status: 'Borracharia', label: 'borracharia', phrases: ['mostrar veiculos em borracharia', 'mostrar veiculos borracharia', 'veiculos em borracharia', 'status borracharia', 'borracharia'] },
+{ status: 'Liberado', label: 'liberado', phrases: ['mostrar veiculos liberados', 'status liberado', 'filtrar liberado', 'liberado'] }
+];
+const matched = statusCommands.find(command => hasVoicePhrase(normalizedText, command.phrases));
+return matched ? applyVoiceStatusShortcut(matched.status, matched.label) : null;
+}
+
+function resolveVoiceSignalShortcut(normalizedText) {
+const signalCommands = [
+{ cardSpecial: 'embarque', label: 'pronto para embarque', phrases: ['mostrar veiculos pronto para embarque', 'mostrar veiculos prontos para embarque', 'mostrar pronto para embarque', 'pronto para embarque', 'prontos para embarque'] },
+{ cardSpecial: 'sascar', label: 'com problema Sascar', phrases: ['mostrar veiculos com problema com sascar', 'mostrar veiculos com problema de sascar', 'mostrar veiculos com problema sascar', 'mostrar veiculos com problemas de sascar', 'problema com sascar', 'problema sascar', 'problemas de sascar'] },
+{ cardSpecial: 'documentacao', label: 'com problemas de documentação', phrases: ['mostrar veiculos com problemas de documentacao', 'mostrar veiculos com problema de documentacao', 'mostrar veiculos com documentacao', 'problemas de documentacao', 'problema de documentacao', 'problema documentacao'] },
+{ cardSpecial: 'sinistro', label: 'com sinistro', phrases: ['mostrar veiculos com sinistro', 'mostrar veiculos sinistro', 'veiculos com sinistro', 'com sinistro'] },
+{ cardSpecial: 'maintenanceaccident', label: 'em manutenção ou sinistro', phrases: ['mostrar veiculos manutencao sinistro', 'mostrar veiculos manutencao ou sinistro', 'manutencao ou sinistro'] }
+];
+const matched = signalCommands.find(command => hasVoicePhrase(normalizedText, command.phrases));
+return matched ? applyVoiceCardSpecialShortcut(matched.cardSpecial, matched.label) : null;
 }
 
 function closeModalById(modalId) {
@@ -3974,6 +4035,16 @@ return { success: false, message: 'Não consegui entender o comando. Tente novam
 const openPlateMatch = spokenText.match(/^(abrir|mostrar|ver)(?:\s+(?:a|o))?\s+(?:placa|ve[ií]culo|ficha(?:\s+do)?\s+ve[ií]culo|ficha(?:\s+da)?\s+placa)\s+(.+)$/i);
 if (openPlateMatch) {
 return openVehicleReportByVoicePlate(openPlateMatch[2]);
+}
+
+const signalShortcut = resolveVoiceSignalShortcut(normalized);
+if (signalShortcut) {
+return signalShortcut;
+}
+
+const statusShortcut = resolveVoiceStatusShortcut(normalized);
+if (statusShortcut) {
+return statusShortcut;
 }
 
 const originalSearch = spokenText.match(/^(buscar|procurar|pesquisar)(?:\s+(?:placa|ve[ií]culo|ve[ií]culos))?\s+(.+)$/i);
@@ -5140,7 +5211,7 @@ const conjuntoBadge = inConjunto === 'true' ? `<span class="badge bg-primary ms-
 const workflowBadges = renderVehicleWorkflowBadges(v);
 const entregueBadge = v.entregue ? `<span class="badge-entregue"><i class="bi bi-box-seam"></i>${v.entreguePara === 'correios' ? 'Correios' : v.entreguePara === 'diversos' ? 'Diversos' : 'Entregue'}</span>` : '';
 const canUndoLiberado = v.canChangeLiberado && v.status === 'Liberado';
-return `<tr data-yard="${v.yard}" data-status="${v.status}" data-type="${v.type}" data-search="${v.plate} ${v.type} ${v.yard} ${v.base} ${v.baseDestino} ${v.notes || ''} ${v.manager || ''} ${v.newLineName || ''} ${v.newLineState || ''} ${v.newVehicleNotes || ''}" data-entregar-diversos="${entregarDiversos}" data-entregar-correios="${entregarCorreios}" data-has-accident="${hasAccident}" data-document-issue="${documentIssue}" data-in-conjunto="${inConjunto}" data-is-new-vehicle="${v.isNewVehicle ? 'true' : 'false'}" data-sascar="${sascarStatus}" data-id="${v.id}">
+return `<tr data-yard="${v.yard}" data-status="${v.status}" data-type="${v.type}" data-search="${v.plate} ${v.type} ${v.yard} ${v.base} ${v.baseDestino} ${v.notes || ''} ${v.manager || ''} ${v.newLineName || ''} ${v.newLineState || ''} ${v.newVehicleNotes || ''}" data-entregar-diversos="${entregarDiversos}" data-entregar-correios="${entregarCorreios}" data-entregue="${v.entregue ? 'true' : 'false'}" data-has-accident="${hasAccident}" data-document-issue="${documentIssue}" data-in-conjunto="${inConjunto}" data-is-new-vehicle="${v.isNewVehicle ? 'true' : 'false'}" data-sascar="${sascarStatus}" data-id="${v.id}">
 <td><span class="vehicle-icon"><i class="bi bi-${getVehicleIcon(v.type)}"></i></span><small class="d-md-none">${v.type}</small></td>
 <td>${placaHtml}${sinistroBadge}${docBadge}${conjuntoBadge}${workflowBadges}${conjuntoDescription ? `<span class="conjunto-hint"><i class="bi bi-link-45deg"></i>${conjuntoDescription}</span>` : ''}</td>
 <td><small>${v.chassis || '—'}</small></td>
@@ -5840,8 +5911,45 @@ if (persistentFilters.cardSpecial === 'correios') descriptions.push('Marcados pa
 if (persistentFilters.cardSpecial === 'sinistro') descriptions.push('Com Sinistro');
 if (persistentFilters.cardSpecial === 'novo') descriptions.push('Veículos novos');
 if (persistentFilters.cardSpecial === 'conjunto') descriptions.push('Apenas veículos em conjunto');
+if (persistentFilters.cardSpecial === 'embarque') descriptions.push('Pronto para embarque');
+if (persistentFilters.cardSpecial === 'sascar') descriptions.push('Problema Sascar');
+if (persistentFilters.cardSpecial === 'documentacao') descriptions.push('Problema de documentação');
+if (persistentFilters.cardSpecial === 'maintenanceaccident') descriptions.push('Manutenção ou Sinistro');
 if (searchValue) descriptions.push(`Busca: ${searchValue}`);
 return descriptions;
+}
+
+function isMaintenanceOrAccidentMatch(statusValue = '', hasAccident = false) {
+return ['Em manutenção', 'Funilaria', 'Borracharia'].includes(statusValue) || Boolean(hasAccident);
+}
+
+function matchesSpecialVehicleFilter(vehicle, cardSpecial, mountedPlates = null) {
+if (cardSpecial === 'diversos') return Boolean(vehicle.entregarDiversos);
+if (cardSpecial === 'correios') return Boolean(vehicle.entregarCorreios);
+if (cardSpecial === 'sinistro') return Boolean(vehicle.hasAccident);
+if (cardSpecial === 'novo') return Boolean(vehicle.isNewVehicle);
+if (cardSpecial === 'conjunto') {
+const conjuntoPlates = mountedPlates || getMountedConjuntoPlateSet();
+return conjuntoPlates.has(normalizePlateForComparison(vehicle.plate));
+}
+if (cardSpecial === 'embarque') return vehicle.status === 'Liberado' && !Boolean(vehicle.entregue);
+if (cardSpecial === 'sascar') return ['pendente', 'manutencao'].includes(vehicle.sascarStatus || 'pendente');
+if (cardSpecial === 'documentacao') return Boolean(vehicle.documentIssue);
+if (cardSpecial === 'maintenanceaccident') return isMaintenanceOrAccidentMatch(vehicle.status, vehicle.hasAccident);
+return true;
+}
+
+function matchesSpecialRowFilter(row, cardSpecial) {
+if (cardSpecial === 'diversos') return row.dataset.entregarDiversos === 'true';
+if (cardSpecial === 'correios') return row.dataset.entregarCorreios === 'true';
+if (cardSpecial === 'sinistro') return row.dataset.hasAccident === 'true';
+if (cardSpecial === 'novo') return row.dataset.isNewVehicle === 'true';
+if (cardSpecial === 'conjunto') return row.dataset.inConjunto === 'true';
+if (cardSpecial === 'embarque') return row.dataset.status === 'Liberado' && row.dataset.entregue !== 'true';
+if (cardSpecial === 'sascar') return ['pendente', 'manutencao'].includes(row.dataset.sascar || 'pendente');
+if (cardSpecial === 'documentacao') return row.dataset.documentIssue === 'true';
+if (cardSpecial === 'maintenanceaccident') return isMaintenanceOrAccidentMatch(row.dataset.status, row.dataset.hasAccident === 'true');
+return true;
 }
 
 function vehicleMatchesCurrentFilters(vehicle, mountedPlates = null) {
@@ -5863,17 +5971,8 @@ if (cardType) {
 matches = matches && vehicle.type === cardType;
 }
 
-if (cardSpecial === 'diversos') {
-matches = matches && Boolean(vehicle.entregarDiversos);
-} else if (cardSpecial === 'correios') {
-matches = matches && Boolean(vehicle.entregarCorreios);
-} else if (cardSpecial === 'sinistro') {
-matches = matches && Boolean(vehicle.hasAccident);
-} else if (cardSpecial === 'novo') {
-matches = matches && Boolean(vehicle.isNewVehicle);
-} else if (cardSpecial === 'conjunto') {
-const conjuntoPlates = mountedPlates || getMountedConjuntoPlateSet();
-matches = matches && conjuntoPlates.has(normalizePlateForComparison(vehicle.plate));
+if (cardSpecial) {
+matches = matches && matchesSpecialVehicleFilter(vehicle, cardSpecial, mountedPlates);
 }
 
 return matches;
@@ -6246,16 +6345,8 @@ if (cardType) {
 matches = matches && row.dataset.type === cardType;
 }
 
-if (cardSpecial === 'diversos') {
-matches = matches && row.dataset.entregarDiversos === 'true';
-} else if (cardSpecial === 'correios') {
-matches = matches && row.dataset.entregarCorreios === 'true';
-} else if (cardSpecial === 'sinistro') {
-matches = matches && row.dataset.hasAccident === 'true';
-} else if (cardSpecial === 'novo') {
-matches = matches && row.dataset.isNewVehicle === 'true';
-} else if (cardSpecial === 'conjunto') {
-matches = matches && row.dataset.inConjunto === 'true';
+if (cardSpecial) {
+matches = matches && matchesSpecialRowFilter(row, cardSpecial);
 }
 
 row.style.display = matches ? '' : 'none';
