@@ -1,9 +1,9 @@
-
 const state = {
     options: null,
     occurrences: [],
     filtered: [],
-    editingId: null
+    editingId: null,
+    canManage: false
 };
 
 const form = document.getElementById('occurrenceForm');
@@ -15,6 +15,11 @@ const submitBtn = document.getElementById('submitBtn');
 const cancelEditBtn = document.getElementById('cancelEditBtn');
 const resetBtn = document.getElementById('resetBtn');
 const basesBtn = document.getElementById('basesBtn');
+const exportCsvBtn = document.getElementById('exportCsvBtn');
+const filterDateFrom = document.getElementById('filterDateFrom');
+const filterDateTo = document.getElementById('filterDateTo');
+const filterBranch = document.getElementById('filterBranch');
+const filterReason = document.getElementById('filterReason');
 const statsCount = document.getElementById('statsCount');
 
 const fields = {
@@ -82,6 +87,8 @@ async function loadOptions() {
     fillSelect(fields.reason, state.options.reasons);
     fillSelect(fields.subcategory, state.options.subcategories);
     fillSelect(fields.detail, state.options.details);
+    fillSelect(filterBranch, state.options.branches);
+    fillSelect(filterReason, state.options.reasons);
 }
 
 async function loadOccurrences() {
@@ -89,11 +96,24 @@ async function loadOccurrences() {
     applyFilter();
 }
 
+async function loadPermissions() {
+    try {
+        const auth = await apiFetch('/api/auth/me');
+        state.canManage = Boolean(auth.authenticated && auth.permissions?.canManage);
+    } catch (error) {
+        state.canManage = false;
+    }
+
+    if (basesBtn) {
+        basesBtn.hidden = !state.canManage;
+    }
+}
+
 function openBasesModule() {
-    const moduleUrl = '/bases';
+    const moduleUrl = '/cadastros';
     const basesWindow = window.open(moduleUrl, '_blank', 'noopener');
     if (basesWindow) {
-        showAlert('Cadastro de bases aberto em outra aba.', 'info');
+        showAlert('Cadastros mestres abertos em outra aba.', 'info');
         return;
     }
     window.location.href = moduleUrl;
@@ -101,7 +121,15 @@ function openBasesModule() {
 
 function applyFilter() {
     const term = searchInput.value.trim().toLowerCase();
+    const dateFrom = filterDateFrom.value;
+    const dateTo = filterDateTo.value;
+    const branch = filterBranch.value;
+    const reason = filterReason.value;
     state.filtered = state.occurrences.filter(item => {
+        if (dateFrom && String(item.tripDate || '') < dateFrom) return false;
+        if (dateTo && String(item.tripDate || '') > dateTo) return false;
+        if (branch && item.branch !== branch) return false;
+        if (reason && item.reason !== reason) return false;
         if (!term) return true;
         return [
             item.tripNumber,
@@ -119,6 +147,40 @@ function applyFilter() {
         ].some(value => String(value || '').toLowerCase().includes(term));
     });
     renderTable();
+}
+
+function exportOccurrencesCsv() {
+    const rows = state.filtered.length ? state.filtered : state.occurrences;
+    if (!rows.length) {
+        showAlert('Não há ocorrências para exportar.', 'warning');
+        return;
+    }
+
+    const header = ['Viagem', 'Data', 'Base', 'Tipo', 'Linha', 'Placa', 'Veículo', 'Motivo', 'Subcategoria', 'Detalhamento', 'OS', 'Observação'];
+    const csvRows = [
+        header.join(';'),
+        ...rows.map(item => [
+            item.tripNumber,
+            item.tripDate,
+            item.branch,
+            item.tripType,
+            item.line,
+            item.plate,
+            item.vehicleType,
+            item.reason,
+            item.subcategory,
+            item.detail,
+            item.serviceOrder,
+            item.observation
+        ].map(value => `"${String(value ?? '').replaceAll('"', '""')}"`).join(';'))
+    ];
+
+    const blob = new Blob(["\uFEFF" + csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `ocorrencias-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
 }
 
 function renderTable() {
@@ -241,6 +303,9 @@ searchInput.addEventListener('input', applyFilter);
 resetBtn.addEventListener('click', resetForm);
 cancelEditBtn.addEventListener('click', resetForm);
 basesBtn?.addEventListener('click', openBasesModule);
+exportCsvBtn?.addEventListener('click', exportOccurrencesCsv);
+[filterDateFrom, filterDateTo, filterBranch, filterReason].forEach(field => field?.addEventListener('input', applyFilter));
+[filterDateFrom, filterDateTo, filterBranch, filterReason].forEach(field => field?.addEventListener('change', applyFilter));
 
 tableBody.addEventListener('click', async (event) => {
     const button = event.target.closest('button[data-action]');
@@ -261,6 +326,7 @@ tableBody.addEventListener('click', async (event) => {
 
 async function init() {
     try {
+        await loadPermissions();
         await loadOptions();
         await loadOccurrences();
     } catch (error) {
