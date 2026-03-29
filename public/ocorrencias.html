@@ -63,7 +63,7 @@ body {
                         <p class="text-secondary mb-0">Preencha os campos e salve no banco.</p>
                     </div>
                     <div class="d-flex gap-2">
-                        <button class="btn btn-outline-info btn-sm" id="basesBtn" type="button">Bases</button>
+                        <button class="btn btn-outline-info btn-sm" id="basesBtn" type="button">Cadastros</button>
                         <button class="btn btn-outline-secondary btn-sm" id="resetBtn" type="button">Limpar</button>
                     </div>
                 </div>
@@ -146,7 +146,27 @@ body {
                         <h2 class="h4 mb-1">Ocorrências cadastradas</h2>
                     </div>
                     <div class="d-flex gap-2">
+                        <button class="btn btn-outline-success" id="exportCsvBtn" type="button">Exportar CSV</button>
                         <input class="form-control" id="searchInput" placeholder="Buscar por viagem, placa, base ou motivo">
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-12 col-md-3">
+                        <label class="form-label" for="filterDateFrom">Data inicial</label>
+                        <input class="form-control" id="filterDateFrom" type="date">
+                    </div>
+                    <div class="col-12 col-md-3">
+                        <label class="form-label" for="filterDateTo">Data final</label>
+                        <input class="form-control" id="filterDateTo" type="date">
+                    </div>
+                    <div class="col-12 col-md-3">
+                        <label class="form-label" for="filterBranch">Base</label>
+                        <select class="form-select" id="filterBranch"></select>
+                    </div>
+                    <div class="col-12 col-md-3">
+                        <label class="form-label" for="filterReason">Motivo</label>
+                        <select class="form-select" id="filterReason"></select>
                     </div>
                 </div>
 
