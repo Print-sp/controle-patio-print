@@ -484,6 +484,114 @@ const occurrenceSeed = {
     details: ['Troca de óleo', 'Troca de pneu', 'Revisão geral']
 };
 
+const MASTER_DATA_CONFIG = Object.freeze({
+    bases: { label: 'Bases', table: 'base_options' },
+    tripTypes: { label: 'Tipos de Viagem', table: 'occurrence_trip_types' },
+    lines: { label: 'Linhas', table: 'occurrence_lines' },
+    plates: { label: 'Placas', table: 'occurrence_plates' },
+    vehicleTypes: { label: 'Tipos de Veículo', table: 'occurrence_vehicle_types' },
+    reasons: { label: 'Motivos', table: 'occurrence_reasons' },
+    subcategories: { label: 'Subcategorias', table: 'occurrence_subcategories' },
+    details: { label: 'Detalhamentos', table: 'occurrence_details' }
+});
+
+function normalizeMasterDataValue(type, value) {
+    if (type === 'bases') return canonicalizeOccurrenceBranch(value);
+    if (type === 'plates') return normalizePlateValue(value);
+    return String(value || '').trim();
+}
+
+function getMasterDataConfig(type) {
+    return MASTER_DATA_CONFIG[type] || null;
+}
+
+async function listOptionTableValues(table) {
+    if (isProduction) {
+        const result = await pool.query(`SELECT name FROM ${table} ORDER BY name`);
+        return result.rows.map(row => String(row.name || '').trim()).filter(Boolean);
+    }
+
+    return db.prepare(`SELECT name FROM ${table} ORDER BY name`).all().map(row => String(row.name || '').trim()).filter(Boolean);
+}
+
+async function listMasterDataValues(type) {
+    if (type === 'bases') {
+        return (await listBaseOptions()).map(option => option.name);
+    }
+
+    const config = getMasterDataConfig(type);
+    if (!config) return [];
+    return listOptionTableValues(config.table);
+}
+
+async function listMasterDataBundle() {
+    const entries = await Promise.all(
+        Object.keys(MASTER_DATA_CONFIG).map(async (type) => [type, await listMasterDataValues(type)])
+    );
+    return Object.fromEntries(entries);
+}
+
+async function createMasterDataValue(type, rawValue) {
+    const config = getMasterDataConfig(type);
+    if (!config) throw new Error('Tipo de cadastro inválido');
+
+    const name = normalizeMasterDataValue(type, rawValue);
+    if (!name) throw new Error('Informe um valor válido');
+
+    const existingValues = await listMasterDataValues(type);
+    if (existingValues.some(value => canonicalText(value) === canonicalText(name))) {
+        const duplicateError = new Error('duplicate');
+        duplicateError.code = 'DUPLICATE';
+        throw duplicateError;
+    }
+
+    if (isProduction) {
+        const result = await pool.query(
+            `INSERT INTO ${config.table} (name) VALUES ($1) RETURNING id, name`,
+            [name]
+        );
+        return {
+            id: result.rows[0].id,
+            name: normalizeMasterDataValue(type, result.rows[0].name)
+        };
+    }
+
+    const insert = db.prepare(`INSERT INTO ${config.table} (name) VALUES (?)`).run(name);
+    const row = db.prepare(`SELECT id, name FROM ${config.table} WHERE id = ?`).get(insert.lastInsertRowid);
+    return {
+        id: row.id,
+        name: normalizeMasterDataValue(type, row.name)
+    };
+}
+
+function normalizeAuditDetails(details) {
+    if (!details || typeof details !== 'object') return {};
+    return JSON.parse(JSON.stringify(details));
+}
+
+async function recordAuditEvent(req, { entityType, entityId = '', action, summary = '', details = {} }) {
+    const normalizedDetails = normalizeAuditDetails(details);
+    const username = req?.session?.user?.username || 'system';
+
+    try {
+        if (isProduction) {
+            await pool.query(
+                `INSERT INTO audit_logs (entityType, entityId, action, summary, details, username)
+                 VALUES ($1, $2, $3, $4, $5, $6)`,
+                [entityType, String(entityId || ''), action, summary, JSON.stringify(normalizedDetails), username]
+            );
+            return;
+        }
+
+        db.prepare(
+            `INSERT INTO audit_logs (entityType, entityId, action, summary, details, username)
+             VALUES (?, ?, ?, ?, ?, ?)`
+        ).run(entityType, String(entityId || ''), action, summary, JSON.stringify(normalizedDetails), username);
+    } catch (error) {
+        console.error('Erro ao registrar auditoria:', error);
+    }
+}
+
 function normalizeOccurrenceRow(row) {
     if (!row) return null;
     return {
@@ -602,6 +710,16 @@ async function initDatabase() {
                     name TEXT UNIQUE NOT NULL,
                     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
+                CREATE TABLE IF NOT EXISTS audit_logs (
+                    id SERIAL PRIMARY KEY,
+                    entityType TEXT NOT NULL,
+                    entityId TEXT DEFAULT '',
+                    action TEXT NOT NULL,
+                    summary TEXT DEFAULT '',
+                    details JSONB DEFAULT '{}'::jsonb,
+                    username TEXT DEFAULT 'system',
+                    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
                 CREATE TABLE IF NOT EXISTS occurrence_branches (
                     id SERIAL PRIMARY KEY,
                     name TEXT UNIQUE NOT NULL
@@ -654,6 +772,7 @@ async function initDatabase() {
                 CREATE INDEX IF NOT EXISTS idx_vehicles_plate ON vehicles(plate);
                 CREATE INDEX IF NOT EXISTS idx_vehicles_status ON vehicles(status);
                 CREATE INDEX IF NOT EXISTS idx_occurrences_tripnumber ON occurrences(tripNumber);
+                CREATE INDEX IF NOT EXISTS idx_audit_logs_createdat ON audit_logs(createdAt DESC);
             `);
             
             await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS manager TEXT DEFAULT ''`);
@@ -805,6 +924,16 @@ async function initDatabase() {
                     name TEXT UNIQUE NOT NULL,
                     createdAt TEXT DEFAULT CURRENT_TIMESTAMP
                 );
+                CREATE TABLE IF NOT EXISTS audit_logs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    entityType TEXT NOT NULL,
+                    entityId TEXT DEFAULT '',
+                    action TEXT NOT NULL,
+                    summary TEXT DEFAULT '',
+                    details TEXT DEFAULT '{}',
+                    username TEXT DEFAULT 'system',
+                    createdAt TEXT DEFAULT CURRENT_TIMESTAMP
+                );
                 CREATE TABLE IF NOT EXISTS occurrence_branches (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT UNIQUE NOT NULL
@@ -949,6 +1078,12 @@ app.get('/ocorrencias', (req, res) => {
 app.get('/bases', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'bases.html'));
 });
+app.get('/cadastros', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'bases.html'));
+});
+app.get('/auditoria', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'auditoria.html'));
+});
 app.use(session({
     secret: process.env.SESSION_SECRET || 'print2026secretkey123456789',
     resave: false,
@@ -1063,6 +1198,52 @@ app.get('/api/auth/me', (req, res) => {
     } else { res.json({ authenticated: false }); }
 });
 
+app.get('/api/audit-logs', requireAuth, requireRole(['admin']), async (req, res) => {
+    const limit = Math.max(10, Math.min(Number.parseInt(req.query.limit, 10) || 100, 500));
+
+    try {
+        if (isProduction) {
+            const result = await pool.query(
+                `SELECT id, entityType, entityId, action, summary, details, username, createdAt
+                 FROM audit_logs
+                 ORDER BY createdAt DESC
+                 LIMIT $1`,
+                [limit]
+            );
+            return res.json(result.rows.map(row => ({
+                id: row.id,
+                entityType: row.entitytype || row.entityType,
+                entityId: row.entityid || row.entityId,
+                action: row.action,
+                summary: row.summary,
+                details: typeof row.details === 'string' ? JSON.parse(row.details || '{}') : (row.details || {}),
+                username: row.username,
+                createdAt: row.createdat || row.createdAt
+            })));
+        }
+
+        const rows = db.prepare(
+            `SELECT id, entityType, entityId, action, summary, details, username, createdAt
+             FROM audit_logs
+             ORDER BY datetime(createdAt) DESC
+             LIMIT ?`
+        ).all(limit);
+        res.json(rows.map(row => ({
+            ...row,
+            details: (() => {
+                try {
+                    return JSON.parse(row.details || '{}');
+                } catch (error) {
+                    return {};
+                }
+            })()
+        })));
+    } catch (error) {
+        console.error('Erro ao carregar auditoria:', error);
+        res.status(500).json({ error: 'Erro ao carregar auditoria' });
+    }
+});
+
 app.get('/api/bases', async (req, res) => {
     try {
         res.json(await listBaseOptions());
@@ -1073,36 +1254,56 @@ app.get('/api/bases', async (req, res) => {
 });
 
 app.post('/api/bases', requireAuth, requireRole(['admin']), async (req, res) => {
-    const name = canonicalizeOccurrenceBranch(req.body?.name);
-    if (!name) return res.status(400).json({ error: 'Informe o nome da base' });
-
     try {
-        const existingBases = await listBaseOptions();
-        if (existingBases.some(option => canonicalText(option.name) === canonicalText(name))) {
-            return res.status(409).json({ error: 'Esta base já está cadastrada' });
-        }
-
-        if (isProduction) {
-            const result = await pool.query(
-                'INSERT INTO base_options (name) VALUES ($1) RETURNING id, name',
-                [name]
-            );
-            return res.status(201).json({
-                id: result.rows[0].id,
-                name: canonicalizeOccurrenceBranch(result.rows[0].name)
-            });
-        }
-
-        const insert = db.prepare('INSERT INTO base_options (name) VALUES (?)').run(name);
-        const row = db.prepare('SELECT id, name FROM base_options WHERE id = ?').get(insert.lastInsertRowid);
-        res.status(201).json({
-            id: row.id,
-            name: canonicalizeOccurrenceBranch(row.name)
+        const created = await createMasterDataValue('bases', req.body?.name);
+        await recordAuditEvent(req, {
+            entityType: 'base',
+            entityId: created.id,
+            action: 'create',
+            summary: `Base cadastrada: ${created.name}`,
+            details: created
         });
+        res.status(201).json(created);
     } catch (error) {
         console.error('Erro ao cadastrar base:', error);
-        const isDuplicate = String(error.message || '').toUpperCase().includes('UNIQUE');
-        res.status(isDuplicate ? 409 : 500).json({ error: isDuplicate ? 'Esta base já está cadastrada' : 'Erro ao cadastrar base' });
+        const isDuplicate = error.code === 'DUPLICATE' || String(error.message || '').toUpperCase().includes('UNIQUE');
+        const isValidation = String(error.message || '').includes('válido');
+        res.status(isValidation ? 400 : (isDuplicate ? 409 : 500)).json({ error: isValidation ? error.message : (isDuplicate ? 'Esta base já está cadastrada' : 'Erro ao cadastrar base') });
+    }
+});
+
+app.get('/api/master-data', requireAuth, requireRole(['admin']), async (req, res) => {
+    try {
+        const bundle = await listMasterDataBundle();
+        res.json({
+            meta: Object.fromEntries(Object.entries(MASTER_DATA_CONFIG).map(([key, config]) => [key, { label: config.label }])),
+            values: bundle
+        });
+    } catch (error) {
+        console.error('Erro ao carregar cadastros mestres:', error);
+        res.status(500).json({ error: 'Erro ao carregar cadastros mestres' });
+    }
+});
+
+app.post('/api/master-data/:type', requireAuth, requireRole(['admin']), async (req, res) => {
+    const type = String(req.params.type || '').trim();
+    if (!getMasterDataConfig(type)) return res.status(404).json({ error: 'Tipo de cadastro não encontrado' });
+
+    try {
+        const created = await createMasterDataValue(type, req.body?.name);
+        await recordAuditEvent(req, {
+            entityType: `master-data:${type}`,
+            entityId: created.id,
+            action: 'create',
+            summary: `${MASTER_DATA_CONFIG[type].label}: ${created.name}`,
+            details: { type, ...created }
+        });
+        res.status(201).json(created);
+    } catch (error) {
+        console.error(`Erro ao cadastrar item mestre (${type}):`, error);
+        const isDuplicate = error.code === 'DUPLICATE' || String(error.message || '').toUpperCase().includes('UNIQUE');
+        const isValidation = String(error.message || '').includes('válido');
+        res.status(isValidation ? 400 : (isDuplicate ? 409 : 500)).json({ error: isValidation ? error.message : (isDuplicate ? 'Este item já está cadastrado' : 'Erro ao cadastrar item') });
     }
 });
 
@@ -1178,7 +1379,15 @@ app.post('/api/occurrences', async (req, res) => {
                  RETURNING *`,
                 [data.tripNumber, data.tripDate, data.branch, data.tripType, data.line, data.plate, data.vehicleType, data.reason, data.subcategory, data.detail, data.serviceOrder, data.observation]
             );
-            return res.status(201).json(normalizeOccurrenceRow(result.rows[0]));
+            const created = normalizeOccurrenceRow(result.rows[0]);
+            await recordAuditEvent(req, {
+                entityType: 'occurrence',
+                entityId: created.id,
+                action: 'create',
+                summary: `Ocorrência criada para a viagem ${created.tripNumber}`,
+                details: created
+            });
+            return res.status(201).json(created);
         }
 
         const info = db.prepare(
@@ -1187,7 +1396,15 @@ app.post('/api/occurrences', async (req, res) => {
         ).run(data.tripNumber, data.tripDate, data.branch, data.tripType, data.line, data.plate, data.vehicleType, data.reason, data.subcategory, data.detail, data.serviceOrder, data.observation);
 
         const row = db.prepare('SELECT * FROM occurrences WHERE id = ?').get(info.lastInsertRowid);
-        res.status(201).json(normalizeOccurrenceRow(row));
+        const created = normalizeOccurrenceRow(row);
+        await recordAuditEvent(req, {
+            entityType: 'occurrence',
+            entityId: created.id,
+            action: 'create',
+            summary: `Ocorrência criada para a viagem ${created.tripNumber}`,
+            details: created
+        });
+        res.status(201).json(created);
     } catch (err) {
         console.error('Erro ao criar ocorrência:', err);
         const status = String(err.message || '').includes('UNIQUE') ? 409 : 500;
@@ -1214,7 +1431,15 @@ app.put('/api/occurrences/:id', async (req, res) => {
                 [data.tripNumber, data.tripDate, data.branch, data.tripType, data.line, data.plate, data.vehicleType, data.reason, data.subcategory, data.detail, data.serviceOrder, data.observation, id]
             );
             if (!result.rows.length) return res.status(404).json({ error: 'Ocorrência não encontrada' });
-            return res.json(normalizeOccurrenceRow(result.rows[0]));
+            const updated = normalizeOccurrenceRow(result.rows[0]);
+            await recordAuditEvent(req, {
+                entityType: 'occurrence',
+                entityId: updated.id,
+                action: 'update',
+                summary: `Ocorrência atualizada para a viagem ${updated.tripNumber}`,
+                details: updated
+            });
+            return res.json(updated);
         }
 
         const info = db.prepare(
@@ -1225,7 +1450,15 @@ app.put('/api/occurrences/:id', async (req, res) => {
 
         if (!info.changes) return res.status(404).json({ error: 'Ocorrência não encontrada' });
         const row = db.prepare('SELECT * FROM occurrences WHERE id = ?').get(id);
-        res.json(normalizeOccurrenceRow(row));
+        const updated = normalizeOccurrenceRow(row);
+        await recordAuditEvent(req, {
+            entityType: 'occurrence',
+            entityId: updated.id,
+            action: 'update',
+            summary: `Ocorrência atualizada para a viagem ${updated.tripNumber}`,
+            details: updated
+        });
+        res.json(updated);
     } catch (err) {
         console.error('Erro ao atualizar ocorrência:', err);
         const status = String(err.message || '').includes('UNIQUE') ? 409 : 500;
@@ -1239,13 +1472,29 @@ app.delete('/api/occurrences/:id', async (req, res) => {
 
     try {
         if (isProduction) {
-            const result = await pool.query('DELETE FROM occurrences WHERE id = $1 RETURNING id', [id]);
+            const result = await pool.query('DELETE FROM occurrences WHERE id = $1 RETURNING *', [id]);
             if (!result.rows.length) return res.status(404).json({ error: 'Ocorrência não encontrada' });
+            const removed = normalizeOccurrenceRow(result.rows[0]);
+            await recordAuditEvent(req, {
+                entityType: 'occurrence',
+                entityId: removed.id,
+                action: 'delete',
+                summary: `Ocorrência excluída da viagem ${removed.tripNumber}`,
+                details: removed
+            });
             return res.json({ success: true });
         }
 
+        const row = db.prepare('SELECT * FROM occurrences WHERE id = ?').get(id);
         const info = db.prepare('DELETE FROM occurrences WHERE id = ?').run(id);
         if (!info.changes) return res.status(404).json({ error: 'Ocorrência não encontrada' });
+        await recordAuditEvent(req, {
+            entityType: 'occurrence',
+            entityId: id,
+            action: 'delete',
+            summary: `Ocorrência excluída da viagem ${row?.tripNumber || id}`,
+            details: row ? normalizeOccurrenceRow(row) : { id }
+        });
         res.json({ success: true });
     } catch (err) {
         console.error('Erro ao excluir ocorrência:', err);
@@ -1324,6 +1573,13 @@ app.post('/api/vehicles', requireAuth, async (req, res) => {
             createdVehicle = normalizeVehicleRecord({ ...db.prepare('SELECT * FROM vehicles WHERE id = ?').get(result.lastInsertRowid) });
         }
         const loanReturn = await detectLoanReturnOnEntry(createdVehicle, req.session.user.username);
+        await recordAuditEvent(req, {
+            entityType: 'vehicle',
+            entityId: createdVehicle.id,
+            action: 'create',
+            summary: `Veículo ${createdVehicle.plate || createdVehicle.chassis || createdVehicle.id} cadastrado`,
+            details: createdVehicle
+        });
         res.json({ ...createdVehicle, loanReturn });
     } catch (err) {
         console.error('Erro ao criar veículo:', err);
@@ -1335,6 +1591,8 @@ app.put('/api/vehicles/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
     const updates = req.body;
     const canEditDates = req.session.user.role === 'admin' || req.session.user.username?.toLowerCase() === 'bandeirantes' || (req.session.user.yards || []).includes('Pátio Bandeirantes');
+    const normalizedUpdatePlate = updates.plate !== undefined ? normalizePlateValue(updates.plate) : null;
+    const normalizedUpdateChassis = updates.chassis !== undefined ? String(updates.chassis || '').trim() : null;
     if (updates.yard) {
         const allowedYards = getUserAllowedYards(req.session.user.username);
         if (allowedYards.length > 0 && !allowedYards.includes(updates.yard)) return res.status(403).json({ error: 'Você não tem permissão para este pátio' });
@@ -1357,22 +1615,40 @@ app.put('/api/vehicles/:id', requireAuth, async (req, res) => {
     const shouldClearTimeline = normalizedUpdateStatus && normalizedUpdateStatus !== 'Liberado';
     if (hasNewLine && (!newLineName || !newLineState)) return res.status(400).json({ error: 'Preencha o nome e o estado/UF da nova linha' });
     try {
+        const currentVehicle = isProduction
+            ? mapPostgresRow((await pool.query('SELECT * FROM vehicles WHERE id = $1', [id])).rows[0])
+            : db.prepare('SELECT * FROM vehicles WHERE id = ?').get(id);
+        if (!currentVehicle) return res.status(404).json({ error: 'Veículo não encontrado' });
+
+        const nextPlate = normalizedUpdatePlate !== null ? normalizedUpdatePlate : normalizePlateValue(currentVehicle.plate);
+        const nextChassis = normalizedUpdateChassis !== null ? normalizedUpdateChassis : String(currentVehicle.chassis || '').trim();
+        if (!nextPlate && !nextChassis) return res.status(400).json({ error: 'Placa ou Chassi obrigatórios' });
+
         if (isProduction) {
             await pool.query(`UPDATE vehicles SET plate = COALESCE($1::TEXT, plate), type = COALESCE($2::TEXT, type), yard = COALESCE($3::TEXT, yard), base = COALESCE($4::TEXT, base), baseDestino = COALESCE($5::TEXT, baseDestino), manager = COALESCE($6::TEXT, manager), chassis = COALESCE($7::TEXT, chassis), keys = COALESCE($8::TEXT, keys), status = COALESCE($9::TEXT, status), maintenance = COALESCE($10::BOOLEAN, maintenance), hasAccident = COALESCE($11::BOOLEAN, hasAccident), documentIssue = COALESCE($12::BOOLEAN, documentIssue), sascarStatus = COALESCE($13::TEXT, sascarStatus), maintenanceCategory = COALESCE($14::TEXT, maintenanceCategory), notes = COALESCE($15::TEXT, notes), entregar_diversos = COALESCE($16::BOOLEAN, entregar_diversos), entregar_correios = COALESCE($17::BOOLEAN, entregar_correios), entregue = COALESCE($18::BOOLEAN, entregue), entreguePara = COALESCE($19::TEXT, entreguePara), entryTime = CASE WHEN $20::TEXT IS NOT NULL AND ${canEditDates} THEN $20::TIMESTAMP ELSE entryTime END, exitTime = CASE WHEN ${shouldClearTimeline} THEN NULL WHEN $21::TEXT IS NOT NULL AND ${canEditDates} THEN $21::TIMESTAMP ELSE exitTime END, readyTime = CASE WHEN ${shouldClearTimeline} THEN NULL ELSE readyTime END, isNewVehicle = COALESCE($22::BOOLEAN, isNewVehicle), newVehiclePlotagem = COALESCE($23::BOOLEAN, newVehiclePlotagem), newVehicleTesteDrive = COALESCE($24::BOOLEAN, newVehicleTesteDrive), newVehicleAdesivoCorreios = COALESCE($25::BOOLEAN, newVehicleAdesivoCorreios), newVehicleAdesivoPrint = COALESCE($26::BOOLEAN, newVehicleAdesivoPrint), newVehicleMarcacaoPneus = COALESCE($27::BOOLEAN, newVehicleMarcacaoPneus), newVehicleForracaoInterna = COALESCE($28::BOOLEAN, newVehicleForracaoInterna), newVehicleNotes = COALESCE($29::TEXT, newVehicleNotes), hasNewLine = COALESCE($30::BOOLEAN, hasNewLine), newLineName = COALESCE($31::TEXT, newLineName), newLineState = COALESCE($32::TEXT, newLineState), updatedAt = CURRENT_TIMESTAMP, updatedBy = $33::TEXT WHERE id = $34::INTEGER`,
-                [updates.plate || null, normalizedUpdateType, updates.yard || null, normalizedUpdateBase, normalizedUpdateBaseDestino, updates.manager || null, updates.chassis || null, updates.keys || null, updates.status || null, updates.maintenance !== undefined ? Boolean(updates.maintenance) : null, updates.hasAccident !== undefined ? Boolean(updates.hasAccident) : null, updates.documentIssue !== undefined ? Boolean(updates.documentIssue) : null, updates.sascarStatus || null, updates.maintenanceCategory || null, updates.notes || null, updates.entregarDiversos !== undefined ? Boolean(updates.entregarDiversos) : null, updates.entregarCorreios !== undefined ? Boolean(updates.entregarCorreios) : null, updates.entregue !== undefined ? Boolean(updates.entregue) : null, updates.entreguePara || null, canEditDates && updates.entryTime ? updates.entryTime : null, canEditDates && updates.exitTime ? updates.exitTime : null, isNewVehicle, newVehiclePlotagem, newVehicleTesteDrive, newVehicleAdesivoCorreios, newVehicleAdesivoPrint, newVehicleMarcacaoPneus, newVehicleForracaoInterna, newVehicleNotes ?? null, hasNewLine, newLineName ?? null, newLineState ?? null, req.session.user.username, id]);
+                [nextPlate, normalizedUpdateType, updates.yard || null, normalizedUpdateBase, normalizedUpdateBaseDestino, updates.manager || null, nextChassis, updates.keys || null, normalizedUpdateStatus || null, updates.maintenance !== undefined ? Boolean(updates.maintenance) : null, updates.hasAccident !== undefined ? Boolean(updates.hasAccident) : null, updates.documentIssue !== undefined ? Boolean(updates.documentIssue) : null, updates.sascarStatus || null, updates.maintenanceCategory || null, updates.notes || null, updates.entregarDiversos !== undefined ? Boolean(updates.entregarDiversos) : null, updates.entregarCorreios !== undefined ? Boolean(updates.entregarCorreios) : null, updates.entregue !== undefined ? Boolean(updates.entregue) : null, updates.entreguePara || null, canEditDates && updates.entryTime ? updates.entryTime : null, canEditDates && updates.exitTime ? updates.exitTime : null, isNewVehicle, newVehiclePlotagem, newVehicleTesteDrive, newVehicleAdesivoCorreios, newVehicleAdesivoPrint, newVehicleMarcacaoPneus, newVehicleForracaoInterna, newVehicleNotes ?? null, hasNewLine, newLineName ?? null, newLineState ?? null, req.session.user.username, id]);
         } else {
-            const currentVehicle = db.prepare('SELECT entryTime, exitTime, readyTime FROM vehicles WHERE id = ?').get(id);
             const nextEntryTime = canEditDates && updates.entryTime ? updates.entryTime : currentVehicle?.entryTime || null;
             const nextExitTime = shouldClearTimeline ? null : (canEditDates && updates.exitTime ? updates.exitTime : currentVehicle?.exitTime || null);
             const nextReadyTime = shouldClearTimeline ? null : (currentVehicle?.readyTime || null);
             db.prepare(`UPDATE vehicles SET plate = ?, type = ?, yard = ?, base = ?, baseDestino = ?, manager = ?, chassis = ?, keys = ?, status = ?, maintenance = ?, hasAccident = ?, documentIssue = ?, sascarStatus = ?, maintenanceCategory = ?, notes = ?, entregar_diversos = ?, entregar_correios = ?, entregue = ?, entreguePara = ?, readyTime = ?, entryTime = ?, exitTime = ?, isNewVehicle = ?, newVehiclePlotagem = ?, newVehicleTesteDrive = ?, newVehicleAdesivoCorreios = ?, newVehicleAdesivoPrint = ?, newVehicleMarcacaoPneus = ?, newVehicleForracaoInterna = ?, newVehicleNotes = ?, hasNewLine = ?, newLineName = ?, newLineState = ?, updatedAt = ?, updatedBy = ? WHERE id = ?`).run(
-                updates.plate || null, normalizedUpdateType, updates.yard || null, normalizedUpdateBase, normalizedUpdateBaseDestino, updates.manager || null, updates.chassis || null, updates.keys || null, updates.status || null,
+                nextPlate, normalizedUpdateType, updates.yard || null, normalizedUpdateBase, normalizedUpdateBaseDestino, updates.manager || null, nextChassis, updates.keys || null, normalizedUpdateStatus || null,
                 updates.maintenance ? 1 : 0, updates.hasAccident ? 1 : 0, updates.documentIssue ? 1 : 0, updates.sascarStatus || 'pendente', updates.maintenanceCategory || '', updates.notes || null,
                 updates.entregarDiversos ? 1 : 0, updates.entregarCorreios ? 1 : 0, updates.entregue ? 1 : 0, updates.entreguePara || '',
                 nextReadyTime, nextEntryTime, nextExitTime,
                 isNewVehicle ? 1 : 0, newVehiclePlotagem ? 1 : 0, newVehicleTesteDrive ? 1 : 0, newVehicleAdesivoCorreios ? 1 : 0, newVehicleAdesivoPrint ? 1 : 0, newVehicleMarcacaoPneus ? 1 : 0, newVehicleForracaoInterna ? 1 : 0, newVehicleNotes, hasNewLine ? 1 : 0, newLineName, newLineState,
                 new Date().toISOString(), req.session.user.username, id);
         }
+        const updatedVehicle = isProduction
+            ? normalizeVehicleRecord(mapPostgresRow((await pool.query('SELECT * FROM vehicles WHERE id = $1', [id])).rows[0]))
+            : normalizeVehicleRecord(db.prepare('SELECT * FROM vehicles WHERE id = ?').get(id));
+        await recordAuditEvent(req, {
+            entityType: 'vehicle',
+            entityId: id,
+            action: 'update',
+            summary: `Veículo ${updatedVehicle?.plate || id} atualizado`,
+            details: updatedVehicle || { id, updates }
+        });
         res.json({ success: true, message: 'Veículo atualizado com sucesso' });
     } catch (err) {
         console.error('❌ Erro ao atualizar:', err.message);
@@ -1392,6 +1668,13 @@ app.put('/api/vehicles/:id/entregue', requireAuth, async (req, res) => {
         } else {
             db.prepare(`UPDATE vehicles SET entregue = 1, entreguePara = ?, updatedAt = ? WHERE id = ?`).run(entreguePara, new Date().toISOString(), id);
         }
+        await recordAuditEvent(req, {
+            entityType: 'vehicle',
+            entityId: id,
+            action: 'deliver',
+            summary: `Veículo ${id} marcado como entregue para ${entreguePara}`,
+            details: { entreguePara }
+        });
         res.json({ success: true, message: 'Veículo marcado como entregue!' });
     } catch (err) {
         res.status(500).json({ error: 'Erro ao marcar como entregue: ' + err.message });
@@ -1411,6 +1694,13 @@ app.put('/api/vehicles/:id/undo-liberado', requireAuth, async (req, res) => {
         } else {
             db.prepare(`UPDATE vehicles SET status = ?, readyTime = NULL, exitTime = NULL, updatedAt = ?, updatedBy = ? WHERE id = ?`).run(newStatus, new Date().toISOString(), req.session.user.username, id);
         }
+        await recordAuditEvent(req, {
+            entityType: 'vehicle',
+            entityId: id,
+            action: 'undo-liberado',
+            summary: `Liberação desfeita para o veículo ${id}`,
+            details: { newStatus }
+        });
         res.json({ success: true, message: 'Liberação desfeita com sucesso' });
     } catch (err) {
         res.status(500).json({ error: 'Erro ao desfazer liberação: ' + err.message });
@@ -1428,6 +1718,13 @@ app.put('/api/vehicles/:id/status', requireAuth, async (req, res) => {
         } else {
             db.prepare(`UPDATE vehicles SET status = ?, maintenance = ?, updatedAt = ? WHERE id = ?`).run(status, (status === 'Em manutenção' || status === 'Funilaria' || status === 'Borracharia') ? 1 : 0, new Date().toISOString(), id);
         }
+        await recordAuditEvent(req, {
+            entityType: 'vehicle',
+            entityId: id,
+            action: 'status',
+            summary: `Status do veículo ${id} alterado para ${status}`,
+            details: { status }
+        });
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: 'Erro ao atualizar status' }); }
 });
@@ -1440,6 +1737,13 @@ app.post('/api/vehicles/:id/exit', requireAuth, async (req, res) => {
         } else {
             db.prepare(`UPDATE vehicles SET status = 'Liberado', exitTime = ?, readyTime = ? WHERE id = ?`).run(new Date().toISOString(), new Date().toISOString(), id);
         }
+        await recordAuditEvent(req, {
+            entityType: 'vehicle',
+            entityId: id,
+            action: 'exit',
+            summary: `Saída registrada para o veículo ${id}`,
+            details: { status: 'Liberado' }
+        });
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: 'Erro ao registrar saída' }); }
 });
@@ -1447,8 +1751,31 @@ app.post('/api/vehicles/:id/exit', requireAuth, async (req, res) => {
 app.delete('/api/vehicles/:id', requireAuth, requireRole(['admin']), async (req, res) => {
     const { id } = req.params;
     try {
-        if (isProduction) { await pool.query('DELETE FROM vehicles WHERE id = $1', [id]); }
-        else { db.prepare('DELETE FROM vehicles WHERE id = ?').run(id); }
+        if (isProduction) {
+            const result = await pool.query('DELETE FROM vehicles WHERE id = $1 RETURNING *', [id]);
+            const removed = result.rows[0] ? normalizeVehicleRecord(mapPostgresRow(result.rows[0])) : null;
+            if (removed) {
+                await recordAuditEvent(req, {
+                    entityType: 'vehicle',
+                    entityId: id,
+                    action: 'delete',
+                    summary: `Veículo ${removed.plate || id} excluído`,
+                    details: removed
+                });
+            }
+        } else {
+            const removed = db.prepare('SELECT * FROM vehicles WHERE id = ?').get(id);
+            db.prepare('DELETE FROM vehicles WHERE id = ?').run(id);
+            if (removed) {
+                await recordAuditEvent(req, {
+                    entityType: 'vehicle',
+                    entityId: id,
+                    action: 'delete',
+                    summary: `Veículo ${removed.plate || id} excluído`,
+                    details: normalizeVehicleRecord(removed)
+                });
+            }
+        }
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: 'Erro ao deletar' }); }
 });
@@ -1489,6 +1816,13 @@ app.post('/api/swaps', requireAuth, async (req, res) => {
             }
             vehicleMarkedAsEntregue = true;
         }
+        await recordAuditEvent(req, {
+            entityType: 'swap',
+            entityId: swapResult.id,
+            action: 'create',
+            summary: `${swapResult.tipo === 'emprestimo' ? 'Empréstimo' : 'Troca'} registrada para ${swapResult.plateOut}`,
+            details: { ...swapResult, vehicleMarkedAsEntregue }
+        });
         
         res.json({ success: true, ...swapResult, dateFormatted: formatDateBR(swapResult.date), vehicleMarkedAsEntregue, plateInAuto: plateIn?.toUpperCase() || '' });
     } catch (err) {
@@ -1543,6 +1877,16 @@ app.put('/api/swaps/:id', requireAuth, async (req, res) => {
                 id
             );
         }
+        const updatedSwap = isProduction
+            ? mapSwapRow((await pool.query('SELECT * FROM swaps WHERE id = $1', [id])).rows[0])
+            : mapSwapRow(db.prepare('SELECT * FROM swaps WHERE id = ?').get(id));
+        await recordAuditEvent(req, {
+            entityType: 'swap',
+            entityId: id,
+            action: 'update',
+            summary: `${updatedSwap?.tipo === 'emprestimo' ? 'Empréstimo' : 'Troca'} ${id} atualizado`,
+            details: updatedSwap || { id, updates }
+        });
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: 'Erro ao atualizar' }); }
 });
@@ -1550,8 +1894,32 @@ app.put('/api/swaps/:id', requireAuth, async (req, res) => {
 app.delete('/api/swaps/:id', requireAuth, requireRole(['admin']), async (req, res) => {
     const { id } = req.params;
     try {
-        if (isProduction) { await pool.query('DELETE FROM swaps WHERE id = $1', [id]); }
-        else { db.prepare('DELETE FROM swaps WHERE id = ?').run(id); }
+        if (isProduction) {
+            const result = await pool.query('DELETE FROM swaps WHERE id = $1 RETURNING *', [id]);
+            const removed = result.rows[0] ? mapSwapRow(result.rows[0]) : null;
+            if (removed) {
+                await recordAuditEvent(req, {
+                    entityType: 'swap',
+                    entityId: id,
+                    action: 'delete',
+                    summary: `${removed.tipo === 'emprestimo' ? 'Empréstimo' : 'Troca'} ${id} excluído`,
+                    details: removed
+                });
+            }
+        }
+        else {
+            const removed = db.prepare('SELECT * FROM swaps WHERE id = ?').get(id);
+            db.prepare('DELETE FROM swaps WHERE id = ?').run(id);
+            if (removed) {
+                await recordAuditEvent(req, {
+                    entityType: 'swap',
+                    entityId: id,
+                    action: 'delete',
+                    summary: `${removed.tipo === 'emprestimo' ? 'Empréstimo' : 'Troca'} ${id} excluído`,
+                    details: mapSwapRow(removed)
+                });
+            }
+        }
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: 'Erro ao deletar' }); }
 });
@@ -1579,13 +1947,23 @@ app.post('/api/conjuntos', requireAuth, async (req, res) => {
     if (allowedYards.length > 0 && yard && !allowedYards.includes(yard)) return res.status(403).json({ error: 'Você não tem permissão para este pátio' });
     if (!cavaloPlate || !carretaPlate) return res.status(400).json({ error: 'Cavalo e carreta são obrigatórios' });
     try {
+        let createdConjunto = null;
         if (isProduction) {
-            await pool.query(`INSERT INTO conjuntos (date, cavaloPlate, carretaPlate, yard, base, baseDestino, leaderName, notes, updatedBy) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+            const result = await pool.query(`INSERT INTO conjuntos (date, cavaloPlate, carretaPlate, yard, base, baseDestino, leaderName, notes, updatedBy) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
                 [date ? new Date(date).toISOString() : new Date().toISOString(), cavaloPlate.toUpperCase(), carretaPlate.toUpperCase(), yard || '', base || '', baseDestino || '', leaderName || '', notes || '', req.session.user.username]);
+            createdConjunto = mapConjuntoRow(result.rows[0]);
         } else {
-            db.prepare(`INSERT INTO conjuntos (date, cavaloPlate, carretaPlate, yard, base, baseDestino, leaderName, notes, updatedBy) VALUES (?,?,?,?,?,?,?,?,?)`)
+            const result = db.prepare(`INSERT INTO conjuntos (date, cavaloPlate, carretaPlate, yard, base, baseDestino, leaderName, notes, updatedBy) VALUES (?,?,?,?,?,?,?,?,?)`)
                 .run(date ? new Date(date).toISOString() : new Date().toISOString(), cavaloPlate.toUpperCase(), carretaPlate.toUpperCase(), yard || '', base || '', baseDestino || '', leaderName || '', notes || '', req.session.user.username);
+            createdConjunto = mapConjuntoRow(db.prepare('SELECT * FROM conjuntos WHERE id = ?').get(result.lastInsertRowid));
         }
+        await recordAuditEvent(req, {
+            entityType: 'conjunto',
+            entityId: createdConjunto?.id || '',
+            action: 'create',
+            summary: `Conjunto ${cavaloPlate.toUpperCase()} + ${carretaPlate.toUpperCase()} criado`,
+            details: createdConjunto || { cavaloPlate, carretaPlate, yard, base, baseDestino, leaderName, notes }
+        });
         res.json({ success: true });
     } catch (err) {
         console.error('Erro ao criar conjunto:', err);
@@ -1606,6 +1984,16 @@ app.put('/api/conjuntos/:id', requireAuth, async (req, res) => {
             db.prepare(`UPDATE conjuntos SET date = ?, cavaloPlate = ?, carretaPlate = ?, yard = ?, base = ?, baseDestino = ?, leaderName = ?, notes = ?, updatedBy = ? WHERE id = ?`)
                 .run(date ? new Date(date).toISOString() : null, cavaloPlate ? cavaloPlate.toUpperCase() : null, carretaPlate ? carretaPlate.toUpperCase() : null, yard || null, base || null, baseDestino || null, leaderName || null, notes || null, req.session.user.username, id);
         }
+        const updatedConjunto = isProduction
+            ? mapConjuntoRow((await pool.query('SELECT * FROM conjuntos WHERE id = $1', [id])).rows[0])
+            : mapConjuntoRow(db.prepare('SELECT * FROM conjuntos WHERE id = ?').get(id));
+        await recordAuditEvent(req, {
+            entityType: 'conjunto',
+            entityId: id,
+            action: 'update',
+            summary: `Conjunto ${id} atualizado`,
+            details: updatedConjunto || { id, cavaloPlate, carretaPlate, yard, base, baseDestino, leaderName, notes }
+        });
         res.json({ success: true });
     } catch (err) {
         console.error('Erro ao atualizar conjunto:', err);
@@ -1616,8 +2004,32 @@ app.put('/api/conjuntos/:id', requireAuth, async (req, res) => {
 app.delete('/api/conjuntos/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
     try {
-        if (isProduction) { await pool.query('DELETE FROM conjuntos WHERE id = $1', [id]); }
-        else { db.prepare('DELETE FROM conjuntos WHERE id = ?').run(id); }
+        if (isProduction) {
+            const result = await pool.query('DELETE FROM conjuntos WHERE id = $1 RETURNING *', [id]);
+            const removed = result.rows[0] ? mapConjuntoRow(result.rows[0]) : null;
+            if (removed) {
+                await recordAuditEvent(req, {
+                    entityType: 'conjunto',
+                    entityId: id,
+                    action: 'delete',
+                    summary: `Conjunto ${id} desmontado`,
+                    details: removed
+                });
+            }
+        }
+        else {
+            const removed = db.prepare('SELECT * FROM conjuntos WHERE id = ?').get(id);
+            db.prepare('DELETE FROM conjuntos WHERE id = ?').run(id);
+            if (removed) {
+                await recordAuditEvent(req, {
+                    entityType: 'conjunto',
+                    entityId: id,
+                    action: 'delete',
+                    summary: `Conjunto ${id} desmontado`,
+                    details: mapConjuntoRow(removed)
+                });
+            }
+        }
         res.json({ success: true });
     } catch (err) {
         console.error('Erro ao desmontar conjunto:', err);
