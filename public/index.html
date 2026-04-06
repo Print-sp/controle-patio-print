@@ -390,6 +390,38 @@ font-weight: 500;
 width: 28px; height: 28px; display: inline-flex; align-items: center;
 justify-content: center; background: #f1f5f9; border-radius: 6px; margin-right: 6px;
 }
+.vehicle-type-pill {
+display: inline-flex;
+align-items: center;
+gap: 8px;
+padding: 6px 10px;
+border-radius: 999px;
+font-size: 0.76rem;
+font-weight: 700;
+line-height: 1.1;
+border: 1px solid rgba(15, 23, 42, 0.08);
+white-space: nowrap;
+}
+.vehicle-type-pill i {
+font-size: 0.95rem;
+}
+.vehicle-type-carreta { background: #ede9fe; color: #5b21b6; }
+.vehicle-type-cavalo { background: #dbeafe; color: #1d4ed8; }
+.vehicle-type-van { background: #dcfce7; color: #15803d; }
+.vehicle-type-vuc { background: #ffedd5; color: #c2410c; }
+.vehicle-type-truck { background: #e0f2fe; color: #0369a1; }
+.vehicle-type-toco { background: #fef3c7; color: #b45309; }
+.vehicle-type-visitante { background: #f3f4f6; color: #4b5563; }
+.vehicle-type-diretoria { background: #ffe4e6; color: #be123c; }
+.stalled-table-actions {
+display: inline-flex;
+justify-content: center;
+}
+.stalled-empty {
+border: 1px dashed rgba(15, 23, 42, 0.16);
+border-radius: 16px;
+background: rgba(15, 23, 42, 0.02);
+}
 .user-menu { display: flex; align-items: center; gap: 10px; }
 .user-avatar {
 width: 36px; height: 36px; border-radius: 50%; background: white;
@@ -590,23 +622,6 @@ color: var(--print-blue);
 color: #198754;
 font-weight: 600;
 }
-.btn-toggle-panel {
-position: fixed;
-right: 20px;
-top: 100px;
-z-index: 998;
-background: linear-gradient(135deg, #1bbf68 0%, #14804a 100%);
-color: white;
-border: none;
-border-radius: 14px 0 0 14px;
-padding: 10px 15px;
-cursor: pointer;
-box-shadow: 0 12px 28px rgba(20, 128, 74, 0.35);
-}
-.btn-toggle-panel:hover {
-background: linear-gradient(135deg, #22c55e 0%, #166534 100%);
-}
-
 @media (max-width: 768px) {
 .stat-card .count { font-size: 1.4rem; }
 .action-bar .btn { width: 100%; margin-right: 0; margin-bottom: 8px; min-width: auto; }
@@ -1212,10 +1227,6 @@ placeholder="Senha" required autocomplete="current-password">
 </div>
 </div>
 
-<button class="btn-toggle-panel" onclick="toggleLiberatedPanel()" title="Veículos Liberados">
-<i class="bi bi-truck"></i> <span id="liberadosCount">0</span>
-</button>
-
 <div id="liberatedPanel" class="liberated-panel">
 <div class="liberated-panel-header d-flex justify-content-between align-items-center">
 <h5 class="mb-0"><i class="bi bi-truck me-2"></i>Veículos Liberados</h5>
@@ -1333,7 +1344,13 @@ placeholder="Senha" required autocomplete="current-password">
 <div id="stalledAlert" class="alert-stalled hidden">
 <div class="d-flex align-items-center">
 <i class="bi bi-exclamation-triangle-fill text-danger fs-4 me-3"></i>
-<div><strong class="text-danger">Veículos parados há mais de 24h</strong><p class="mb-0 mt-1" id="stalledList"></p></div>
+<div class="flex-grow-1">
+<strong class="text-danger">Veículos parados há mais de 24h</strong>
+<p class="mb-0 mt-1" id="stalledList"></p>
+</div>
+<button class="btn btn-sm btn-outline-danger ms-3" id="stalledAlertButton" type="button" onclick="openStalledVehiclesModal()">
+<i class="bi bi-list-ul me-1"></i>Ver lista <span class="badge text-bg-danger ms-1" id="stalledVehiclesCountBadge">0</span>
+</button>
 </div>
 </div>
 
@@ -1467,6 +1484,41 @@ O relatório será gerado com o escopo selecionado acima.
 </div>
 <div class="modal-footer">
 <button type="button" class="btn btn-warning" id="returnAlertOkBtn" onclick="acknowledgeReturnAlert()">OK</button>
+</div>
+</div>
+</div>
+</div>
+
+<div class="modal fade" id="stalledVehiclesModal" tabindex="-1">
+<div class="modal-dialog modal-xl modal-dialog-scrollable">
+<div class="modal-content">
+<div class="modal-header bg-danger text-white">
+<h5 class="modal-title"><i class="bi bi-clock-history me-2"></i>Veículos parados há mais de 24h</h5>
+<button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+</div>
+<div class="modal-body">
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+<div>
+<div class="small text-muted">Total identificado no momento</div>
+<div class="fw-semibold" id="stalledVehiclesSummary">0 veículo(s)</div>
+</div>
+<button type="button" class="btn btn-outline-danger btn-sm" onclick="renderStalledVehiclesModal()"><i class="bi bi-arrow-clockwise me-1"></i>Atualizar lista</button>
+</div>
+<div class="table-responsive">
+<table class="table table-hover align-middle mb-0">
+<thead>
+<tr><th>Placa</th><th>Tipo</th><th>Pátio</th><th>Status</th><th>Entrada</th><th>Tempo</th><th>Ações</th></tr>
+</thead>
+<tbody id="stalledVehiclesTableBody"></tbody>
+</table>
+</div>
+<div class="text-center text-muted py-4 d-none" id="stalledVehiclesEmptyState">
+<i class="bi bi-check-circle fs-1 d-block mb-2"></i>
+Nenhum veículo com mais de 24h no pátio neste momento.
+</div>
+</div>
+<div class="modal-footer">
+<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
 </div>
 </div>
 </div>
@@ -1721,12 +1773,14 @@ O relatório será gerado com o escopo selecionado acima.
 <div id="camera-container-entry" class="scan-overlay">
 <video id="camera-video-entry" autoplay playsinline></video>
 </div>
-<div class="btn-group w-100 mt-3">
-<button class="btn btn-camera" onclick="startCamera('entry')"><i class="bi bi-camera-video me-2"></i>Iniciar</button>
-<button class="btn btn-outline-secondary" onclick="stopCamera('entry')"><i class="bi bi-camera-video-off me-2"></i>Parar</button>
+<div class="d-flex flex-wrap gap-2 w-100 mt-3">
+<button class="btn btn-camera flex-fill" type="button" onclick="startCamera('entry')"><i class="bi bi-camera-video me-2"></i>Iniciar</button>
+<button class="btn btn-outline-secondary flex-fill" type="button" onclick="openPlateImagePicker('entry')"><i class="bi bi-image me-2"></i>Usar Foto</button>
+<button class="btn btn-outline-secondary flex-fill" type="button" onclick="stopCamera('entry')"><i class="bi bi-camera-video-off me-2"></i>Parar</button>
 </div>
+<input type="file" id="plateImageEntry" class="d-none" accept="image/*" capture="environment" onchange="handlePlateImageSelection('entry', this)">
 <div id="scanStatusEntry" class="scan-status mt-2"></div>
-<small class="text-muted d-block mt-2"><i class="bi bi-info-circle"></i> Aponte para a placa do veículo</small>
+<small class="text-muted d-block mt-2"><i class="bi bi-info-circle"></i> Aponte para a placa ou use uma foto mais próxima quando a câmera ao vivo falhar.</small>
 </div>
 </div>
 </div>
@@ -1754,6 +1808,7 @@ O relatório será gerado com o escopo selecionado acima.
 <option value="Carreta">Carreta</option>
 <option value="Cavalo Mecânico">Cavalo Mecânico</option>
 <option value="Van">Van</option>
+<option value="VUC / 3/4">VUC / 3/4</option>
 <option value="Caminhão Truck">Caminhão Truck</option>
 <option value="Caminhão Toco">Caminhão Toco</option>
 <option value="Veículo Visitante">Visitante</option>
@@ -1896,6 +1951,7 @@ O relatório será gerado com o escopo selecionado acima.
 <div class="col-md-6"><div class="form-check"><input class="form-check-input" type="checkbox" id="newVehicleAdesivoCorreios"><label class="form-check-label" for="newVehicleAdesivoCorreios">Adesivo Correios</label></div></div>
 <div class="col-md-6"><div class="form-check"><input class="form-check-input" type="checkbox" id="newVehicleAdesivoPrint"><label class="form-check-label" for="newVehicleAdesivoPrint">Adesivo Print</label></div></div>
 <div class="col-md-6"><div class="form-check"><input class="form-check-input" type="checkbox" id="newVehicleMarcacaoPneus"><label class="form-check-label" for="newVehicleMarcacaoPneus">Marcação dos pneus</label></div></div>
+<div class="col-md-6"><div class="form-check"><input class="form-check-input" type="checkbox" id="newVehiclePlataformaCarga"><label class="form-check-label" for="newVehiclePlataformaCarga">Plataforma de carga</label></div></div>
 <div class="col-md-6 d-none" id="newVehicleForracaoGroup"><div class="form-check"><input class="form-check-input" type="checkbox" id="newVehicleForracaoInterna"><label class="form-check-label" for="newVehicleForracaoInterna">Forração interna</label></div></div>
 <div class="col-12">
 <label class="form-label">Observações do veículo novo</label>
@@ -2083,10 +2139,12 @@ O relatório será gerado com o escopo selecionado acima.
 <div id="camera-container-exit" class="scan-overlay">
 <video id="camera-video-exit" autoplay playsinline></video>
 </div>
-<div class="btn-group w-100 mt-3">
-<button class="btn btn-scan-exit" onclick="startCamera('exit')"><i class="bi bi-camera-video me-2"></i>Iniciar Câmera</button>
-<button class="btn btn-outline-secondary" onclick="stopCamera('exit')"><i class="bi bi-camera-video-off me-2"></i>Parar</button>
+<div class="d-flex flex-wrap gap-2 w-100 mt-3">
+<button class="btn btn-scan-exit flex-fill" type="button" onclick="startCamera('exit')"><i class="bi bi-camera-video me-2"></i>Iniciar Câmera</button>
+<button class="btn btn-outline-secondary flex-fill" type="button" onclick="openPlateImagePicker('exit')"><i class="bi bi-image me-2"></i>Usar Foto</button>
+<button class="btn btn-outline-secondary flex-fill" type="button" onclick="stopCamera('exit')"><i class="bi bi-camera-video-off me-2"></i>Parar</button>
 </div>
+<input type="file" id="plateImageExit" class="d-none" accept="image/*" capture="environment" onchange="handlePlateImageSelection('exit', this)">
 <div id="scanStatusExit" class="scan-status mt-2"></div>
 <div class="mt-3">
 <label class="form-label">Ou digite a placa:</label>
@@ -2129,6 +2187,7 @@ O relatório será gerado com o escopo selecionado acima.
 <option value="Carreta">Carreta</option>
 <option value="Cavalo Mecânico">Cavalo Mecânico</option>
 <option value="Van">Van</option>
+<option value="VUC / 3/4">VUC / 3/4</option>
 <option value="Caminhão Truck">Caminhão Truck</option>
 <option value="Caminhão Toco">Caminhão Toco</option>
 <option value="Veículo Visitante">Veículo Visitante</option>
@@ -2271,6 +2330,7 @@ O relatório será gerado com o escopo selecionado acima.
 <div class="col-md-6"><div class="form-check"><input class="form-check-input" type="checkbox" id="editNewVehicleAdesivoCorreios"><label class="form-check-label" for="editNewVehicleAdesivoCorreios">Adesivo Correios</label></div></div>
 <div class="col-md-6"><div class="form-check"><input class="form-check-input" type="checkbox" id="editNewVehicleAdesivoPrint"><label class="form-check-label" for="editNewVehicleAdesivoPrint">Adesivo Print</label></div></div>
 <div class="col-md-6"><div class="form-check"><input class="form-check-input" type="checkbox" id="editNewVehicleMarcacaoPneus"><label class="form-check-label" for="editNewVehicleMarcacaoPneus">Marcação dos pneus</label></div></div>
+<div class="col-md-6"><div class="form-check"><input class="form-check-input" type="checkbox" id="editNewVehiclePlataformaCarga"><label class="form-check-label" for="editNewVehiclePlataformaCarga">Plataforma de carga</label></div></div>
 <div class="col-md-6 d-none" id="editNewVehicleForracaoGroup"><div class="form-check"><input class="form-check-input" type="checkbox" id="editNewVehicleForracaoInterna"><label class="form-check-label" for="editNewVehicleForracaoInterna">Forração interna</label></div></div>
 <div class="col-12">
 <label class="form-label">Observações do veículo novo</label>
@@ -2505,9 +2565,16 @@ welcome: 'bem-vindo-controle.mp3',
 loanSuccess: 'empréstimo-sucesso.mp3',
 swapSuccess: 'troca-com-sucesso.mp3'
 });
-const PLATE_OCR_LANGUAGE = 'por';
+const PLATE_OCR_WORKER_PATH = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js';
+const PLATE_OCR_LANGUAGE = 'eng';
 const PLATE_OCR_WHITELIST = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 const PLATE_SCAN_GUIDE = Object.freeze({ width: 200, height: 60 });
+const PLATE_OCR_VARIANTS = Object.freeze([
+{ label: 'Tentativa 1/4', cropScaleX: 1.25, cropScaleY: 1.35, targetWidth: 880, filter: 'grayscale(100%) contrast(220%) brightness(118%)', threshold: 150, contrastBoost: 1.15 },
+{ label: 'Tentativa 2/4', cropScaleX: 1.45, cropScaleY: 1.55, targetWidth: 980, filter: 'grayscale(100%) contrast(195%) brightness(122%)', threshold: 138, contrastBoost: 1.1 },
+{ label: 'Tentativa 3/4', cropScaleX: 1.25, cropScaleY: 1.45, targetWidth: 920, filter: 'grayscale(100%) contrast(245%) brightness(108%)', threshold: 126, contrastBoost: 1.2 },
+{ label: 'Tentativa 4/4', cropScaleX: 1.7, cropScaleY: 1.7, targetWidth: 1120, filter: 'grayscale(100%) contrast(175%) brightness(130%)', threshold: null, contrastBoost: 1.35 }
+]);
 const OCR_LETTER_MAP = Object.freeze({ '0': 'O', '1': 'I', '2': 'Z', '4': 'A', '5': 'S', '6': 'G', '7': 'T', '8': 'B' });
 const OCR_DIGIT_MAP = Object.freeze({ 'A': '4', 'B': '8', 'D': '0', 'G': '6', 'I': '1', 'L': '1', 'O': '0', 'Q': '0', 'S': '5', 'T': '7', 'U': '0', 'Z': '2' });
 let notifiedLoanReturnIds = new Set((() => {
@@ -3112,7 +3179,8 @@ try {
 const res = await fetch(`${API_URL}/management/dashboard`);
 const data = await res.json();
 const content = document.getElementById('liberatedPanelContent');
-document.getElementById('liberadosCount').textContent = data.readyVehicles;
+const liberatedCountEl = document.getElementById('liberadosCount');
+if (liberatedCountEl) liberatedCountEl.textContent = data.readyVehicles;
 document.getElementById('mgEntreguesCorreios').textContent = data.entreguesCorreios || 0;
 document.getElementById('mgEntreguesDiversos').textContent = data.entreguesDiversos || 0;
 
@@ -4392,28 +4460,115 @@ container.appendChild(notification);
 setTimeout(() => { notification.remove(); }, duration);
 }
 
-function checkStalledVehicles() {
-if (allVehicles.length === 0) return;
-const now = new Date();
-const stalledVehicles = allVehicles.filter(v => {
-if (v.status === 'Liberado') return false;
-const entry = new Date(v.entryTime);
-const hoursDiff = (now - entry) / (1000 * 60 * 60);
-return hoursDiff > 24;
-});
-if (stalledVehicles.length > 0) {
-const stalledList = stalledVehicles.map(v => {
-const entry = new Date(v.entryTime);
-const diffMs = now - entry;
-const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-return `${v.plate} (${days}d ${hours}h)`;
-}).join(', ');
-document.getElementById('stalledAlert').classList.remove('hidden');
-document.getElementById('stalledList').textContent = stalledList;
-} else {
-document.getElementById('stalledAlert').classList.add('hidden');
+function getVehicleTypeMeta(type) {
+const normalizedType = String(type || '').trim();
+const defaultMeta = { label: normalizedType || 'Tipo não informado', icon: 'truck', className: 'vehicle-type-truck' };
+const typeMap = {
+'Carreta': { label: 'Carreta', icon: 'truck', className: 'vehicle-type-carreta' },
+'Cavalo Mecânico': { label: 'Cavalo Mecânico', icon: 'car-front', className: 'vehicle-type-cavalo' },
+'Van': { label: 'Van', icon: 'bus-front', className: 'vehicle-type-van' },
+'VUC / 3/4': { label: 'VUC / 3/4', icon: 'truck-flatbed', className: 'vehicle-type-vuc' },
+'Caminhão Truck': { label: 'Caminhão Truck', icon: 'truck', className: 'vehicle-type-truck' },
+'Caminhão Toco': { label: 'Caminhão Toco', icon: 'truck-front', className: 'vehicle-type-toco' },
+'Veículo Visitante': { label: 'Veículo Visitante', icon: 'person', className: 'vehicle-type-visitante' },
+'Veículo Diretoria': { label: 'Veículo Diretoria', icon: 'star', className: 'vehicle-type-diretoria' }
+};
+return typeMap[normalizedType] || defaultMeta;
 }
+
+function renderVehicleTypeBadge(type) {
+const meta = getVehicleTypeMeta(type);
+return `<span class="vehicle-type-pill ${meta.className}" title="${escapeHtml(meta.label)}"><i class="bi bi-${meta.icon}"></i><span>${escapeHtml(meta.label)}</span></span>`;
+}
+
+function getVehicleHoursInYard(vehicle) {
+const entryTime = vehicle?.entryTime ? new Date(vehicle.entryTime) : null;
+if (!entryTime || Number.isNaN(entryTime.getTime())) return 0;
+return Math.max(0, (Date.now() - entryTime.getTime()) / (1000 * 60 * 60));
+}
+
+function formatHoursAsDaysHours(hours) {
+const safeHours = Math.max(0, Math.floor(Number(hours) || 0));
+const days = Math.floor(safeHours / 24);
+const remainingHours = safeHours % 24;
+return `${days}d ${remainingHours}h`;
+}
+
+function getStalledVehiclesList() {
+return (Array.isArray(allVehicles) ? allVehicles : [])
+.filter(vehicle => vehicle && vehicle.status !== 'Liberado' && getVehicleHoursInYard(vehicle) > 24)
+.map(vehicle => ({
+...vehicle,
+stalledHours: Math.floor(getVehicleHoursInYard(vehicle))
+}))
+.sort((a, b) => b.stalledHours - a.stalledHours);
+}
+
+function buildStalledVehiclesPreview(stalledVehicles) {
+const previewItems = stalledVehicles.slice(0, 5).map(vehicle => `${vehicle.plate || 'Sem placa'} (${formatHoursAsDaysHours(vehicle.stalledHours ?? vehicle.hours)})`);
+if (stalledVehicles.length <= 5) return previewItems.join(', ');
+return `${previewItems.join(', ')} + ${stalledVehicles.length - 5} veículo(s)`;
+}
+
+function updateStalledVehiclesState(stalledVehicles = getStalledVehiclesList()) {
+const normalizedVehicles = (Array.isArray(stalledVehicles) ? stalledVehicles : []).map(vehicle => ({
+...vehicle,
+stalledHours: Math.floor(vehicle?.stalledHours ?? vehicle?.hours ?? getVehicleHoursInYard(vehicle))
+}));
+const count = normalizedVehicles.length;
+const alertEl = document.getElementById('stalledAlert');
+const listEl = document.getElementById('stalledList');
+const badgeEl = document.getElementById('stalledVehiclesCountBadge');
+const buttonEl = document.getElementById('stalledAlertButton');
+const summaryEl = document.getElementById('stalledVehiclesSummary');
+if (badgeEl) badgeEl.textContent = String(count);
+if (buttonEl) buttonEl.disabled = count === 0;
+if (summaryEl) summaryEl.textContent = `${count} veículo(s) parado(s) há mais de 24h`;
+if (!alertEl || !listEl) return;
+if (count > 0) {
+alertEl.classList.remove('hidden');
+listEl.textContent = buildStalledVehiclesPreview(normalizedVehicles);
+} else {
+alertEl.classList.add('hidden');
+listEl.textContent = '';
+}
+}
+
+function renderStalledVehiclesModal() {
+const stalledVehicles = getStalledVehiclesList();
+updateStalledVehiclesState(stalledVehicles);
+const tbody = document.getElementById('stalledVehiclesTableBody');
+const emptyState = document.getElementById('stalledVehiclesEmptyState');
+const summaryEl = document.getElementById('stalledVehiclesSummary');
+if (!tbody || !emptyState || !summaryEl) return;
+summaryEl.textContent = `${stalledVehicles.length} veículo(s) parado(s) há mais de 24h`;
+if (stalledVehicles.length === 0) {
+tbody.innerHTML = '';
+emptyState.classList.remove('d-none');
+emptyState.classList.add('stalled-empty');
+return;
+}
+emptyState.classList.add('d-none');
+emptyState.classList.remove('stalled-empty');
+tbody.innerHTML = stalledVehicles.map(vehicle => `
+<tr>
+<td>${renderPlaca(vehicle.plate)}</td>
+<td>${renderVehicleTypeBadge(vehicle.type)}</td>
+<td><small class="text-primary"><i class="bi bi-pin me-1"></i>${escapeHtml(vehicle.yard || '—')}</small></td>
+<td><span class="status-badge ${getStatusBadgeClass(vehicle.status)}">${escapeHtml(vehicle.status || '—')}</span></td>
+<td><span class="date-badge">${escapeHtml(vehicle.entryDate || '—')}</span></td>
+<td><span class="time-badge">${formatHoursAsDaysHours(vehicle.stalledHours)}</span></td>
+<td class="stalled-table-actions"><button type="button" class="btn btn-sm btn-outline-primary" onclick="openVehicleReport(${vehicle.id})"><i class="bi bi-file-earmark-text me-1"></i>Ficha</button></td>
+</tr>`).join('');
+}
+
+function openStalledVehiclesModal() {
+renderStalledVehiclesModal();
+bootstrap.Modal.getOrCreateInstance(document.getElementById('stalledVehiclesModal')).show();
+}
+
+function checkStalledVehicles() {
+updateStalledVehiclesState();
 }
 
 function getPlacaTipo(placa) {
@@ -4459,7 +4614,7 @@ if (!toggle || !fields) return;
 const enabled = toggle.checked;
 fields.classList.toggle('d-none', !enabled);
 if (!enabled) {
-['newVehiclePlotagem', 'newVehicleTesteDrive', 'newVehicleAdesivoCorreios', 'newVehicleAdesivoPrint', 'newVehicleMarcacaoPneus', 'newVehicleForracaoInterna'].forEach(fieldName => {
+['newVehiclePlotagem', 'newVehicleTesteDrive', 'newVehicleAdesivoCorreios', 'newVehicleAdesivoPrint', 'newVehicleMarcacaoPneus', 'newVehiclePlataformaCarga', 'newVehicleForracaoInterna'].forEach(fieldName => {
 const field = getWorkflowElement(prefix, fieldName);
 if (field) field.checked = false;
 });
@@ -4495,6 +4650,8 @@ toggleNewLineSection(prefix);
 function openEntryModal() {
 document.getElementById('plate').value = '';
 document.getElementById('chassis').value = '';
+const entryImageInput = document.getElementById('plateImageEntry');
+if (entryImageInput) entryImageInput.value = '';
 document.getElementById('entryDate').value = getLocalDateTimeInputValue();
 document.getElementById('entregarDiversos').checked = false;
 document.getElementById('entregarCorreios').checked = false;
@@ -4519,6 +4676,8 @@ new bootstrap.Modal(document.getElementById('swapModal')).show();
 
 function openScanExitModal() {
 document.getElementById('scanExitPlate').value = '';
+const exitImageInput = document.getElementById('plateImageExit');
+if (exitImageInput) exitImageInput.value = '';
 document.getElementById('exitVehicleInfo').classList.add('hidden');
 document.getElementById('scanStatusExit').innerHTML = '';
 vehicleToExit = null;
@@ -4527,6 +4686,9 @@ new bootstrap.Modal(document.getElementById('scanExitModal')).show();
 }
 
 async function startCamera(mode) {
+if (cameraStream || currentCameraMode) {
+stopCamera(currentCameraMode || mode, { preserveStatus: true });
+}
 currentCameraMode = mode;
 const statusId = mode === 'entry' ? 'scanStatusEntry' : 'scanStatusExit';
 const statusDiv = document.getElementById(statusId);
@@ -4534,6 +4696,10 @@ statusDiv.innerHTML = '<i class="bi bi-hourglass-split"></i> Solicitando permiss
 statusDiv.className = 'scan-status scanning';
 try {
 warmPlateOcrInBackground();
+const insecureContextMessage = getLiveCameraRequirementMessage();
+if (insecureContextMessage) {
+throw new Error(insecureContextMessage);
+}
 if (typeof Tesseract === 'undefined') {
 throw new Error('Tesseract.js não carregou. Verifique sua conexão.');
 }
@@ -4558,27 +4724,85 @@ if (!captureBtn) {
 captureBtn = document.createElement('button');
 captureBtn.className = 'btn btn-success btn-capture w-100 mt-2';
 captureBtn.innerHTML = '<i class="bi bi-camera"></i> Capturar Placa';
-captureBtn.onclick = () => capturePlate(mode, video, cameraStream);
+captureBtn.onclick = () => capturePlate(mode, video);
 container.appendChild(captureBtn);
 }
 } catch (err) {
 console.error('âŒ Erro câmera:', err);
-statusDiv.innerHTML = `<i class="bi bi-exclamation-triangle"></i> Erro: ${err.message}`;
+statusDiv.innerHTML = `<i class="bi bi-exclamation-triangle"></i> ${humanizePlateScannerError(err, { sourceLabel: 'câmera' })}`;
 statusDiv.className = 'scan-status error';
 }
 }
 
-async function capturePlate(mode, video, stream) {
+function getLiveCameraRequirementMessage() {
+if (window.isSecureContext) return '';
+const hostname = window.location.hostname || '';
+if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]' || hostname.endsWith('.localhost')) {
+return '';
+}
+return 'A câmera ao vivo do navegador exige HTTPS ou localhost. Se estiver no celular pela rede local, use o botão "Usar Foto" ou abra o sistema em HTTPS.';
+}
+
+function getScanStatusElement(mode) {
+return document.getElementById(mode === 'entry' ? 'scanStatusEntry' : 'scanStatusExit');
+}
+
+function openPlateImagePicker(mode) {
+const inputId = mode === 'entry' ? 'plateImageEntry' : 'plateImageExit';
+document.getElementById(inputId)?.click();
+}
+
+async function handlePlateImageSelection(mode, input) {
+const file = input?.files?.[0];
+if (!file) return;
+const statusDiv = getScanStatusElement(mode);
+statusDiv.innerHTML = '<i class="bi bi-image"></i> Preparando foto...';
+statusDiv.className = 'scan-status scanning';
+try {
+stopCamera(mode, { preserveStatus: true });
+const image = await loadPlateImageFromFile(file);
+await scanPlateFromMedia(mode, image, { sourceLabel: 'foto' });
+} catch (err) {
+console.error('âŒ Erro foto OCR:', err);
+statusDiv.innerHTML = `<i class="bi bi-x-circle"></i> ${humanizePlateScannerError(err, { sourceLabel: 'foto' })}`;
+statusDiv.className = 'scan-status error';
+} finally {
+input.value = '';
+}
+}
+
+function loadPlateImageFromFile(file) {
+return new Promise((resolve, reject) => {
+const objectUrl = URL.createObjectURL(file);
+const image = new Image();
+image.decoding = 'async';
+image.onload = () => {
+URL.revokeObjectURL(objectUrl);
+resolve(image);
+};
+image.onerror = () => {
+URL.revokeObjectURL(objectUrl);
+reject(new Error('Não foi possível abrir a foto selecionada.'));
+};
+image.src = objectUrl;
+});
+}
+
+async function capturePlate(mode, video) {
+return scanPlateFromMedia(mode, video, { sourceLabel: 'imagem da câmera' });
+}
+
+async function scanPlateFromMedia(mode, media, { sourceLabel = 'imagem' } = {}) {
 const statusId = mode === 'entry' ? 'scanStatusEntry' : 'scanStatusExit';
 const statusDiv = document.getElementById(statusId);
 statusDiv.innerHTML = '<i class="bi bi-hourglass-split"></i> Preparando imagem...';
 statusDiv.className = 'scan-status scanning';
 try {
-const canvas = buildPlateOcrCanvas(video);
-const { text, confidence } = await recognizePlateFromCanvas(canvas, statusDiv);
-const plate = extractPlate(text);
-if (plate) {
-statusDiv.innerHTML = `<i class="bi bi-check-circle"></i> âœ… Placa: ${plate} (Confiança: ${Math.round(confidence)}%)`;
+const result = await recognizePlateFromMedia(media, statusDiv);
+if (result?.plate) {
+const plate = result.plate;
+const confidence = Number.isFinite(result.confidence) ? Math.round(result.confidence) : 0;
+statusDiv.innerHTML = `<i class="bi bi-check-circle"></i> Placa: ${plate}${confidence > 0 ? ` (Confiança: ${confidence}%)` : ''}`;
 statusDiv.className = 'scan-status success';
 if (mode === 'entry') {
 document.getElementById('plate').value = plate;
@@ -4587,19 +4811,44 @@ checkVehicleHistory(plate, { openReport: true });
 document.getElementById('scanExitPlate').value = plate;
 checkPlateForExit(plate, { openReport: true });
 }
-stopCamera(mode);
+stopCamera(mode, { preserveStatus: true });
 } else {
-statusDiv.innerHTML = `<i class="bi bi-x-circle"></i> âŒ Não foi possível ler a placa.`;
+statusDiv.innerHTML = `<i class="bi bi-x-circle"></i> Não foi possível ler a placa pela ${sourceLabel}. Centralize melhor, aproxime a câmera ou tente uma foto mais próxima.`;
 statusDiv.className = 'scan-status error';
 }
 } catch (err) {
 console.error('âŒ Erro OCR:', err);
-statusDiv.innerHTML = '<i class="bi bi-x-circle"></i> Erro no OCR: ' + err.message;
+statusDiv.innerHTML = `<i class="bi bi-x-circle"></i> ${humanizePlateScannerError(err, { sourceLabel })}`;
 statusDiv.className = 'scan-status error';
 }
 }
 
-function stopCamera(mode) {
+function humanizePlateScannerError(err, { sourceLabel = 'scanner' } = {}) {
+const message = String(err?.message || '').trim();
+if (!message && err?.name === 'NotAllowedError') {
+return 'Permissão da câmera negada. Autorize o acesso no navegador ou use "Usar Foto".';
+}
+if (err?.name === 'NotFoundError' || err?.name === 'DevicesNotFoundError') {
+return 'Nenhuma câmera disponível foi encontrada neste aparelho.';
+}
+if (err?.name === 'NotReadableError' || err?.name === 'TrackStartError') {
+return 'A câmera já está em uso por outro aplicativo. Feche o outro app e tente novamente.';
+}
+if (message.includes('HTTPS ou localhost')) {
+return message;
+}
+if (message.includes('Tesseract.js não carregou')) {
+return navigator.onLine
+? 'O leitor de placas não carregou. Recarregue a página com internet para baixar os arquivos do OCR.'
+: 'Sem conexão. Conecte o aparelho à internet e recarregue a página uma vez para preparar o leitor.';
+}
+if (!navigator.onLine && sourceLabel !== 'câmera') {
+return 'Sem conexão. Na primeira utilização o leitor precisa baixar arquivos do OCR antes de funcionar melhor offline.';
+}
+return message || `Não foi possível usar ${sourceLabel}.`;
+}
+
+function stopCamera(mode, { preserveStatus = false } = {}) {
 const videoId = mode === 'entry' ? 'camera-video-entry' : 'camera-video-exit';
 const video = document.getElementById(videoId);
 if (video && video.srcObject) {
@@ -4610,8 +4859,13 @@ if (cameraStream) {
 cameraStream.getTracks().forEach(track => track.stop());
 cameraStream = null;
 }
+if (currentCameraMode === mode) {
+currentCameraMode = null;
+}
 const statusId = mode === 'entry' ? 'scanStatusEntry' : 'scanStatusExit';
+if (!preserveStatus) {
 document.getElementById(statusId).innerHTML = '<i class="bi bi-camera-video-off"></i> Câmera desligada';
+}
 const container = video?.parentElement;
 if (container) {
 const captureBtn = container.querySelector('.btn-capture');
@@ -4645,13 +4899,14 @@ function updateOcrStatusMessage(statusDiv, message) {
 if (!statusDiv || !message?.status) return;
 const status = String(message.status).toLowerCase();
 const percent = Number.isFinite(message.progress) ? Math.round(message.progress * 100) : null;
+const attemptLabel = statusDiv.dataset?.ocrAttemptLabel ? `${statusDiv.dataset.ocrAttemptLabel} · ` : '';
 if (status.includes('recognizing')) {
-statusDiv.innerHTML = `<i class="bi bi-hourglass-split"></i> Lendo placa: ${percent ?? 0}%`;
+statusDiv.innerHTML = `<i class="bi bi-hourglass-split"></i> ${attemptLabel}Lendo placa: ${percent ?? 0}%`;
 statusDiv.className = 'scan-status scanning';
 return;
 }
 if (status.includes('loading') || status.includes('initializing')) {
-statusDiv.innerHTML = `<i class="bi bi-cpu"></i> Preparando leitor${percent !== null ? `: ${percent}%` : '...'}`;
+statusDiv.innerHTML = `<i class="bi bi-cpu"></i> ${attemptLabel}Preparando leitor${percent !== null ? `: ${percent}%` : '...'}`;
 statusDiv.className = 'scan-status scanning';
 }
 }
@@ -4664,6 +4919,7 @@ activeOcrStatusUpdater = statusDiv ? (message) => updateOcrStatusMessage(statusD
 if (plateOcrWorker) return plateOcrWorker;
 if (!plateOcrWorkerPromise && typeof Tesseract.createWorker === 'function') {
 plateOcrWorkerPromise = Promise.resolve(Tesseract.createWorker(PLATE_OCR_LANGUAGE, 1, {
+workerPath: PLATE_OCR_WORKER_PATH,
 logger: (message) => {
 if (typeof activeOcrStatusUpdater === 'function') {
 activeOcrStatusUpdater(message);
@@ -4694,30 +4950,49 @@ console.warn('Pré-carga do OCR não concluída:', err);
 });
 }
 
-function buildPlateOcrCanvas(video) {
-const sourceWidth = video.videoWidth || 1280;
-const sourceHeight = video.videoHeight || 720;
-const displayWidth = video.clientWidth || sourceWidth;
-const displayHeight = video.clientHeight || Math.round(displayWidth * (sourceHeight / sourceWidth));
-const guideWidth = Math.min(PLATE_SCAN_GUIDE.width, displayWidth * 0.7);
-const guideHeight = Math.min(PLATE_SCAN_GUIDE.height, displayHeight * 0.35);
-const cropWidth = Math.min(sourceWidth, Math.max(320, Math.round(sourceWidth * (guideWidth / displayWidth) * 1.25)));
-const cropHeight = Math.min(sourceHeight, Math.max(110, Math.round(sourceHeight * (guideHeight / displayHeight) * 1.35)));
+function getPlateMediaDimensions(media) {
+const sourceWidth = Math.max(1, Math.round(media?.videoWidth || media?.naturalWidth || media?.width || 1280));
+const sourceHeight = Math.max(1, Math.round(media?.videoHeight || media?.naturalHeight || media?.height || 720));
+const displayWidth = Math.max(1, Math.round(media?.clientWidth || Math.min(sourceWidth, 360)));
+const displayHeight = Math.max(1, Math.round(media?.clientHeight || (displayWidth * (sourceHeight / sourceWidth))));
+return { sourceWidth, sourceHeight, displayWidth, displayHeight };
+}
+
+function buildPlateOcrVariants(media) {
+return PLATE_OCR_VARIANTS.map((variant) => ({
+...variant,
+canvas: buildPlateOcrCanvas(media, variant)
+}));
+}
+
+function buildPlateOcrCanvas(media, options = {}) {
+const { sourceWidth, sourceHeight, displayWidth, displayHeight } = getPlateMediaDimensions(media);
+const cropScaleX = options.cropScaleX || 1.25;
+const cropScaleY = options.cropScaleY || 1.35;
+const guideWidth = Math.min(PLATE_SCAN_GUIDE.width, displayWidth * 0.72);
+const guideHeight = Math.min(PLATE_SCAN_GUIDE.height, displayHeight * 0.38);
+const cropWidth = Math.min(sourceWidth, Math.max(320, Math.round(sourceWidth * (guideWidth / displayWidth) * cropScaleX)));
+const cropHeight = Math.min(sourceHeight, Math.max(110, Math.round(sourceHeight * (guideHeight / displayHeight) * cropScaleY)));
 const sx = Math.max(0, Math.round((sourceWidth - cropWidth) / 2));
 const sy = Math.max(0, Math.round((sourceHeight - cropHeight) / 2));
-const targetWidth = Math.min(900, Math.max(640, Math.round(cropWidth * 1.15)));
+const targetWidth = Math.min(1280, Math.max(640, Math.round(options.targetWidth || (cropWidth * 1.15))));
 const targetHeight = Math.max(140, Math.round(targetWidth * (cropHeight / cropWidth)));
 const canvas = document.createElement('canvas');
 canvas.width = targetWidth;
 canvas.height = targetHeight;
 const ctx = canvas.getContext('2d', { willReadFrequently: true });
 ctx.imageSmoothingEnabled = false;
-ctx.filter = 'grayscale(100%) contrast(185%) brightness(118%)';
-ctx.drawImage(video, sx, sy, cropWidth, cropHeight, 0, 0, targetWidth, targetHeight);
+ctx.filter = options.filter || 'grayscale(100%) contrast(185%) brightness(118%)';
+ctx.drawImage(media, sx, sy, cropWidth, cropHeight, 0, 0, targetWidth, targetHeight);
 const imageData = ctx.getImageData(0, 0, targetWidth, targetHeight);
 const data = imageData.data;
+const threshold = Number.isFinite(options.threshold) ? Number(options.threshold) : null;
+const contrastBoost = Number.isFinite(options.contrastBoost) ? Number(options.contrastBoost) : 1.15;
 for (let i = 0; i < data.length; i += 4) {
-const value = data[i] >= 155 ? 255 : 0;
+const gray = Math.round((data[i] * 0.299) + (data[i + 1] * 0.587) + (data[i + 2] * 0.114));
+let value = threshold !== null
+? (gray >= threshold ? 255 : 0)
+: Math.max(0, Math.min(255, Math.round(((gray - 128) * contrastBoost) + 128)));
 data[i] = value;
 data[i + 1] = value;
 data[i + 2] = value;
@@ -4726,8 +5001,59 @@ ctx.putImageData(imageData, 0, 0);
 return canvas;
 }
 
-async function recognizePlateFromCanvas(canvas, statusDiv) {
-statusDiv.innerHTML = '<i class="bi bi-cpu"></i> Preparando leitura...';
+function collectOcrCandidateText(result) {
+return [
+result?.text,
+...(Array.isArray(result?.lines) ? result.lines.map((line) => line?.text) : []),
+...(Array.isArray(result?.words) ? result.words.map((word) => word?.text) : [])
+]
+.filter(Boolean)
+.join('\n');
+}
+
+function pickBestPlateResult(matches = []) {
+const grouped = new Map();
+matches.forEach((match) => {
+if (!match?.plate) return;
+const current = grouped.get(match.plate) || { plate: match.plate, hits: 0, confidence: 0, totalConfidence: 0, attemptLabel: match.attemptLabel || '' };
+current.hits += 1;
+current.confidence = Math.max(current.confidence, Number(match.confidence) || 0);
+current.totalConfidence += Number(match.confidence) || 0;
+current.attemptLabel = current.attemptLabel || match.attemptLabel || '';
+grouped.set(match.plate, current);
+});
+return Array.from(grouped.values()).sort((a, b) => {
+if (b.hits !== a.hits) return b.hits - a.hits;
+if (b.confidence !== a.confidence) return b.confidence - a.confidence;
+return b.totalConfidence - a.totalConfidence;
+})[0] || null;
+}
+
+async function recognizePlateFromMedia(media, statusDiv) {
+const variants = buildPlateOcrVariants(media);
+const matches = [];
+for (const variant of variants) {
+const result = await recognizePlateFromCanvas(variant.canvas, statusDiv, { attemptLabel: variant.label });
+const plate = extractPlate(collectOcrCandidateText(result));
+if (!plate) continue;
+matches.push({
+plate,
+confidence: Number(result?.confidence) || 0,
+attemptLabel: variant.label
+});
+const best = pickBestPlateResult(matches);
+if (best && (best.hits >= 2 || best.confidence >= 65)) {
+return best;
+}
+}
+return pickBestPlateResult(matches);
+}
+
+async function recognizePlateFromCanvas(canvas, statusDiv, { attemptLabel = '' } = {}) {
+if (statusDiv?.dataset) {
+statusDiv.dataset.ocrAttemptLabel = attemptLabel;
+}
+statusDiv.innerHTML = `<i class="bi bi-cpu"></i> ${attemptLabel ? `${attemptLabel} · ` : ''}Preparando leitura...`;
 statusDiv.className = 'scan-status scanning';
 try {
 const worker = await getPlateOcrWorker(statusDiv).catch((err) => {
@@ -4747,6 +5073,9 @@ preserve_interword_spaces: '0'
 return result.data;
 } finally {
 activeOcrStatusUpdater = null;
+if (statusDiv?.dataset) {
+delete statusDiv.dataset.ocrAttemptLabel;
+}
 }
 }
 
@@ -4806,7 +5135,8 @@ try {
 const res = await fetch(`${API_URL}/vehicles`);
 const vehicles = await res.json();
 const matchedVehicle = findVehicleRecordByPlate(vehicles, plate);
-const existingVehicle = vehicles.find(v => v.plate.toUpperCase() === plate.toUpperCase() && v.status !== 'Liberado');
+const normalizedPlate = normalizePlateForComparison(plate);
+const existingVehicle = vehicles.find(v => normalizePlateForComparison(v.plate) === normalizedPlate && v.status !== 'Liberado');
 const historyDiv = document.getElementById('vehicleHistory');
 const historyContent = document.getElementById('historyContent');
 const plateAlert = document.getElementById('plateAlert');
@@ -4818,7 +5148,7 @@ document.getElementById('plate').disabled = false;
 historyDiv.classList.remove('hidden');
 historyContent.innerHTML = `<div class="history-item alert"><strong>VEÍCULO JÁ ESTÁ NO PÁTIO</strong><br><small>Não é possível cadastrar entrada duplicada</small></div>`;
 } else {
-const vehicleHistory = vehicles.filter(v => v.plate.toUpperCase() === plate.toUpperCase());
+const vehicleHistory = vehicles.filter(v => normalizePlateForComparison(v.plate) === normalizedPlate);
 plateAlert.classList.add('hidden');
 document.getElementById('entryForm').querySelectorAll('input, select, textarea').forEach(el => el.disabled = false);
 if (vehicleHistory.length > 0) {
@@ -4847,7 +5177,8 @@ try {
 const res = await fetch(`${API_URL}/vehicles`);
 const vehicles = await res.json();
 const matchedVehicle = findVehicleRecordByPlate(vehicles, plateInput);
-const vehicle = vehicles.find(v => v.plate.toUpperCase() === plateInput.toUpperCase() && v.status !== 'Liberado');
+const normalizedPlateInput = normalizePlateForComparison(plateInput);
+const vehicle = vehicles.find(v => normalizePlateForComparison(v.plate) === normalizedPlateInput && v.status !== 'Liberado');
 const exitInfo = document.getElementById('exitVehicleInfo');
 const exitContent = document.getElementById('exitVehicleContent');
 if (vehicle) {
@@ -4995,7 +5326,8 @@ Boolean(vehicle.newVehiclePlotagem),
 Boolean(vehicle.newVehicleTesteDrive),
 Boolean(vehicle.newVehicleAdesivoCorreios),
 Boolean(vehicle.newVehicleAdesivoPrint),
-Boolean(vehicle.newVehicleMarcacaoPneus)
+Boolean(vehicle.newVehicleMarcacaoPneus),
+Boolean(vehicle.newVehiclePlataformaCarga)
 ];
 if (vehicle.type === 'Van') steps.push(Boolean(vehicle.newVehicleForracaoInterna));
 const completed = steps.filter(Boolean).length;
@@ -5058,7 +5390,8 @@ renderVehicleReportChecklistItem('Plotagem', Boolean(vehicle.newVehiclePlotagem)
 renderVehicleReportChecklistItem('Teste drive', Boolean(vehicle.newVehicleTesteDrive)),
 renderVehicleReportChecklistItem('Adesivo Correios', Boolean(vehicle.newVehicleAdesivoCorreios)),
 renderVehicleReportChecklistItem('Adesivo Print', Boolean(vehicle.newVehicleAdesivoPrint)),
-renderVehicleReportChecklistItem('Marcação dos pneus', Boolean(vehicle.newVehicleMarcacaoPneus))
+renderVehicleReportChecklistItem('Marcação dos pneus', Boolean(vehicle.newVehicleMarcacaoPneus)),
+renderVehicleReportChecklistItem('Plataforma de carga', Boolean(vehicle.newVehiclePlataformaCarga))
 ];
 if (vehicle.type === 'Van') {
 checklistItems.push(renderVehicleReportChecklistItem('Forração interna', Boolean(vehicle.newVehicleForracaoInterna)));
@@ -5081,7 +5414,7 @@ return `
 <div>
 ${renderPlaca(vehicle.plate)}
 <div class="d-flex flex-wrap gap-2 mt-3">
-<span class="badge bg-secondary-subtle text-secondary-emphasis">${formatVehicleReportValue(vehicle.type)}</span>
+${renderVehicleTypeBadge(vehicle.type)}
 <span class="status-badge ${statusClass}">${formatVehicleReportValue(vehicle.status)}</span>
 <span class="sascar-badge ${sascarClass}">${sascarLabel}</span>
 ${renderVehicleWorkflowBadges(vehicle)}
@@ -5240,17 +5573,7 @@ return `
 `;
 }).join('');
 
-if (stats.stalledVehicles > 0) {
-const stalledList = stats.stalledVehiclesList.map(v => {
-const days = Math.floor(v.hours / 24);
-const hours = v.hours % 24;
-return `${v.plate} (${days}d ${hours}h)`;
-}).join(', ');
-document.getElementById('stalledAlert').classList.remove('hidden');
-document.getElementById('stalledList').textContent = stalledList;
-} else {
-document.getElementById('stalledAlert').classList.add('hidden');
-}
+updateStalledVehiclesState(stats.stalledVehiclesList || []);
 } catch (err) { console.error('Erro stats:', err); }
 }
 
@@ -5342,6 +5665,7 @@ const emptyMsg = document.getElementById('emptyMessage');
 if (vehicles.length === 0) {
 tbody.innerHTML = '';
 emptyMsg.style.display = 'block';
+updateStalledVehiclesState([]);
 return;
 }
 const conjuntoPlateSet = getMountedConjuntoPlateSet();
@@ -5365,7 +5689,7 @@ const workflowBadges = renderVehicleWorkflowBadges(v);
 const entregueBadge = v.entregue ? `<span class="badge-entregue"><i class="bi bi-box-seam"></i>${v.entreguePara === 'correios' ? 'Correios' : v.entreguePara === 'diversos' ? 'Diversos' : 'Entregue'}</span>` : '';
 const canUndoLiberado = v.canChangeLiberado && v.status === 'Liberado';
 return `<tr data-yard="${v.yard}" data-status="${v.status}" data-type="${v.type}" data-search="${v.plate} ${v.type} ${v.yard} ${v.base} ${v.baseDestino} ${v.notes || ''} ${v.manager || ''} ${v.newLineName || ''} ${v.newLineState || ''} ${v.newVehicleNotes || ''}" data-entregar-diversos="${entregarDiversos}" data-entregar-correios="${entregarCorreios}" data-entregue="${v.entregue ? 'true' : 'false'}" data-has-accident="${hasAccident}" data-document-issue="${documentIssue}" data-in-conjunto="${inConjunto}" data-is-new-vehicle="${v.isNewVehicle ? 'true' : 'false'}" data-sascar="${sascarStatus}" data-id="${v.id}">
-<td><span class="vehicle-icon"><i class="bi bi-${getVehicleIcon(v.type)}"></i></span><small class="d-md-none">${v.type}</small></td>
+<td>${renderVehicleTypeBadge(v.type)}</td>
 <td>${placaHtml}${sinistroBadge}${docBadge}${conjuntoBadge}${workflowBadges}${conjuntoDescription ? `<span class="conjunto-hint"><i class="bi bi-link-45deg"></i>${conjuntoDescription}</span>` : ''}</td>
 <td><small>${v.chassis || '—'}</small></td>
 <td><span class="date-badge">${v.entryDate}</span></td>
@@ -5410,6 +5734,7 @@ ${v.status === 'Liberado' && !v.entregue ? `
 </td>
 </tr>`;
 }).join('');
+updateStalledVehiclesState();
 applyCurrentFilters();
 } catch (err) { console.error('Erro loadVehicles:', err); }
 }
@@ -5651,6 +5976,7 @@ newVehicleTesteDrive: document.getElementById('newVehicleTesteDrive').checked ? 
 newVehicleAdesivoCorreios: document.getElementById('newVehicleAdesivoCorreios').checked ? 1 : 0,
 newVehicleAdesivoPrint: document.getElementById('newVehicleAdesivoPrint').checked ? 1 : 0,
 newVehicleMarcacaoPneus: document.getElementById('newVehicleMarcacaoPneus').checked ? 1 : 0,
+newVehiclePlataformaCarga: document.getElementById('newVehiclePlataformaCarga').checked ? 1 : 0,
 newVehicleForracaoInterna: document.getElementById('newVehicleForracaoInterna').checked ? 1 : 0,
 newVehicleNotes: document.getElementById('newVehicleNotes').value,
 hasNewLine: hasNewLine ? 1 : 0,
@@ -5733,6 +6059,7 @@ document.getElementById('editNewVehicleTesteDrive').checked = v.newVehicleTesteD
 document.getElementById('editNewVehicleAdesivoCorreios').checked = v.newVehicleAdesivoCorreios || false;
 document.getElementById('editNewVehicleAdesivoPrint').checked = v.newVehicleAdesivoPrint || false;
 document.getElementById('editNewVehicleMarcacaoPneus').checked = v.newVehicleMarcacaoPneus || false;
+document.getElementById('editNewVehiclePlataformaCarga').checked = v.newVehiclePlataformaCarga || false;
 document.getElementById('editNewVehicleForracaoInterna').checked = v.newVehicleForracaoInterna || false;
 document.getElementById('editNewVehicleNotes').value = v.newVehicleNotes || '';
 document.getElementById('editHasNewLine').checked = v.hasNewLine || false;
@@ -5852,6 +6179,7 @@ newVehicleTesteDrive: document.getElementById('editNewVehicleTesteDrive').checke
 newVehicleAdesivoCorreios: document.getElementById('editNewVehicleAdesivoCorreios').checked ? 1 : 0,
 newVehicleAdesivoPrint: document.getElementById('editNewVehicleAdesivoPrint').checked ? 1 : 0,
 newVehicleMarcacaoPneus: document.getElementById('editNewVehicleMarcacaoPneus').checked ? 1 : 0,
+newVehiclePlataformaCarga: document.getElementById('editNewVehiclePlataformaCarga').checked ? 1 : 0,
 newVehicleForracaoInterna: document.getElementById('editNewVehicleForracaoInterna').checked ? 1 : 0,
 newVehicleNotes: document.getElementById('editNewVehicleNotes').value,
 hasNewLine: document.getElementById('editHasNewLine').checked ? 1 : 0,
@@ -6248,7 +6576,7 @@ if (context.filtersText) {
 csvLines.push(`Filtros Aplicados;${context.filtersText}`);
 }
 csvLines.push('');
-csvLines.push('ID;Placa;Chassi;Tipo;Pátio;Base Origem;Base Destino;Gestor;Status;Manutenção;Categoria;Sinistro;Problema Documentação;Sascar;Entregue;Veículo Novo;Plotagem;Teste drive;Adesivo Correios;Adesivo Print;Marcação dos pneus;Forração interna;Obs. Veículo Novo;Nova Linha;Nome da Linha;Estado/UF da Linha;Entrada;Saída;Tempo no Pátio;Chaves;Observações;Diversos;Correios');
+csvLines.push('ID;Placa;Chassi;Tipo;Pátio;Base Origem;Base Destino;Gestor;Status;Manutenção;Categoria;Sinistro;Problema Documentação;Sascar;Entregue;Veículo Novo;Plotagem;Teste drive;Adesivo Correios;Adesivo Print;Marcação dos pneus;Plataforma de carga;Forração interna;Obs. Veículo Novo;Nova Linha;Nome da Linha;Estado/UF da Linha;Entrada;Saída;Tempo no Pátio;Chaves;Observações;Diversos;Correios');
 
 context.vehicles.forEach(vehicle => {
 const sascarLabel = vehicle.sascarStatus === 'pendente' ? 'Pendente' : vehicle.sascarStatus === 'instalado' ? 'Instalado' : vehicle.sascarStatus === 'manutencao' ? 'Manutenção' : 'N/A';
@@ -6276,6 +6604,7 @@ vehicle.newVehicleTesteDrive ? 'Sim' : 'Não',
 vehicle.newVehicleAdesivoCorreios ? 'Sim' : 'Não',
 vehicle.newVehicleAdesivoPrint ? 'Sim' : 'Não',
 vehicle.newVehicleMarcacaoPneus ? 'Sim' : 'Não',
+vehicle.newVehiclePlataformaCarga ? 'Sim' : 'Não',
 vehicle.newVehicleForracaoInterna ? 'Sim' : 'Não',
 `"${(vehicle.newVehicleNotes || '').replace(/"/g, '""')}"`,
 vehicle.hasNewLine ? 'Sim' : 'Não',
@@ -6444,8 +6773,7 @@ fileInput.value = '';
 }
 
 function getVehicleIcon(type) {
-const icons = {'Carreta': 'truck', 'Cavalo Mecânico': 'car-front', 'Van': 'bus-front', 'Caminhão Truck': 'truck', 'Caminhão Toco': 'truck', 'Veículo Visitante': 'person', 'Veículo Diretoria': 'star'};
-return icons[type] || 'truck';
+return getVehicleTypeMeta(type).icon;
 }
 
 function syncPersistentFiltersFromInputs({ clearCardFilters = false } = {}) {
