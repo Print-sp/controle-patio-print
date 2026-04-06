@@ -178,6 +178,30 @@ function normalizeBooleanFlag(value) {
     return Boolean(value);
 }
 
+function normalizeRequestTimestamp(value, fallback = null) {
+    if (value === undefined || value === null || value === '') return fallback;
+    if (value instanceof Date) {
+        return Number.isNaN(value.getTime()) ? fallback : value.toISOString();
+    }
+    const raw = String(value).trim();
+    if (!raw) return fallback;
+
+    const parseWithOffset = (text, offset) => {
+        const parsed = new Date(`${text}${offset}`);
+        return Number.isNaN(parsed.getTime()) ? fallback : parsed.toISOString();
+    };
+
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(raw)) {
+        return parseWithOffset(`${raw}:00`, '-03:00');
+    }
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(raw)) {
+        return parseWithOffset(raw, '-03:00');
+    }
+
+    const parsed = new Date(raw);
+    return Number.isNaN(parsed.getTime()) ? fallback : parsed.toISOString();
+}
+
 function canonicalizeBaseLocation(value) {
     const trimmed = String(value || '').trim();
     if (!trimmed) return '';
@@ -1576,16 +1600,17 @@ app.post('/api/vehicles', requireAuth, async (req, res) => {
     const hasNewLine = normalizeBooleanFlag(req.body?.hasNewLine);
     const newLineName = hasNewLine ? String(req.body?.newLineName || '').trim() : '';
     const newLineState = hasNewLine ? String(req.body?.newLineState || '').trim() : '';
+    const normalizedEntryTime = normalizeRequestTimestamp(entryDate, new Date().toISOString());
     if (hasNewLine && (!newLineName || !newLineState)) return res.status(400).json({ error: 'Preencha o nome e o estado/UF da nova linha' });
     try {
         let createdVehicle;
         if (isProduction) {
             const result = await pool.query(`INSERT INTO vehicles (plate, type, yard, base, baseDestino, manager, chassis, keys, notes, isNewVehicle, newVehiclePlotagem, newVehicleTesteDrive, newVehicleAdesivoCorreios, newVehicleAdesivoPrint, newVehicleMarcacaoPneus, newVehiclePlataformaCarga, newVehicleForracaoInterna, newVehicleNotes, hasNewLine, newLineName, newLineState, entregar_diversos, entregar_correios, hasAccident, documentIssue, sascarStatus, maintenanceCategory, entryTime, updatedBy) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29) RETURNING *`,
-                [plate ? plate.toUpperCase() : '', normalizedType, yard, normalizedBase, normalizedBaseDestino, manager || '', chassis || '', keys || '', notes || '', isNewVehicle, newVehiclePlotagem, newVehicleTesteDrive, newVehicleAdesivoCorreios, newVehicleAdesivoPrint, newVehicleMarcacaoPneus, newVehiclePlataformaCarga, newVehicleForracaoInterna, newVehicleNotes, hasNewLine, newLineName, newLineState, entregarDiversos ? true : false, entregarCorreios ? true : false, hasAccident ? true : false, documentIssue ? true : false, sascarStatus || 'pendente', maintenanceCategory || '', entryDate ? new Date(entryDate).toISOString() : new Date().toISOString(), req.session.user.username]);
+                [plate ? plate.toUpperCase() : '', normalizedType, yard, normalizedBase, normalizedBaseDestino, manager || '', chassis || '', keys || '', notes || '', isNewVehicle, newVehiclePlotagem, newVehicleTesteDrive, newVehicleAdesivoCorreios, newVehicleAdesivoPrint, newVehicleMarcacaoPneus, newVehiclePlataformaCarga, newVehicleForracaoInterna, newVehicleNotes, hasNewLine, newLineName, newLineState, entregarDiversos ? true : false, entregarCorreios ? true : false, hasAccident ? true : false, documentIssue ? true : false, sascarStatus || 'pendente', maintenanceCategory || '', normalizedEntryTime, req.session.user.username]);
         createdVehicle = normalizeVehicleRecord(mapPostgresRow(result.rows[0]));
     } else {
             const stmt = db.prepare(`INSERT INTO vehicles (plate, type, yard, base, baseDestino, manager, chassis, keys, notes, isNewVehicle, newVehiclePlotagem, newVehicleTesteDrive, newVehicleAdesivoCorreios, newVehicleAdesivoPrint, newVehicleMarcacaoPneus, newVehiclePlataformaCarga, newVehicleForracaoInterna, newVehicleNotes, hasNewLine, newLineName, newLineState, entregar_diversos, entregar_correios, hasAccident, documentIssue, sascarStatus, maintenanceCategory, entryTime, updatedBy) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-            const result = stmt.run(plate ? plate.toUpperCase() : '', normalizedType, yard, normalizedBase, normalizedBaseDestino, manager || '', chassis || '', keys || '', notes || '', isNewVehicle ? 1 : 0, newVehiclePlotagem ? 1 : 0, newVehicleTesteDrive ? 1 : 0, newVehicleAdesivoCorreios ? 1 : 0, newVehicleAdesivoPrint ? 1 : 0, newVehicleMarcacaoPneus ? 1 : 0, newVehiclePlataformaCarga ? 1 : 0, newVehicleForracaoInterna ? 1 : 0, newVehicleNotes, hasNewLine ? 1 : 0, newLineName, newLineState, entregarDiversos ? 1 : 0, entregarCorreios ? 1 : 0, hasAccident ? 1 : 0, documentIssue ? 1 : 0, sascarStatus || 'pendente', maintenanceCategory || '', entryDate ? new Date(entryDate).toISOString() : new Date().toISOString(), req.session.user.username);
+            const result = stmt.run(plate ? plate.toUpperCase() : '', normalizedType, yard, normalizedBase, normalizedBaseDestino, manager || '', chassis || '', keys || '', notes || '', isNewVehicle ? 1 : 0, newVehiclePlotagem ? 1 : 0, newVehicleTesteDrive ? 1 : 0, newVehicleAdesivoCorreios ? 1 : 0, newVehicleAdesivoPrint ? 1 : 0, newVehicleMarcacaoPneus ? 1 : 0, newVehiclePlataformaCarga ? 1 : 0, newVehicleForracaoInterna ? 1 : 0, newVehicleNotes, hasNewLine ? 1 : 0, newLineName, newLineState, entregarDiversos ? 1 : 0, entregarCorreios ? 1 : 0, hasAccident ? 1 : 0, documentIssue ? 1 : 0, sascarStatus || 'pendente', maintenanceCategory || '', normalizedEntryTime, req.session.user.username);
             createdVehicle = normalizeVehicleRecord({ ...db.prepare('SELECT * FROM vehicles WHERE id = ?').get(result.lastInsertRowid) });
         }
         const loanReturn = await detectLoanReturnOnEntry(createdVehicle, req.session.user.username);
@@ -1630,6 +1655,8 @@ app.put('/api/vehicles/:id', requireAuth, async (req, res) => {
     const newLineState = hasNewLine ? String(updates.newLineState ?? '').trim() : '';
     const normalizedUpdateStatus = updates.status ? canonicalizeVehicleStatus(updates.status) : null;
     const shouldClearTimeline = normalizedUpdateStatus && normalizedUpdateStatus !== 'Liberado';
+    const normalizedUpdateEntryTime = canEditDates ? normalizeRequestTimestamp(updates.entryTime, null) : null;
+    const normalizedUpdateExitTime = canEditDates ? normalizeRequestTimestamp(updates.exitTime, null) : null;
     if (hasNewLine && (!newLineName || !newLineState)) return res.status(400).json({ error: 'Preencha o nome e o estado/UF da nova linha' });
     try {
         const currentVehicle = isProduction
@@ -1643,10 +1670,10 @@ app.put('/api/vehicles/:id', requireAuth, async (req, res) => {
 
         if (isProduction) {
             await pool.query(`UPDATE vehicles SET plate = COALESCE($1::TEXT, plate), type = COALESCE($2::TEXT, type), yard = COALESCE($3::TEXT, yard), base = COALESCE($4::TEXT, base), baseDestino = COALESCE($5::TEXT, baseDestino), manager = COALESCE($6::TEXT, manager), chassis = COALESCE($7::TEXT, chassis), keys = COALESCE($8::TEXT, keys), status = COALESCE($9::TEXT, status), maintenance = COALESCE($10::BOOLEAN, maintenance), hasAccident = COALESCE($11::BOOLEAN, hasAccident), documentIssue = COALESCE($12::BOOLEAN, documentIssue), sascarStatus = COALESCE($13::TEXT, sascarStatus), maintenanceCategory = COALESCE($14::TEXT, maintenanceCategory), notes = COALESCE($15::TEXT, notes), entregar_diversos = COALESCE($16::BOOLEAN, entregar_diversos), entregar_correios = COALESCE($17::BOOLEAN, entregar_correios), entregue = COALESCE($18::BOOLEAN, entregue), entreguePara = COALESCE($19::TEXT, entreguePara), entryTime = CASE WHEN $20::TEXT IS NOT NULL AND ${canEditDates} THEN $20::TIMESTAMP ELSE entryTime END, exitTime = CASE WHEN ${shouldClearTimeline} THEN NULL WHEN $21::TEXT IS NOT NULL AND ${canEditDates} THEN $21::TIMESTAMP ELSE exitTime END, readyTime = CASE WHEN ${shouldClearTimeline} THEN NULL ELSE readyTime END, isNewVehicle = COALESCE($22::BOOLEAN, isNewVehicle), newVehiclePlotagem = COALESCE($23::BOOLEAN, newVehiclePlotagem), newVehicleTesteDrive = COALESCE($24::BOOLEAN, newVehicleTesteDrive), newVehicleAdesivoCorreios = COALESCE($25::BOOLEAN, newVehicleAdesivoCorreios), newVehicleAdesivoPrint = COALESCE($26::BOOLEAN, newVehicleAdesivoPrint), newVehicleMarcacaoPneus = COALESCE($27::BOOLEAN, newVehicleMarcacaoPneus), newVehiclePlataformaCarga = COALESCE($28::BOOLEAN, newVehiclePlataformaCarga), newVehicleForracaoInterna = COALESCE($29::BOOLEAN, newVehicleForracaoInterna), newVehicleNotes = COALESCE($30::TEXT, newVehicleNotes), hasNewLine = COALESCE($31::BOOLEAN, hasNewLine), newLineName = COALESCE($32::TEXT, newLineName), newLineState = COALESCE($33::TEXT, newLineState), updatedAt = CURRENT_TIMESTAMP, updatedBy = $34::TEXT WHERE id = $35::INTEGER`,
-                [nextPlate, normalizedUpdateType, updates.yard || null, normalizedUpdateBase, normalizedUpdateBaseDestino, updates.manager || null, nextChassis, updates.keys || null, normalizedUpdateStatus || null, updates.maintenance !== undefined ? Boolean(updates.maintenance) : null, updates.hasAccident !== undefined ? Boolean(updates.hasAccident) : null, updates.documentIssue !== undefined ? Boolean(updates.documentIssue) : null, updates.sascarStatus || null, updates.maintenanceCategory || null, updates.notes !== undefined ? String(updates.notes ?? '') : null, updates.entregarDiversos !== undefined ? Boolean(updates.entregarDiversos) : null, updates.entregarCorreios !== undefined ? Boolean(updates.entregarCorreios) : null, updates.entregue !== undefined ? Boolean(updates.entregue) : null, updates.entreguePara || null, canEditDates && updates.entryTime ? updates.entryTime : null, canEditDates && updates.exitTime ? updates.exitTime : null, isNewVehicle, newVehiclePlotagem, newVehicleTesteDrive, newVehicleAdesivoCorreios, newVehicleAdesivoPrint, newVehicleMarcacaoPneus, newVehiclePlataformaCarga, newVehicleForracaoInterna, newVehicleNotes ?? null, hasNewLine, newLineName ?? null, newLineState ?? null, req.session.user.username, id]);
+                [nextPlate, normalizedUpdateType, updates.yard || null, normalizedUpdateBase, normalizedUpdateBaseDestino, updates.manager || null, nextChassis, updates.keys || null, normalizedUpdateStatus || null, updates.maintenance !== undefined ? Boolean(updates.maintenance) : null, updates.hasAccident !== undefined ? Boolean(updates.hasAccident) : null, updates.documentIssue !== undefined ? Boolean(updates.documentIssue) : null, updates.sascarStatus || null, updates.maintenanceCategory || null, updates.notes !== undefined ? String(updates.notes ?? '') : null, updates.entregarDiversos !== undefined ? Boolean(updates.entregarDiversos) : null, updates.entregarCorreios !== undefined ? Boolean(updates.entregarCorreios) : null, updates.entregue !== undefined ? Boolean(updates.entregue) : null, updates.entreguePara || null, normalizedUpdateEntryTime, normalizedUpdateExitTime, isNewVehicle, newVehiclePlotagem, newVehicleTesteDrive, newVehicleAdesivoCorreios, newVehicleAdesivoPrint, newVehicleMarcacaoPneus, newVehiclePlataformaCarga, newVehicleForracaoInterna, newVehicleNotes ?? null, hasNewLine, newLineName ?? null, newLineState ?? null, req.session.user.username, id]);
         } else {
-            const nextEntryTime = canEditDates && updates.entryTime ? updates.entryTime : currentVehicle?.entryTime || null;
-            const nextExitTime = shouldClearTimeline ? null : (canEditDates && updates.exitTime ? updates.exitTime : currentVehicle?.exitTime || null);
+            const nextEntryTime = normalizedUpdateEntryTime || currentVehicle?.entryTime || null;
+            const nextExitTime = shouldClearTimeline ? null : (normalizedUpdateExitTime || currentVehicle?.exitTime || null);
             const nextReadyTime = shouldClearTimeline ? null : (currentVehicle?.readyTime || null);
             db.prepare(`UPDATE vehicles SET plate = ?, type = ?, yard = ?, base = ?, baseDestino = ?, manager = ?, chassis = ?, keys = ?, status = ?, maintenance = ?, hasAccident = ?, documentIssue = ?, sascarStatus = ?, maintenanceCategory = ?, notes = ?, entregar_diversos = ?, entregar_correios = ?, entregue = ?, entreguePara = ?, readyTime = ?, entryTime = ?, exitTime = ?, isNewVehicle = ?, newVehiclePlotagem = ?, newVehicleTesteDrive = ?, newVehicleAdesivoCorreios = ?, newVehicleAdesivoPrint = ?, newVehicleMarcacaoPneus = ?, newVehiclePlataformaCarga = ?, newVehicleForracaoInterna = ?, newVehicleNotes = ?, hasNewLine = ?, newLineName = ?, newLineState = ?, updatedAt = ?, updatedBy = ? WHERE id = ?`).run(
                 nextPlate, normalizedUpdateType, updates.yard || null, normalizedUpdateBase, normalizedUpdateBaseDestino, updates.manager || null, nextChassis, updates.keys || null, normalizedUpdateStatus || null,
@@ -1812,15 +1839,16 @@ app.get('/api/swaps', requireAuth, async (req, res) => {
 
 app.post('/api/swaps', requireAuth, async (req, res) => {
     const { date, plateIn, plateOut, base, baseDestino, notes, tipo, entregarVeiculoSaida } = req.body;
+    const normalizedSwapDate = normalizeRequestTimestamp(date, new Date().toISOString());
     try {
         let swapResult;
         if (isProduction) {
             const result = await pool.query(`INSERT INTO swaps (date, plateIn, plateOut, base, baseDestino, notes, tipo, updatedBy) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-                [date ? new Date(date).toISOString() : new Date().toISOString(), normalizePlateValue(plateIn) || '0000', normalizePlateValue(plateOut) || '0000', base || '', baseDestino || '', notes || '', tipo || 'troca', req.session.user.username]);
+                [normalizedSwapDate, normalizePlateValue(plateIn) || '0000', normalizePlateValue(plateOut) || '0000', base || '', baseDestino || '', notes || '', tipo || 'troca', req.session.user.username]);
             swapResult = mapSwapRow(result.rows[0]);
         } else {
             const stmt = db.prepare(`INSERT INTO swaps (date, plateIn, plateOut, base, baseDestino, notes, tipo, updatedBy) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
-            const result = stmt.run(date ? new Date(date).toISOString() : new Date().toISOString(), normalizePlateValue(plateIn) || '0000', normalizePlateValue(plateOut) || '0000', base || '', baseDestino || '', notes || '', tipo || 'troca', req.session.user.username);
+            const result = stmt.run(normalizedSwapDate, normalizePlateValue(plateIn) || '0000', normalizePlateValue(plateOut) || '0000', base || '', baseDestino || '', notes || '', tipo || 'troca', req.session.user.username);
             swapResult = mapSwapRow(db.prepare('SELECT * FROM swaps WHERE id = ?').get(result.lastInsertRowid));
         }
         
@@ -1851,6 +1879,7 @@ app.post('/api/swaps', requireAuth, async (req, res) => {
 app.put('/api/swaps/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
     const updates = req.body;
+    const normalizedSwapDate = normalizeRequestTimestamp(updates.date, null);
     try {
         const shouldResetReturn = updates.tipo && !['emprestimo', 'troca'].includes(updates.tipo);
         if (isProduction) {
@@ -1868,7 +1897,7 @@ app.put('/api/swaps/:id', requireAuth, async (req, res) => {
                      returnVehicleId = CASE WHEN $8 THEN NULL ELSE returnVehicleId END,
                      returnDetectedBy = CASE WHEN $8 THEN '' ELSE returnDetectedBy END
                  WHERE id = $9`,
-                [updates.date ? new Date(updates.date).toISOString() : null, normalizePlateValue(updates.plateIn) || '0000', normalizePlateValue(updates.plateOut) || null, updates.base, updates.baseDestino || null, updates.notes, updates.tipo, shouldResetReturn, id]
+                [normalizedSwapDate, normalizePlateValue(updates.plateIn) || '0000', normalizePlateValue(updates.plateOut) || null, updates.base, updates.baseDestino || null, updates.notes, updates.tipo, shouldResetReturn, id]
             );
         } else {
             db.prepare(
@@ -1880,7 +1909,7 @@ app.put('/api/swaps/:id', requireAuth, async (req, res) => {
                      returnDetectedBy = CASE WHEN ? THEN '' ELSE returnDetectedBy END
                  WHERE id = ?`
             ).run(
-                updates.date ? new Date(updates.date).toISOString() : null,
+                normalizedSwapDate,
                 normalizePlateValue(updates.plateIn) || '0000',
                 normalizePlateValue(updates.plateOut) || null,
                 updates.base,
@@ -1963,15 +1992,16 @@ app.post('/api/conjuntos', requireAuth, async (req, res) => {
     const allowedYards = getUserAllowedYards(req.session.user.username);
     if (allowedYards.length > 0 && yard && !allowedYards.includes(yard)) return res.status(403).json({ error: 'Você não tem permissão para este pátio' });
     if (!cavaloPlate || !carretaPlate) return res.status(400).json({ error: 'Cavalo e carreta são obrigatórios' });
+    const normalizedConjuntoDate = normalizeRequestTimestamp(date, new Date().toISOString());
     try {
         let createdConjunto = null;
         if (isProduction) {
             const result = await pool.query(`INSERT INTO conjuntos (date, cavaloPlate, carretaPlate, yard, base, baseDestino, leaderName, notes, updatedBy) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
-                [date ? new Date(date).toISOString() : new Date().toISOString(), cavaloPlate.toUpperCase(), carretaPlate.toUpperCase(), yard || '', base || '', baseDestino || '', leaderName || '', notes || '', req.session.user.username]);
+                [normalizedConjuntoDate, cavaloPlate.toUpperCase(), carretaPlate.toUpperCase(), yard || '', base || '', baseDestino || '', leaderName || '', notes || '', req.session.user.username]);
             createdConjunto = mapConjuntoRow(result.rows[0]);
         } else {
             const result = db.prepare(`INSERT INTO conjuntos (date, cavaloPlate, carretaPlate, yard, base, baseDestino, leaderName, notes, updatedBy) VALUES (?,?,?,?,?,?,?,?,?)`)
-                .run(date ? new Date(date).toISOString() : new Date().toISOString(), cavaloPlate.toUpperCase(), carretaPlate.toUpperCase(), yard || '', base || '', baseDestino || '', leaderName || '', notes || '', req.session.user.username);
+                .run(normalizedConjuntoDate, cavaloPlate.toUpperCase(), carretaPlate.toUpperCase(), yard || '', base || '', baseDestino || '', leaderName || '', notes || '', req.session.user.username);
             createdConjunto = mapConjuntoRow(db.prepare('SELECT * FROM conjuntos WHERE id = ?').get(result.lastInsertRowid));
         }
         await recordAuditEvent(req, {
@@ -1993,13 +2023,14 @@ app.put('/api/conjuntos/:id', requireAuth, async (req, res) => {
     const { date, cavaloPlate, carretaPlate, yard, base, baseDestino, leaderName, notes } = req.body;
     const allowedYards = getUserAllowedYards(req.session.user.username);
     if (allowedYards.length > 0 && yard && !allowedYards.includes(yard)) return res.status(403).json({ error: 'Você não tem permissão para este pátio' });
+    const normalizedConjuntoDate = normalizeRequestTimestamp(date, null);
     try {
         if (isProduction) {
             await pool.query(`UPDATE conjuntos SET date = COALESCE($1, date), cavaloPlate = COALESCE($2, cavaloPlate), carretaPlate = COALESCE($3, carretaPlate), yard = COALESCE($4, yard), base = COALESCE($5, base), baseDestino = COALESCE($6, baseDestino), leaderName = COALESCE($7, leaderName), notes = COALESCE($8, notes), updatedBy = $9 WHERE id = $10`,
-                [date ? new Date(date).toISOString() : null, cavaloPlate ? cavaloPlate.toUpperCase() : null, carretaPlate ? carretaPlate.toUpperCase() : null, yard || null, base || null, baseDestino || null, leaderName || null, notes || null, req.session.user.username, id]);
+                [normalizedConjuntoDate, cavaloPlate ? cavaloPlate.toUpperCase() : null, carretaPlate ? carretaPlate.toUpperCase() : null, yard || null, base || null, baseDestino || null, leaderName || null, notes || null, req.session.user.username, id]);
         } else {
             db.prepare(`UPDATE conjuntos SET date = ?, cavaloPlate = ?, carretaPlate = ?, yard = ?, base = ?, baseDestino = ?, leaderName = ?, notes = ?, updatedBy = ? WHERE id = ?`)
-                .run(date ? new Date(date).toISOString() : null, cavaloPlate ? cavaloPlate.toUpperCase() : null, carretaPlate ? carretaPlate.toUpperCase() : null, yard || null, base || null, baseDestino || null, leaderName || null, notes || null, req.session.user.username, id);
+                .run(normalizedConjuntoDate, cavaloPlate ? cavaloPlate.toUpperCase() : null, carretaPlate ? carretaPlate.toUpperCase() : null, yard || null, base || null, baseDestino || null, leaderName || null, notes || null, req.session.user.username, id);
         }
         const updatedConjunto = isProduction
             ? mapConjuntoRow((await pool.query('SELECT * FROM conjuntos WHERE id = $1', [id])).rows[0])
