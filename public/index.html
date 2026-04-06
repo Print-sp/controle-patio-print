@@ -3176,7 +3176,7 @@ return 'sascar-nao-aplicavel';
 
 async function loadLiberatedVehicles() {
 try {
-const res = await fetch(`${API_URL}/management/dashboard`);
+const res = await fetch(`${API_URL}/management/dashboard`, { cache: 'no-store' });
 const data = await res.json();
 const content = document.getElementById('liberatedPanelContent');
 const liberatedCountEl = document.getElementById('liberadosCount');
@@ -3237,7 +3237,7 @@ managementRefreshInterval = null;
 
 async function loadManagementDashboard() {
 try {
-const res = await fetch(`${API_URL}/management/dashboard`);
+const res = await fetch(`${API_URL}/management/dashboard`, { cache: 'no-store' });
 const data = await res.json();
 
 document.getElementById('mgTotalVehicles').textContent = data.totalVehicles;
@@ -3532,6 +3532,12 @@ return text === normalizedPhrase || text.includes(normalizedPhrase);
 function getLocalDateTimeInputValue(date = new Date()) {
 const local = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
 return local.toISOString().slice(0, 16);
+}
+
+function serializeDateTimeInputValue(value) {
+if (!value) return '';
+const parsed = new Date(value);
+return Number.isNaN(parsed.getTime()) ? value : parsed.toISOString();
 }
 
 function focusElementLater(id, delay = 280) {
@@ -4465,11 +4471,11 @@ const normalizedType = String(type || '').trim();
 const defaultMeta = { label: normalizedType || 'Tipo não informado', icon: 'truck', className: 'vehicle-type-truck' };
 const typeMap = {
 'Carreta': { label: 'Carreta', icon: 'truck', className: 'vehicle-type-carreta' },
-'Cavalo Mecânico': { label: 'Cavalo Mecânico', icon: 'car-front', className: 'vehicle-type-cavalo' },
+'Cavalo Mecânico': { label: 'Cavalo', icon: 'car-front', className: 'vehicle-type-cavalo' },
 'Van': { label: 'Van', icon: 'bus-front', className: 'vehicle-type-van' },
 'VUC / 3/4': { label: 'VUC / 3/4', icon: 'truck-flatbed', className: 'vehicle-type-vuc' },
-'Caminhão Truck': { label: 'Caminhão Truck', icon: 'truck', className: 'vehicle-type-truck' },
-'Caminhão Toco': { label: 'Caminhão Toco', icon: 'truck-front', className: 'vehicle-type-toco' },
+'Caminhão Truck': { label: 'Truck', icon: 'truck', className: 'vehicle-type-truck' },
+'Caminhão Toco': { label: 'Toco', icon: 'truck-front', className: 'vehicle-type-toco' },
 'Veículo Visitante': { label: 'Veículo Visitante', icon: 'person', className: 'vehicle-type-visitante' },
 'Veículo Diretoria': { label: 'Veículo Diretoria', icon: 'star', className: 'vehicle-type-diretoria' }
 };
@@ -5527,7 +5533,7 @@ container.innerHTML = signalCards.map(signal => `
 
 async function loadStats() {
 try {
-const res = await fetch(`${API_URL}/stats`);
+const res = await fetch(`${API_URL}/stats`, { cache: 'no-store' });
 const stats = await res.json();
 
 if (userYards.length > 0 && currentUser.role !== 'admin') {
@@ -5650,7 +5656,7 @@ return;
 
 async function loadVehicles() {
 try {
-const res = await fetch(`${API_URL}/vehicles`);
+const res = await fetch(`${API_URL}/vehicles`, { cache: 'no-store' });
 let vehicles = await res.json();
 allVehicles = vehicles;
 
@@ -5781,7 +5787,7 @@ new bootstrap.Modal(document.getElementById('conjuntoModal')).show();
 
 async function loadConjuntos() {
 try {
-const res = await fetch(`${API_URL}/conjuntos`);
+const res = await fetch(`${API_URL}/conjuntos`, { cache: 'no-store' });
 const conjuntos = await res.json();
 allConjuntos = Array.isArray(conjuntos) ? conjuntos : [];
 populateLeaderOptions();
@@ -5808,7 +5814,7 @@ allConjuntos = [];
 async function submitConjunto() {
 const id = document.getElementById('editConjuntoId').value;
 const payload = {
-date: document.getElementById('conjuntoDate').value,
+date: serializeDateTimeInputValue(document.getElementById('conjuntoDate').value),
 yard: document.getElementById('conjuntoYard').value,
 cavaloPlate: document.getElementById('conjuntoCavaloPlate').value.trim().toUpperCase(),
 carretaPlate: document.getElementById('conjuntoCarretaPlate').value.trim().toUpperCase(),
@@ -5957,7 +5963,7 @@ body: JSON.stringify({
 plate,
 type,
 yard,
-entryDate: document.getElementById('entryDate').value,
+entryDate: serializeDateTimeInputValue(document.getElementById('entryDate').value),
 base: document.getElementById('base').value,
 baseDestino: document.getElementById('baseDestino').value,
 manager: document.getElementById('manager').value,
@@ -6198,12 +6204,12 @@ currentUser?.username?.toLowerCase() === 'bandeirantes' ||
 userYards?.includes('Pátio Bandeirantes');
 
 if (entryTime && canEditDates) {
-updates.entryTime = new Date(entryTime).toISOString();
+updates.entryTime = serializeDateTimeInputValue(entryTime);
 }
 
 const exitTime = document.getElementById('editExitTime').value;
 if (exitTime && canEditDates) {
-updates.exitTime = new Date(exitTime).toISOString();
+updates.exitTime = serializeDateTimeInputValue(exitTime);
 }
 
 console.log('Salvando edição:', updates);
@@ -6266,7 +6272,7 @@ unlockAppAudio();
 
 try {
 const payload = {
-date: document.getElementById('swapDate').value,
+date: serializeDateTimeInputValue(document.getElementById('swapDate').value),
 plateIn: plateIn || '0000',
 plateOut,
 base: document.getElementById('swapBase').value,
