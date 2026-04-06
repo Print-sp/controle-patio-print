@@ -1079,6 +1079,13 @@ async function initDatabase() {
 initDatabase();
 
 app.use(express.json({ limit: '10mb' }));
+app.use('/api', (req, res, next) => {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    res.set('Surrogate-Control', 'no-store');
+    next();
+});
 app.use(express.static('public'));
 app.get('/ocorrencias', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'ocorrencias.html'));
