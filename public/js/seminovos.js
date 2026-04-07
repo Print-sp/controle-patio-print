@@ -159,8 +159,19 @@ function openView(viewName) {
 
 async function fetchJson(url, options = {}) {
   const response = await fetch(url, { cache: 'no-store', ...options });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || 'Falha na requisição');
+  const responseType = response.headers.get('content-type') || '';
+  const data = responseType.includes('application/json')
+    ? await response.json().catch(() => ({}))
+    : await response.text().catch(() => '');
+  if (!response.ok) {
+    if (response.status === 413) {
+      throw new Error('As fotos ficaram grandes demais para o envio. Tente menos fotos ou use imagens menores.');
+    }
+    if (typeof data === 'string' && data.trim()) {
+      throw new Error(data.trim());
+    }
+    throw new Error(data.error || 'Falha na requisição');
+  }
   return data;
 }
 
@@ -517,20 +528,40 @@ async function compressImage(file) {
     reader.readAsDataURL(file);
   });
 
-  const maxDimension = 1600;
-  let { width, height } = image;
-  if (width > maxDimension || height > maxDimension) {
-    const ratio = Math.min(maxDimension / width, maxDimension / height);
-    width = Math.round(width * ratio);
-    height = Math.round(height * ratio);
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+  const presets = [
+    { maxDimension: 1400, quality: 0.68 },
+    { maxDimension: 1280, quality: 0.6 },
+    { maxDimension: 1080, quality: 0.52 },
+    { maxDimension: 960, quality: 0.46 }
+  ];
+  const maxBytes = 350 * 1024;
+  let bestResult = '';
+
+  for (const preset of presets) {
+    let { width, height } = image;
+    if (width > preset.maxDimension || height > preset.maxDimension) {
+      const ratio = Math.min(preset.maxDimension / width, preset.maxDimension / height);
+      width = Math.round(width * ratio);
+      height = Math.round(height * ratio);
+    }
+
+    canvas.width = width;
+    canvas.height = height;
+    context.clearRect(0, 0, width, height);
+    context.drawImage(image, 0, 0, width, height);
+
+    const dataUrl = canvas.toDataURL('image/webp', preset.quality);
+    bestResult = dataUrl;
+    const base64Length = dataUrl.split(',')[1]?.length || 0;
+    const approxBytes = Math.ceil((base64Length * 3) / 4);
+    if (approxBytes <= maxBytes) {
+      return dataUrl;
+    }
   }
 
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const context = canvas.getContext('2d');
-  context.drawImage(image, 0, 0, width, height);
-  return canvas.toDataURL('image/webp', 0.72);
+  return bestResult;
 }
 
 async function collectVehiclePhotoPayloads() {
