@@ -1538,13 +1538,23 @@ async function initDatabase() {
 
 initDatabase();
 
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '30mb' }));
 app.use('/api', (req, res, next) => {
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.set('Pragma', 'no-cache');
     res.set('Expires', '0');
     res.set('Surrogate-Control', 'no-store');
     next();
+});
+app.use((error, req, res, next) => {
+    if (!error) return next();
+    if (error.type === 'entity.too.large') {
+        return res.status(413).json({ error: 'As fotos ficaram grandes demais para o envio. Reduza a quantidade ou use imagens menores.' });
+    }
+    if (error instanceof SyntaxError && req.path.startsWith('/api/')) {
+        return res.status(400).json({ error: 'Requisição inválida. Atualize a página e tente novamente.' });
+    }
+    return next(error);
 });
 app.use(express.static('public'));
 app.get('/ocorrencias', (req, res) => {
