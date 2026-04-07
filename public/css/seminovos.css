@@ -343,56 +343,90 @@ body {
 .type-pill { background: rgba(74,31,10,0.08); color: var(--seminovos-primary-dark); }
 
 .placa-container {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 130px;
-  height: 42px;
-  border-radius: 10px;
-  padding: 0 14px;
-  position: relative;
-  font-weight: 900;
-  letter-spacing: 0.1em;
-  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
+  display: inline-block;
+  min-width: 106px;
+  padding: 0;
+  border-radius: 8px;
+  font-weight: 700;
+  font-family: 'Arial', sans-serif;
+  font-size: 0.9rem;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
 }
 
 .placa-vermelha {
-  background: linear-gradient(180deg, #fff 0%, #f6f6f6 100%);
-  border: 2px solid #b91c1c;
+  background: linear-gradient(135deg, #c41e3a 0%, #8b0000 100%);
+  color: white;
+  border: 2px solid #8b0000;
+  padding: 4px 10px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 76px;
+  min-height: 30px;
+  text-align: center;
 }
 
 .placa-vermelha .placa-texto {
-  color: #991b1b;
-  font-size: 1rem;
+  color: #fff;
+  letter-spacing: 1.4px;
+  text-shadow: 0 1px 1px rgba(0,0,0,0.25);
+  display: block;
+  line-height: 1;
+  font-size: 0.84rem;
+  text-align: center;
 }
 
 .placa-mercosul {
-  background: linear-gradient(180deg, #ffffff 0%, #f6f8fb 100%);
-  border: 2px solid #1d4ed8;
-  padding-top: 10px;
+  background: linear-gradient(180deg, #ffffff 0%, #fcfcfc 100%);
+  border: 2px solid #b30f14;
+  position: relative;
+  overflow: hidden;
+  padding-top: 13px;
+  min-width: 106px;
+  min-height: 29px;
+  border-radius: 7px;
 }
 
 .placa-mercosul::before {
-  content: 'BRASIL';
+  content: '';
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  height: 12px;
-  background: #1d4ed8;
-  color: #fff;
-  font-size: 0.46rem;
-  font-weight: 800;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  letter-spacing: 0.18em;
-  border-radius: 8px 8px 0 0;
+  height: 13px;
+  background: linear-gradient(135deg, #0b46a8 0%, #123d8f 100%);
+  border-bottom: 1px solid #b30f14;
+  z-index: 0;
 }
 
 .placa-mercosul .placa-texto {
-  color: #111827;
-  font-size: 1rem;
+  position: relative;
+  z-index: 1;
+  color: #b30f14;
+  letter-spacing: 1.6px;
+  text-shadow: 0 0 1px rgba(0,0,0,0.2);
+  display: block;
+  padding: 4px 8px 3px;
+  font-size: 0.84rem;
+  line-height: 1;
+  text-align: center;
+}
+
+.placa-mercosul::after {
+  content: 'BRASIL';
+  position: absolute;
+  top: 1px;
+  left: 0;
+  right: 0;
+  font-size: 0.43rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-align: center;
+  color: #fff;
+  z-index: 2;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.35);
 }
 
 .photo-grid {
