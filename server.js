@@ -30,6 +30,7 @@ if (isProduction) {
         fs.mkdirSync(dbDir, { recursive: true });
     }
     db = new Database(path.join(dbDir, 'patio.db'));
+    db.pragma('foreign_keys = ON');
     console.log('💾 Banco: SQLite (Desenvolvimento)');
 }
 
@@ -200,6 +201,337 @@ function normalizeRequestTimestamp(value, fallback = null) {
 
     const parsed = new Date(raw);
     return Number.isNaN(parsed.getTime()) ? fallback : parsed.toISOString();
+}
+
+const SEMINOVOS_VEHICLE_TYPES = Object.freeze(['Toco', 'Truck', 'Carreta', 'Cavalo']);
+const SEMINOVOS_OPERATIONAL_STATUSES = Object.freeze([
+    'Disponível',
+    'Em manutenção',
+    'Em borracharia',
+    'Em funilaria',
+    'Pendente de documentação',
+    'Problema mecânico',
+    'Aguardando peça',
+    'Liberado'
+]);
+const SEMINOVOS_COMMERCIAL_STATUSES = Object.freeze([
+    'Nenhum',
+    'Pós-venda',
+    'Garantia',
+    'Pós-venda e garantia',
+    'Finalizado'
+]);
+const SEMINOVOS_SERVICE_CATEGORIES = Object.freeze([
+    'Manutenção',
+    'Borracharia',
+    'Funilaria',
+    'Documentação'
+]);
+const SEMINOVOS_SERVICE_STATUSES = Object.freeze([
+    'Aberta',
+    'Em andamento',
+    'Aguardando peça',
+    'Concluída',
+    'Cancelada'
+]);
+const SEMINOVOS_PHOTO_CATEGORIES = Object.freeze([
+    'Frente',
+    'Traseira',
+    'Lado esquerdo',
+    'Lado direito',
+    'Painel / odômetro',
+    'Avaria / observação'
+]);
+const SEMINOVOS_UPLOADS_DIR = path.join(__dirname, 'public', 'uploads', 'seminovos');
+
+function ensureDirectoryExists(targetPath) {
+    if (!fs.existsSync(targetPath)) {
+        fs.mkdirSync(targetPath, { recursive: true });
+    }
+}
+
+function sanitizeFileNameSegment(value) {
+    return String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9_-]+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '')
+        .toLowerCase() || 'arquivo';
+}
+
+function canonicalizeSeminovosVehicleType(type) {
+    const normalized = canonicalText(type);
+    if (normalized.includes('carreta')) return 'Carreta';
+    if (normalized.includes('cavalo')) return 'Cavalo';
+    if (normalized.includes('truck')) return 'Truck';
+    if (normalized.includes('toco')) return 'Toco';
+    return 'Truck';
+}
+
+function canonicalizeSeminovosOperationalStatus(status) {
+    const normalized = canonicalText(status);
+    if (normalized.includes('borrachar')) return 'Em borracharia';
+    if (normalized.includes('funilar')) return 'Em funilaria';
+    if (normalized.includes('document')) return 'Pendente de documentação';
+    if (normalized.includes('mecan')) return 'Problema mecânico';
+    if (normalized.includes('manut')) return 'Em manutenção';
+    if (normalized.includes('aguardando peca')) return 'Aguardando peça';
+    if (normalized.includes('liberad')) return 'Liberado';
+    if (normalized.includes('dispon')) return 'Disponível';
+    return 'Disponível';
+}
+
+function canonicalizeSeminovosCommercialStatus(status) {
+    const normalized = canonicalText(status);
+    if (normalized.includes('pos venda') && normalized.includes('garantia')) return 'Pós-venda e garantia';
+    if (normalized.includes('garantia')) return 'Garantia';
+    if (normalized.includes('pos venda')) return 'Pós-venda';
+    if (normalized.includes('finaliz')) return 'Finalizado';
+    return 'Nenhum';
+}
+
+function canonicalizeSeminovosServiceCategory(category) {
+    const normalized = canonicalText(category);
+    if (normalized.includes('borrachar')) return 'Borracharia';
+    if (normalized.includes('funilar')) return 'Funilaria';
+    if (normalized.includes('document')) return 'Documentação';
+    return 'Manutenção';
+}
+
+function canonicalizeSeminovosServiceStatus(status) {
+    const normalized = canonicalText(status);
+    if (normalized.includes('andamento')) return 'Em andamento';
+    if (normalized.includes('aguardando peca')) return 'Aguardando peça';
+    if (normalized.includes('conclu')) return 'Concluída';
+    if (normalized.includes('cancel')) return 'Cancelada';
+    return 'Aberta';
+}
+
+function canonicalizeSeminovosPhotoCategory(category) {
+    const normalized = canonicalText(category);
+    if (normalized.includes('frente')) return 'Frente';
+    if (normalized.includes('traseira')) return 'Traseira';
+    if (normalized.includes('lado esquerdo')) return 'Lado esquerdo';
+    if (normalized.includes('lado direito')) return 'Lado direito';
+    if (normalized.includes('painel') || normalized.includes('odometro')) return 'Painel / odômetro';
+    if (normalized.includes('avaria') || normalized.includes('observa')) return 'Avaria / observação';
+    return 'Frente';
+}
+
+function canAccessSeminovos(user) {
+    return user?.role === 'admin' || user?.role === 'seminovos';
+}
+
+function mapSeminovosVehicleRow(row) {
+    if (!row) return null;
+    return {
+        id: row.id,
+        plate: row.plate,
+        type: canonicalizeSeminovosVehicleType(row.type),
+        chassis: row.chassis || '',
+        odometer: Number(row.odometer || 0),
+        operationalStatus: canonicalizeSeminovosOperationalStatus(row.operationalstatus || row.operationalStatus),
+        commercialStatus: canonicalizeSeminovosCommercialStatus(row.commercialstatus || row.commercialStatus),
+        notes: row.notes || '',
+        createdAt: row.createdat || row.createdAt,
+        updatedAt: row.updatedat || row.updatedAt,
+        updatedBy: row.updatedby || row.updatedBy || ''
+    };
+}
+
+function mapSeminovosServiceOrderRow(row) {
+    if (!row) return null;
+    return {
+        id: row.id,
+        vehicleId: row.vehicleid || row.vehicleId,
+        serviceOrderNumber: row.serviceordernumber || row.serviceOrderNumber || '',
+        category: canonicalizeSeminovosServiceCategory(row.category),
+        status: canonicalizeSeminovosServiceStatus(row.status),
+        odometer: Number(row.odometer || 0),
+        description: row.description || '',
+        notes: row.notes || '',
+        openedAt: row.openedat || row.openedAt,
+        closedAt: row.closedat || row.closedAt,
+        createdAt: row.createdat || row.createdAt,
+        updatedAt: row.updatedat || row.updatedAt,
+        updatedBy: row.updatedby || row.updatedBy || '',
+        vehiclePlate: row.vehicleplate || row.vehiclePlate || '',
+        vehicleType: row.vehicletype || row.vehicleType || ''
+    };
+}
+
+function mapSeminovosPartRow(row) {
+    if (!row) return null;
+    return {
+        id: row.id,
+        serviceOrderId: row.serviceorderid || row.serviceOrderId,
+        partName: row.partname || row.partName || '',
+        quantity: Number(row.quantity || 0),
+        notes: row.notes || '',
+        createdAt: row.createdat || row.createdAt
+    };
+}
+
+function mapSeminovosPhotoRow(row) {
+    if (!row) return null;
+    return {
+        id: row.id,
+        vehicleId: row.vehicleid || row.vehicleId,
+        category: canonicalizeSeminovosPhotoCategory(row.category),
+        filePath: row.filepath || row.filePath || '',
+        fileName: row.filename || row.fileName || '',
+        mimeType: row.mimetype || row.mimeType || '',
+        sizeBytes: Number(row.sizebytes || row.sizeBytes || 0),
+        caption: row.caption || '',
+        createdAt: row.createdat || row.createdAt,
+        updatedBy: row.updatedby || row.updatedBy || ''
+    };
+}
+
+function buildSeminovosPhotoPublicPath(vehicleId, fileName) {
+    return `/uploads/seminovos/${vehicleId}/${fileName}`;
+}
+
+function resolveSeminovosPhotoFilePath(publicPath) {
+    if (!publicPath) return null;
+    const normalized = String(publicPath).replace(/^\/+/, '').replace(/\//g, path.sep);
+    return path.join(__dirname, 'public', normalized);
+}
+
+function parsePhotoDataUrl(dataUrl) {
+    const match = String(dataUrl || '').match(/^data:(image\/(jpeg|jpg|png|webp));base64,(.+)$/i);
+    if (!match) {
+        throw new Error('Formato de imagem inválido');
+    }
+    const mimeType = match[1].toLowerCase();
+    const extension = mimeType.includes('png') ? 'png' : mimeType.includes('webp') ? 'webp' : 'jpg';
+    return {
+        mimeType,
+        extension,
+        buffer: Buffer.from(match[3], 'base64')
+    };
+}
+
+async function listSeminovosPhotosByVehicleIds(vehicleIds) {
+    const ids = Array.from(new Set(vehicleIds.map(id => Number(id)).filter(Number.isFinite)));
+    if (!ids.length) return [];
+
+    if (isProduction) {
+        const result = await pool.query(
+            'SELECT * FROM seminovos_vehicle_photos WHERE vehicleId = ANY($1::int[]) ORDER BY createdAt DESC',
+            [ids]
+        );
+        return result.rows.map(mapSeminovosPhotoRow);
+    }
+
+    const placeholders = ids.map(() => '?').join(', ');
+    return db.prepare(`SELECT * FROM seminovos_vehicle_photos WHERE vehicleId IN (${placeholders}) ORDER BY createdAt DESC`).all(...ids).map(mapSeminovosPhotoRow);
+}
+
+async function listSeminovosPartsByOrderIds(orderIds) {
+    const ids = Array.from(new Set(orderIds.map(id => Number(id)).filter(Number.isFinite)));
+    if (!ids.length) return [];
+
+    if (isProduction) {
+        const result = await pool.query(
+            'SELECT * FROM seminovos_service_parts WHERE serviceOrderId = ANY($1::int[]) ORDER BY createdAt DESC',
+            [ids]
+        );
+        return result.rows.map(mapSeminovosPartRow);
+    }
+
+    const placeholders = ids.map(() => '?').join(', ');
+    return db.prepare(`SELECT * FROM seminovos_service_parts WHERE serviceOrderId IN (${placeholders}) ORDER BY createdAt DESC`).all(...ids).map(mapSeminovosPartRow);
+}
+
+async function getSeminovosVehicleById(id) {
+    if (isProduction) {
+        const result = await pool.query('SELECT * FROM seminovos_vehicles WHERE id = $1', [id]);
+        return mapSeminovosVehicleRow(result.rows[0]);
+    }
+    return mapSeminovosVehicleRow(db.prepare('SELECT * FROM seminovos_vehicles WHERE id = ?').get(id));
+}
+
+async function getSeminovosVehiclePhotoByCategory(vehicleId, category) {
+    if (isProduction) {
+        const result = await pool.query(
+            'SELECT * FROM seminovos_vehicle_photos WHERE vehicleId = $1 AND category = $2 LIMIT 1',
+            [vehicleId, category]
+        );
+        return mapSeminovosPhotoRow(result.rows[0]);
+    }
+
+    return mapSeminovosPhotoRow(
+        db.prepare('SELECT * FROM seminovos_vehicle_photos WHERE vehicleId = ? AND category = ? LIMIT 1').get(vehicleId, category)
+    );
+}
+
+async function removeSeminovosPhotoRecord(photo) {
+    if (!photo) return;
+    const filePath = resolveSeminovosPhotoFilePath(photo.filePath);
+    if (filePath && fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+    }
+
+    if (isProduction) {
+        await pool.query('DELETE FROM seminovos_vehicle_photos WHERE id = $1', [photo.id]);
+        return;
+    }
+
+    db.prepare('DELETE FROM seminovos_vehicle_photos WHERE id = ?').run(photo.id);
+}
+
+async function upsertSeminovosVehiclePhoto(vehicle, photoPayload, username) {
+    const category = canonicalizeSeminovosPhotoCategory(photoPayload?.category);
+    const existing = await getSeminovosVehiclePhotoByCategory(vehicle.id, category);
+
+    if (photoPayload?.remove) {
+        await removeSeminovosPhotoRecord(existing);
+        return null;
+    }
+
+    if (!photoPayload?.dataUrl) return existing;
+
+    const parsed = parsePhotoDataUrl(photoPayload.dataUrl);
+    const vehicleDir = path.join(SEMINOVOS_UPLOADS_DIR, String(vehicle.id));
+    ensureDirectoryExists(vehicleDir);
+
+    if (existing) {
+        await removeSeminovosPhotoRecord(existing);
+    }
+
+    const safePlate = sanitizeFileNameSegment(vehicle.plate || `veiculo-${vehicle.id}`);
+    const safeCategory = sanitizeFileNameSegment(category);
+    const fileName = `${safePlate}-${safeCategory}-${Date.now()}.${parsed.extension}`;
+    const absolutePath = path.join(vehicleDir, fileName);
+    fs.writeFileSync(absolutePath, parsed.buffer);
+    const publicPath = buildSeminovosPhotoPublicPath(vehicle.id, fileName);
+
+    if (isProduction) {
+        const result = await pool.query(
+            `INSERT INTO seminovos_vehicle_photos (vehicleId, category, filePath, fileName, mimeType, sizeBytes, caption, updatedBy)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+             RETURNING *`,
+            [vehicle.id, category, publicPath, fileName, parsed.mimeType, parsed.buffer.length, photoPayload.caption || '', username]
+        );
+        return mapSeminovosPhotoRow(result.rows[0]);
+    }
+
+    const result = db.prepare(
+        `INSERT INTO seminovos_vehicle_photos (vehicleId, category, filePath, fileName, mimeType, sizeBytes, caption, updatedBy)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(vehicle.id, category, publicPath, fileName, parsed.mimeType, parsed.buffer.length, photoPayload.caption || '', username);
+    return mapSeminovosPhotoRow(db.prepare('SELECT * FROM seminovos_vehicle_photos WHERE id = ?').get(result.lastInsertRowid));
+}
+
+async function syncSeminovosVehiclePhotos(vehicle, photoPayloads, username) {
+    if (!Array.isArray(photoPayloads)) return listSeminovosPhotosByVehicleIds([vehicle.id]);
+    for (const payload of photoPayloads) {
+        if (!payload?.category) continue;
+        await upsertSeminovosVehiclePhoto(vehicle, payload, username);
+    }
+    return listSeminovosPhotosByVehicleIds([vehicle.id]);
 }
 
 function canonicalizeBaseLocation(value) {
@@ -669,6 +1001,7 @@ function validateOccurrencePayload(payload) {
 }
 
 async function initDatabase() {
+    ensureDirectoryExists(SEMINOVOS_UPLOADS_DIR);
     if (isProduction) {
         try {
             await pool.query(`
@@ -748,6 +1081,55 @@ async function initDatabase() {
                     details JSONB DEFAULT '{}'::jsonb,
                     username TEXT DEFAULT 'system',
                     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE TABLE IF NOT EXISTS seminovos_vehicles (
+                    id SERIAL PRIMARY KEY,
+                    plate TEXT UNIQUE NOT NULL,
+                    type TEXT NOT NULL,
+                    chassis TEXT DEFAULT '',
+                    odometer INTEGER DEFAULT 0,
+                    operationalStatus TEXT DEFAULT 'Disponível',
+                    commercialStatus TEXT DEFAULT 'Nenhum',
+                    notes TEXT DEFAULT '',
+                    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updatedBy TEXT DEFAULT 'system'
+                );
+                CREATE TABLE IF NOT EXISTS seminovos_service_orders (
+                    id SERIAL PRIMARY KEY,
+                    vehicleId INTEGER NOT NULL REFERENCES seminovos_vehicles(id) ON DELETE CASCADE,
+                    serviceOrderNumber TEXT DEFAULT '',
+                    category TEXT DEFAULT 'Manutenção',
+                    status TEXT DEFAULT 'Aberta',
+                    odometer INTEGER DEFAULT 0,
+                    description TEXT DEFAULT '',
+                    notes TEXT DEFAULT '',
+                    openedAt TIMESTAMP NOT NULL,
+                    closedAt TIMESTAMP,
+                    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updatedBy TEXT DEFAULT 'system'
+                );
+                CREATE TABLE IF NOT EXISTS seminovos_service_parts (
+                    id SERIAL PRIMARY KEY,
+                    serviceOrderId INTEGER NOT NULL REFERENCES seminovos_service_orders(id) ON DELETE CASCADE,
+                    partName TEXT NOT NULL,
+                    quantity INTEGER DEFAULT 1,
+                    notes TEXT DEFAULT '',
+                    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE TABLE IF NOT EXISTS seminovos_vehicle_photos (
+                    id SERIAL PRIMARY KEY,
+                    vehicleId INTEGER NOT NULL REFERENCES seminovos_vehicles(id) ON DELETE CASCADE,
+                    category TEXT NOT NULL,
+                    filePath TEXT NOT NULL,
+                    fileName TEXT DEFAULT '',
+                    mimeType TEXT DEFAULT '',
+                    sizeBytes INTEGER DEFAULT 0,
+                    caption TEXT DEFAULT '',
+                    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updatedBy TEXT DEFAULT 'system',
+                    UNIQUE (vehicleId, category)
                 );
                 CREATE TABLE IF NOT EXISTS occurrence_branches (
                     id SERIAL PRIMARY KEY,
@@ -853,7 +1235,8 @@ async function initDatabase() {
                 { username: 'admin', password: process.env.ADMIN_PASSWORD || 'Print@2026', role: 'admin', yards: ['Pátio Jaraguá', 'Pátio Bandeirantes', 'Pátio Superior', 'Pátio Cajamar'] },
                 { username: 'cajamar', password: process.env.CAJAMAR_PASSWORD || 'Cajamar2026', role: 'operator', yards: ['Pátio Cajamar'] },
                 { username: 'bandeirantes', password: process.env.BANDEIRANTES_PASSWORD || 'Bandeirantes2026', role: 'operator', yards: ['Pátio Bandeirantes'] },
-                { username: 'jaragua', password: process.env.JARAGUA_PASSWORD || 'Jaragua2026', role: 'operator', yards: ['Pátio Jaraguá', 'Pátio Superior'] }
+                { username: 'jaragua', password: process.env.JARAGUA_PASSWORD || 'Jaragua2026', role: 'operator', yards: ['Pátio Jaraguá', 'Pátio Superior'] },
+                { username: 'seminovos', password: process.env.SEMINOVOS_PASSWORD || 'Seminovos2026', role: 'seminovos', yards: [] }
             ];
             
             for (const user of users) {
@@ -965,6 +1348,58 @@ async function initDatabase() {
                     username TEXT DEFAULT 'system',
                     createdAt TEXT DEFAULT CURRENT_TIMESTAMP
                 );
+                CREATE TABLE IF NOT EXISTS seminovos_vehicles (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    plate TEXT UNIQUE NOT NULL,
+                    type TEXT NOT NULL,
+                    chassis TEXT DEFAULT '',
+                    odometer INTEGER DEFAULT 0,
+                    operationalStatus TEXT DEFAULT 'Disponível',
+                    commercialStatus TEXT DEFAULT 'Nenhum',
+                    notes TEXT DEFAULT '',
+                    createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+                    updatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
+                    updatedBy TEXT DEFAULT 'system'
+                );
+                CREATE TABLE IF NOT EXISTS seminovos_service_orders (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    vehicleId INTEGER NOT NULL,
+                    serviceOrderNumber TEXT DEFAULT '',
+                    category TEXT DEFAULT 'Manutenção',
+                    status TEXT DEFAULT 'Aberta',
+                    odometer INTEGER DEFAULT 0,
+                    description TEXT DEFAULT '',
+                    notes TEXT DEFAULT '',
+                    openedAt TEXT NOT NULL,
+                    closedAt TEXT,
+                    createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+                    updatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
+                    updatedBy TEXT DEFAULT 'system',
+                    FOREIGN KEY(vehicleId) REFERENCES seminovos_vehicles(id) ON DELETE CASCADE
+                );
+                CREATE TABLE IF NOT EXISTS seminovos_service_parts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    serviceOrderId INTEGER NOT NULL,
+                    partName TEXT NOT NULL,
+                    quantity INTEGER DEFAULT 1,
+                    notes TEXT DEFAULT '',
+                    createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY(serviceOrderId) REFERENCES seminovos_service_orders(id) ON DELETE CASCADE
+                );
+                CREATE TABLE IF NOT EXISTS seminovos_vehicle_photos (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    vehicleId INTEGER NOT NULL,
+                    category TEXT NOT NULL,
+                    filePath TEXT NOT NULL,
+                    fileName TEXT DEFAULT '',
+                    mimeType TEXT DEFAULT '',
+                    sizeBytes INTEGER DEFAULT 0,
+                    caption TEXT DEFAULT '',
+                    createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+                    updatedBy TEXT DEFAULT 'system',
+                    UNIQUE(vehicleId, category),
+                    FOREIGN KEY(vehicleId) REFERENCES seminovos_vehicles(id) ON DELETE CASCADE
+                );
                 CREATE TABLE IF NOT EXISTS occurrence_branches (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT UNIQUE NOT NULL
@@ -1061,7 +1496,8 @@ async function initDatabase() {
                 { username: 'admin', password: process.env.ADMIN_PASSWORD || 'Print@2026', role: 'admin', yards: ['Pátio Jaraguá', 'Pátio Bandeirantes', 'Pátio Superior', 'Pátio Cajamar'] },
                 { username: 'cajamar', password: process.env.CAJAMAR_PASSWORD || 'Cajamar2026', role: 'operator', yards: ['Pátio Cajamar'] },
                 { username: 'bandeirantes', password: process.env.BANDEIRANTES_PASSWORD || 'Bandeirantes2026', role: 'operator', yards: ['Pátio Bandeirantes'] },
-                { username: 'jaragua', password: process.env.JARAGUA_PASSWORD || 'Jaragua2026', role: 'operator', yards: ['Pátio Jaraguá', 'Pátio Superior'] }
+                { username: 'jaragua', password: process.env.JARAGUA_PASSWORD || 'Jaragua2026', role: 'operator', yards: ['Pátio Jaraguá', 'Pátio Superior'] },
+                { username: 'seminovos', password: process.env.SEMINOVOS_PASSWORD || 'Seminovos2026', role: 'seminovos', yards: [] }
             ];
             
             for (const user of users) {
@@ -1117,6 +1553,9 @@ app.get('/ocorrencias', (req, res) => {
 app.get('/bases', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'bases.html'));
 });
+app.get('/seminovos', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'seminovos.html'));
+});
 app.get('/cadastros', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'bases.html'));
 });
@@ -1138,6 +1577,12 @@ const requireAuth = (req, res, next) => {
 const requireRole = (allowedRoles) => (req, res, next) => {
     if (!req.session?.user) return res.status(401).json({ error: 'Não autenticado' });
     if (!allowedRoles.includes(req.session.user.role)) return res.status(403).json({ error: 'Acesso negado' });
+    next();
+};
+
+const requireSeminovosAccess = (req, res, next) => {
+    if (!req.session?.user) return res.status(401).json({ error: 'Não autenticado' });
+    if (!canAccessSeminovos(req.session.user)) return res.status(403).json({ error: 'Acesso negado ao módulo Seminovos' });
     next();
 };
 
@@ -1544,12 +1989,470 @@ app.delete('/api/occurrences/:id', async (req, res) => {
 function getPermissions(role) {
     return {
         admin: { canDelete: true, canImport: true, canExport: true, canCreate: true, canEdit: true, canExit: true, canManage: true, canUndoLiberado: true },
+        seminovos: { canDelete: false, canImport: false, canExport: true, canCreate: true, canEdit: true, canExit: false, canManage: false, canUndoLiberado: false },
         bandeirantes: { canDelete: false, canImport: false, canExport: true, canCreate: true, canEdit: true, canExit: true, canManage: false, canUndoLiberado: true },
         jaragua: { canDelete: false, canImport: false, canExport: true, canCreate: true, canEdit: true, canExit: true, canManage: false, canUndoLiberado: true },
         cajamar: { canDelete: false, canImport: false, canExport: true, canCreate: true, canEdit: true, canExit: true, canManage: false, canUndoLiberado: false },
         operator: { canDelete: false, canImport: false, canExport: true, canCreate: true, canEdit: true, canExit: true, canManage: false, canUndoLiberado: false }
     }[role] || { canDelete: false, canImport: false, canExport: true, canCreate: true, canEdit: true, canExit: true, canManage: false, canUndoLiberado: false };
 }
+
+async function listSeminovosVehiclesWithRelations() {
+    const vehicles = isProduction
+        ? (await pool.query('SELECT * FROM seminovos_vehicles ORDER BY updatedAt DESC, plate ASC')).rows.map(mapSeminovosVehicleRow)
+        : db.prepare('SELECT * FROM seminovos_vehicles ORDER BY updatedAt DESC, plate ASC').all().map(mapSeminovosVehicleRow);
+
+    if (!vehicles.length) return [];
+
+    const vehicleIds = vehicles.map(vehicle => vehicle.id);
+    const photos = await listSeminovosPhotosByVehicleIds(vehicleIds);
+    const photoMap = new Map();
+    photos.forEach(photo => {
+        const bucket = photoMap.get(photo.vehicleId) || [];
+        bucket.push(photo);
+        photoMap.set(photo.vehicleId, bucket);
+    });
+
+    const orders = isProduction
+        ? (await pool.query('SELECT * FROM seminovos_service_orders ORDER BY openedAt DESC, id DESC')).rows.map(mapSeminovosServiceOrderRow)
+        : db.prepare('SELECT * FROM seminovos_service_orders ORDER BY openedAt DESC, id DESC').all().map(mapSeminovosServiceOrderRow);
+    const latestOrderMap = new Map();
+    const openOrderCountMap = new Map();
+    orders.forEach(order => {
+        if (!latestOrderMap.has(order.vehicleId)) latestOrderMap.set(order.vehicleId, order);
+        if (order.status !== 'Concluída' && order.status !== 'Cancelada') {
+            openOrderCountMap.set(order.vehicleId, (openOrderCountMap.get(order.vehicleId) || 0) + 1);
+        }
+    });
+
+    return vehicles.map(vehicle => {
+        const latestOrder = latestOrderMap.get(vehicle.id) || null;
+        const vehiclePhotos = photoMap.get(vehicle.id) || [];
+        return {
+            ...vehicle,
+            photos: vehiclePhotos,
+            photoCount: vehiclePhotos.length,
+            latestServiceOrderNumber: latestOrder?.serviceOrderNumber || '',
+            latestServiceOrderOpenedAt: latestOrder?.openedAt || null,
+            openServiceOrderCount: openOrderCountMap.get(vehicle.id) || 0
+        };
+    });
+}
+
+async function listSeminovosServiceOrdersWithRelations() {
+    const orders = isProduction
+        ? (await pool.query(`
+            SELECT so.*, v.plate AS vehiclePlate, v.type AS vehicleType
+            FROM seminovos_service_orders so
+            JOIN seminovos_vehicles v ON v.id = so.vehicleId
+            ORDER BY so.openedAt DESC, so.id DESC
+        `)).rows.map(mapSeminovosServiceOrderRow)
+        : db.prepare(`
+            SELECT so.*, v.plate AS vehiclePlate, v.type AS vehicleType
+            FROM seminovos_service_orders so
+            JOIN seminovos_vehicles v ON v.id = so.vehicleId
+            ORDER BY so.openedAt DESC, so.id DESC
+        `).all().map(mapSeminovosServiceOrderRow);
+
+    if (!orders.length) return [];
+    const parts = await listSeminovosPartsByOrderIds(orders.map(order => order.id));
+    const partMap = new Map();
+    parts.forEach(part => {
+        const bucket = partMap.get(part.serviceOrderId) || [];
+        bucket.push(part);
+        partMap.set(part.serviceOrderId, bucket);
+    });
+
+    return orders.map(order => ({
+        ...order,
+        vehicleType: canonicalizeSeminovosVehicleType(order.vehicleType),
+        parts: partMap.get(order.id) || []
+    }));
+}
+
+async function deleteSeminovosVehiclePhotos(vehicleId) {
+    const photos = await listSeminovosPhotosByVehicleIds([vehicleId]);
+    for (const photo of photos) {
+        await removeSeminovosPhotoRecord(photo);
+    }
+
+    const vehicleDir = path.join(SEMINOVOS_UPLOADS_DIR, String(vehicleId));
+    if (fs.existsSync(vehicleDir)) {
+        fs.rmSync(vehicleDir, { recursive: true, force: true });
+    }
+}
+
+app.get('/api/seminovos/vehicles', requireSeminovosAccess, async (req, res) => {
+    try {
+        res.json(await listSeminovosVehiclesWithRelations());
+    } catch (error) {
+        console.error('Erro ao listar veículos de seminovos:', error);
+        res.status(500).json({ error: 'Erro ao listar veículos de seminovos' });
+    }
+});
+
+app.post('/api/seminovos/vehicles', requireSeminovosAccess, async (req, res) => {
+    const payload = req.body || {};
+    const normalizedPlate = normalizePlateValue(payload.plate);
+    if (!normalizedPlate) return res.status(400).json({ error: 'Placa obrigatória' });
+
+    const normalizedType = canonicalizeSeminovosVehicleType(payload.type);
+    const odometer = Math.max(0, Number.parseInt(payload.odometer, 10) || 0);
+    const operationalStatus = canonicalizeSeminovosOperationalStatus(payload.operationalStatus);
+    const commercialStatus = canonicalizeSeminovosCommercialStatus(payload.commercialStatus);
+    const chassis = String(payload.chassis || '').trim();
+    const notes = String(payload.notes || '').trim();
+    const username = req.session.user.username;
+
+    try {
+        let createdVehicle;
+        if (isProduction) {
+            const result = await pool.query(
+                `INSERT INTO seminovos_vehicles (plate, type, chassis, odometer, operationalStatus, commercialStatus, notes, updatedBy)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                 RETURNING *`,
+                [normalizedPlate, normalizedType, chassis, odometer, operationalStatus, commercialStatus, notes, username]
+            );
+            createdVehicle = mapSeminovosVehicleRow(result.rows[0]);
+        } else {
+            const result = db.prepare(
+                `INSERT INTO seminovos_vehicles (plate, type, chassis, odometer, operationalStatus, commercialStatus, notes, updatedBy)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+            ).run(normalizedPlate, normalizedType, chassis, odometer, operationalStatus, commercialStatus, notes, username);
+            createdVehicle = await getSeminovosVehicleById(result.lastInsertRowid);
+        }
+
+        const photos = await syncSeminovosVehiclePhotos(createdVehicle, payload.photos, username);
+        await recordAuditEvent(req, {
+            entityType: 'seminovos_vehicle',
+            entityId: createdVehicle.id,
+            action: 'create',
+            summary: `Veículo seminovo ${createdVehicle.plate} cadastrado`,
+            details: { ...createdVehicle, photos }
+        });
+
+        res.json({ success: true, vehicle: { ...createdVehicle, photos, photoCount: photos.length } });
+    } catch (error) {
+        if (String(error.message || '').toLowerCase().includes('unique')) {
+            return res.status(409).json({ error: 'Já existe um veículo seminovo com esta placa' });
+        }
+        console.error('Erro ao cadastrar veículo seminovo:', error);
+        res.status(500).json({ error: 'Erro ao cadastrar veículo seminovo' });
+    }
+});
+
+app.put('/api/seminovos/vehicles/:id', requireSeminovosAccess, async (req, res) => {
+    const { id } = req.params;
+    const payload = req.body || {};
+    const currentVehicle = await getSeminovosVehicleById(id);
+    if (!currentVehicle) return res.status(404).json({ error: 'Veículo seminovo não encontrado' });
+
+    const normalizedPlate = payload.plate ? normalizePlateValue(payload.plate) : currentVehicle.plate;
+    if (!normalizedPlate) return res.status(400).json({ error: 'Placa obrigatória' });
+
+    const normalizedType = payload.type ? canonicalizeSeminovosVehicleType(payload.type) : currentVehicle.type;
+    const odometer = payload.odometer !== undefined ? Math.max(0, Number.parseInt(payload.odometer, 10) || 0) : currentVehicle.odometer;
+    const operationalStatus = payload.operationalStatus ? canonicalizeSeminovosOperationalStatus(payload.operationalStatus) : currentVehicle.operationalStatus;
+    const commercialStatus = payload.commercialStatus ? canonicalizeSeminovosCommercialStatus(payload.commercialStatus) : currentVehicle.commercialStatus;
+    const chassis = payload.chassis !== undefined ? String(payload.chassis || '').trim() : currentVehicle.chassis;
+    const notes = payload.notes !== undefined ? String(payload.notes || '').trim() : currentVehicle.notes;
+    const username = req.session.user.username;
+
+    try {
+        if (isProduction) {
+            await pool.query(
+                `UPDATE seminovos_vehicles
+                 SET plate = $1, type = $2, chassis = $3, odometer = $4, operationalStatus = $5,
+                     commercialStatus = $6, notes = $7, updatedAt = CURRENT_TIMESTAMP, updatedBy = $8
+                 WHERE id = $9`,
+                [normalizedPlate, normalizedType, chassis, odometer, operationalStatus, commercialStatus, notes, username, id]
+            );
+        } else {
+            db.prepare(
+                `UPDATE seminovos_vehicles
+                 SET plate = ?, type = ?, chassis = ?, odometer = ?, operationalStatus = ?,
+                     commercialStatus = ?, notes = ?, updatedAt = ?, updatedBy = ?
+                 WHERE id = ?`
+            ).run(normalizedPlate, normalizedType, chassis, odometer, operationalStatus, commercialStatus, notes, new Date().toISOString(), username, id);
+        }
+
+        const updatedVehicle = await getSeminovosVehicleById(id);
+        const photos = await syncSeminovosVehiclePhotos(updatedVehicle, payload.photos, username);
+        await recordAuditEvent(req, {
+            entityType: 'seminovos_vehicle',
+            entityId: id,
+            action: 'update',
+            summary: `Veículo seminovo ${updatedVehicle.plate} atualizado`,
+            details: { ...updatedVehicle, photos }
+        });
+
+        res.json({ success: true, vehicle: { ...updatedVehicle, photos, photoCount: photos.length } });
+    } catch (error) {
+        if (String(error.message || '').toLowerCase().includes('unique')) {
+            return res.status(409).json({ error: 'Já existe um veículo seminovo com esta placa' });
+        }
+        console.error('Erro ao atualizar veículo seminovo:', error);
+        res.status(500).json({ error: 'Erro ao atualizar veículo seminovo' });
+    }
+});
+
+app.delete('/api/seminovos/vehicles/:id', requireSeminovosAccess, async (req, res) => {
+    const { id } = req.params;
+    const vehicle = await getSeminovosVehicleById(id);
+    if (!vehicle) return res.status(404).json({ error: 'Veículo seminovo não encontrado' });
+
+    try {
+        await deleteSeminovosVehiclePhotos(id);
+        if (isProduction) {
+            await pool.query('DELETE FROM seminovos_vehicles WHERE id = $1', [id]);
+        } else {
+            db.prepare('DELETE FROM seminovos_vehicles WHERE id = ?').run(id);
+        }
+        await recordAuditEvent(req, {
+            entityType: 'seminovos_vehicle',
+            entityId: id,
+            action: 'delete',
+            summary: `Veículo seminovo ${vehicle.plate} excluído`,
+            details: vehicle
+        });
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Erro ao excluir veículo seminovo:', error);
+        res.status(500).json({ error: 'Erro ao excluir veículo seminovo' });
+    }
+});
+
+app.get('/api/seminovos/service-orders', requireSeminovosAccess, async (req, res) => {
+    try {
+        res.json(await listSeminovosServiceOrdersWithRelations());
+    } catch (error) {
+        console.error('Erro ao listar ordens de serviço de seminovos:', error);
+        res.status(500).json({ error: 'Erro ao listar ordens de serviço de seminovos' });
+    }
+});
+
+app.post('/api/seminovos/service-orders', requireSeminovosAccess, async (req, res) => {
+    const payload = req.body || {};
+    const vehicleId = Number.parseInt(payload.vehicleId, 10);
+    const vehicle = await getSeminovosVehicleById(vehicleId);
+    if (!vehicle) return res.status(400).json({ error: 'Selecione um veículo válido' });
+
+    const serviceOrderNumber = String(payload.serviceOrderNumber || '').trim();
+    if (!serviceOrderNumber) return res.status(400).json({ error: 'Número da ordem de serviço obrigatório' });
+
+    const category = canonicalizeSeminovosServiceCategory(payload.category);
+    const status = canonicalizeSeminovosServiceStatus(payload.status);
+    const odometer = Math.max(0, Number.parseInt(payload.odometer, 10) || vehicle.odometer || 0);
+    const description = String(payload.description || '').trim();
+    const notes = String(payload.notes || '').trim();
+    const openedAt = normalizeRequestTimestamp(payload.openedAt, new Date().toISOString());
+    const closedAt = status === 'Concluída' ? normalizeRequestTimestamp(payload.closedAt, null) : null;
+    const parts = Array.isArray(payload.parts) ? payload.parts : [];
+    const username = req.session.user.username;
+
+    try {
+        let orderId;
+        if (isProduction) {
+            const result = await pool.query(
+                `INSERT INTO seminovos_service_orders (vehicleId, serviceOrderNumber, category, status, odometer, description, notes, openedAt, closedAt, updatedBy)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                 RETURNING id`,
+                [vehicleId, serviceOrderNumber, category, status, odometer, description, notes, openedAt, closedAt, username]
+            );
+            orderId = result.rows[0].id;
+        } else {
+            const result = db.prepare(
+                `INSERT INTO seminovos_service_orders (vehicleId, serviceOrderNumber, category, status, odometer, description, notes, openedAt, closedAt, updatedBy)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            ).run(vehicleId, serviceOrderNumber, category, status, odometer, description, notes, openedAt, closedAt, username);
+            orderId = result.lastInsertRowid;
+        }
+
+        for (const part of parts) {
+            const partName = String(part?.partName || '').trim();
+            const quantity = Math.max(1, Number.parseInt(part?.quantity, 10) || 1);
+            const partNotes = String(part?.notes || '').trim();
+            if (!partName) continue;
+            if (isProduction) {
+                await pool.query(
+                    `INSERT INTO seminovos_service_parts (serviceOrderId, partName, quantity, notes)
+                     VALUES ($1, $2, $3, $4)`,
+                    [orderId, partName, quantity, partNotes]
+                );
+            } else {
+                db.prepare(
+                    `INSERT INTO seminovos_service_parts (serviceOrderId, partName, quantity, notes)
+                     VALUES (?, ?, ?, ?)`
+                ).run(orderId, partName, quantity, partNotes);
+            }
+        }
+
+        if (isProduction) {
+            await pool.query(
+                `UPDATE seminovos_vehicles
+                 SET odometer = $1, operationalStatus = $2, updatedAt = CURRENT_TIMESTAMP, updatedBy = $3
+                 WHERE id = $4`,
+                [odometer, category === 'Documentação' ? 'Pendente de documentação' : vehicle.operationalStatus, username, vehicleId]
+            );
+        } else {
+            db.prepare(
+                `UPDATE seminovos_vehicles
+                 SET odometer = ?, operationalStatus = ?, updatedAt = ?, updatedBy = ?
+                 WHERE id = ?`
+            ).run(odometer, category === 'Documentação' ? 'Pendente de documentação' : vehicle.operationalStatus, new Date().toISOString(), username, vehicleId);
+        }
+
+        const orders = await listSeminovosServiceOrdersWithRelations();
+        const createdOrder = orders.find(order => String(order.id) === String(orderId)) || null;
+        await recordAuditEvent(req, {
+            entityType: 'seminovos_service_order',
+            entityId: orderId,
+            action: 'create',
+            summary: `Ordem de serviço ${serviceOrderNumber} registrada para ${vehicle.plate}`,
+            details: createdOrder || { vehicleId, serviceOrderNumber, category, status, odometer }
+        });
+
+        res.json({ success: true, serviceOrder: createdOrder });
+    } catch (error) {
+        console.error('Erro ao cadastrar ordem de serviço de seminovos:', error);
+        res.status(500).json({ error: 'Erro ao cadastrar ordem de serviço' });
+    }
+});
+
+app.put('/api/seminovos/service-orders/:id', requireSeminovosAccess, async (req, res) => {
+    const { id } = req.params;
+    const payload = req.body || {};
+
+    let existingOrder;
+    if (isProduction) {
+        const result = await pool.query('SELECT * FROM seminovos_service_orders WHERE id = $1', [id]);
+        existingOrder = mapSeminovosServiceOrderRow(result.rows[0]);
+    } else {
+        existingOrder = mapSeminovosServiceOrderRow(db.prepare('SELECT * FROM seminovos_service_orders WHERE id = ?').get(id));
+    }
+    if (!existingOrder) return res.status(404).json({ error: 'Ordem de serviço não encontrada' });
+
+    const vehicleId = payload.vehicleId ? Number.parseInt(payload.vehicleId, 10) : existingOrder.vehicleId;
+    const vehicle = await getSeminovosVehicleById(vehicleId);
+    if (!vehicle) return res.status(400).json({ error: 'Selecione um veículo válido' });
+
+    const serviceOrderNumber = String(payload.serviceOrderNumber || existingOrder.serviceOrderNumber || '').trim();
+    if (!serviceOrderNumber) return res.status(400).json({ error: 'Número da ordem de serviço obrigatório' });
+
+    const category = payload.category ? canonicalizeSeminovosServiceCategory(payload.category) : existingOrder.category;
+    const status = payload.status ? canonicalizeSeminovosServiceStatus(payload.status) : existingOrder.status;
+    const odometer = payload.odometer !== undefined ? Math.max(0, Number.parseInt(payload.odometer, 10) || 0) : existingOrder.odometer;
+    const description = payload.description !== undefined ? String(payload.description || '').trim() : existingOrder.description;
+    const notes = payload.notes !== undefined ? String(payload.notes || '').trim() : existingOrder.notes;
+    const openedAt = payload.openedAt ? normalizeRequestTimestamp(payload.openedAt, existingOrder.openedAt) : existingOrder.openedAt;
+    const closedAt = payload.closedAt !== undefined ? normalizeRequestTimestamp(payload.closedAt, null) : existingOrder.closedAt;
+    const parts = Array.isArray(payload.parts) ? payload.parts : [];
+    const username = req.session.user.username;
+
+    try {
+        if (isProduction) {
+            await pool.query(
+                `UPDATE seminovos_service_orders
+                 SET vehicleId = $1, serviceOrderNumber = $2, category = $3, status = $4, odometer = $5,
+                     description = $6, notes = $7, openedAt = $8, closedAt = $9,
+                     updatedAt = CURRENT_TIMESTAMP, updatedBy = $10
+                 WHERE id = $11`,
+                [vehicleId, serviceOrderNumber, category, status, odometer, description, notes, openedAt, closedAt, username, id]
+            );
+            await pool.query('DELETE FROM seminovos_service_parts WHERE serviceOrderId = $1', [id]);
+        } else {
+            db.prepare(
+                `UPDATE seminovos_service_orders
+                 SET vehicleId = ?, serviceOrderNumber = ?, category = ?, status = ?, odometer = ?,
+                     description = ?, notes = ?, openedAt = ?, closedAt = ?, updatedAt = ?, updatedBy = ?
+                 WHERE id = ?`
+            ).run(vehicleId, serviceOrderNumber, category, status, odometer, description, notes, openedAt, closedAt, new Date().toISOString(), username, id);
+            db.prepare('DELETE FROM seminovos_service_parts WHERE serviceOrderId = ?').run(id);
+        }
+
+        for (const part of parts) {
+            const partName = String(part?.partName || '').trim();
+            const quantity = Math.max(1, Number.parseInt(part?.quantity, 10) || 1);
+            const partNotes = String(part?.notes || '').trim();
+            if (!partName) continue;
+            if (isProduction) {
+                await pool.query(
+                    `INSERT INTO seminovos_service_parts (serviceOrderId, partName, quantity, notes)
+                     VALUES ($1, $2, $3, $4)`,
+                    [id, partName, quantity, partNotes]
+                );
+            } else {
+                db.prepare(
+                    `INSERT INTO seminovos_service_parts (serviceOrderId, partName, quantity, notes)
+                     VALUES (?, ?, ?, ?)`
+                ).run(id, partName, quantity, partNotes);
+            }
+        }
+
+        if (isProduction) {
+            await pool.query(
+                `UPDATE seminovos_vehicles
+                 SET odometer = $1, updatedAt = CURRENT_TIMESTAMP, updatedBy = $2
+                 WHERE id = $3`,
+                [odometer, username, vehicleId]
+            );
+        } else {
+            db.prepare(
+                `UPDATE seminovos_vehicles
+                 SET odometer = ?, updatedAt = ?, updatedBy = ?
+                 WHERE id = ?`
+            ).run(odometer, new Date().toISOString(), username, vehicleId);
+        }
+
+        const orders = await listSeminovosServiceOrdersWithRelations();
+        const updatedOrder = orders.find(order => String(order.id) === String(id)) || null;
+        await recordAuditEvent(req, {
+            entityType: 'seminovos_service_order',
+            entityId: id,
+            action: 'update',
+            summary: `Ordem de serviço ${serviceOrderNumber} atualizada`,
+            details: updatedOrder || { vehicleId, serviceOrderNumber, category, status, odometer }
+        });
+
+        res.json({ success: true, serviceOrder: updatedOrder });
+    } catch (error) {
+        console.error('Erro ao atualizar ordem de serviço de seminovos:', error);
+        res.status(500).json({ error: 'Erro ao atualizar ordem de serviço' });
+    }
+});
+
+app.delete('/api/seminovos/service-orders/:id', requireSeminovosAccess, async (req, res) => {
+    const { id } = req.params;
+    let existingOrder;
+    if (isProduction) {
+        const result = await pool.query('SELECT * FROM seminovos_service_orders WHERE id = $1', [id]);
+        existingOrder = mapSeminovosServiceOrderRow(result.rows[0]);
+    } else {
+        existingOrder = mapSeminovosServiceOrderRow(db.prepare('SELECT * FROM seminovos_service_orders WHERE id = ?').get(id));
+    }
+    if (!existingOrder) return res.status(404).json({ error: 'Ordem de serviço não encontrada' });
+
+    try {
+        if (isProduction) {
+            await pool.query('DELETE FROM seminovos_service_parts WHERE serviceOrderId = $1', [id]);
+            await pool.query('DELETE FROM seminovos_service_orders WHERE id = $1', [id]);
+        } else {
+            db.prepare('DELETE FROM seminovos_service_parts WHERE serviceOrderId = ?').run(id);
+            db.prepare('DELETE FROM seminovos_service_orders WHERE id = ?').run(id);
+        }
+        await recordAuditEvent(req, {
+            entityType: 'seminovos_service_order',
+            entityId: id,
+            action: 'delete',
+            summary: `Ordem de serviço ${existingOrder.serviceOrderNumber} excluída`,
+            details: existingOrder
+        });
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Erro ao excluir ordem de serviço de seminovos:', error);
+        res.status(500).json({ error: 'Erro ao excluir ordem de serviço' });
+    }
+});
 
 app.get('/api/vehicles', requireAuth, async (req, res) => {
     try {
