@@ -480,13 +480,20 @@ function renderVehiclePhotoFields(existingPhotos = []) {
   container.innerHTML = SEMINOVOS_PHOTO_CATEGORIES.map(category => {
     const photo = photosByCategory.get(category);
     const safeId = category.replace(/[^a-zA-Z0-9]/g, '');
+    const inputId = `seminovosPhotoInput${safeId}`;
     return `
-      <div class="photo-slot" data-category="${escapeHtml(category)}">
+      <div class="photo-slot ${photo ? 'has-current-photo' : ''}" data-category="${escapeHtml(category)}">
         <div class="photo-slot-title">${escapeHtml(category)}</div>
         <div class="photo-preview ${photo ? '' : 'empty'}" data-preview="${escapeHtml(category)}">
           ${photo ? `<img src="${escapeHtml(photo.filePath)}" alt="${escapeHtml(category)}">` : '<span>Sem foto nesta categoria</span>'}
         </div>
-        <input type="file" class="form-control seminovos-photo-input" accept="image/*">
+        <div class="photo-actions">
+          <input type="file" class="seminovos-photo-input" id="${inputId}" accept="image/*">
+          <label class="photo-action-btn" for="${inputId}">
+            <i class="bi bi-camera-fill"></i>${photo ? 'Trocar foto' : 'Adicionar foto'}
+          </label>
+          <div class="photo-file-name" data-file-name>${photo ? 'Foto atual cadastrada. Escolha outra para substituir.' : 'Nenhum arquivo selecionado.'}</div>
+        </div>
         <div class="form-check mt-2">
           <input class="form-check-input seminovos-photo-remove" type="checkbox" id="removePhoto${safeId}">
           <label class="form-check-label small" for="removePhoto${safeId}">Remover foto atual</label>
@@ -507,12 +514,17 @@ function handlePhotoInputChange(event) {
   if (!slot) return;
   const preview = slot.querySelector('.photo-preview');
   const removeToggle = slot.querySelector('.seminovos-photo-remove');
+  const fileName = slot.querySelector('[data-file-name]');
   const file = input.files?.[0];
   if (!file) return;
   removeToggle.checked = false;
+  slot.classList.add('has-current-photo');
   const objectUrl = URL.createObjectURL(file);
   preview.classList.remove('empty');
   preview.innerHTML = `<img src="${objectUrl}" alt="Pré-visualização">`;
+  if (fileName) {
+    fileName.textContent = `Nova foto selecionada: ${file.name}`;
+  }
 }
 
 async function compressImage(file) {
