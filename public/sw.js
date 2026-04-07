@@ -1,10 +1,14 @@
 // Service Worker - Controle de Patio Print
 // Desenvolvido por Ramalho Sistemas e Software
 
-const CACHE_NAME = 'patio-print-v5.6-ocr';
+const CACHE_NAME = 'patio-print-v5.7-seminovos';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
+  '/seminovos',
+  '/seminovos.html',
+  '/css/seminovos.css',
+  '/js/seminovos.js',
   '/images/logo-print.png',
   '/images/icon-192.png',
   '/images/icon-512.png',
@@ -52,13 +56,18 @@ self.addEventListener('fetch', (event) => {
         }
         return response;
       })
-      .catch(() => caches.match(event.request).then((cached) => {
+      .catch(async () => {
+        const cached = await caches.match(event.request);
         if (cached) return cached;
         if (event.request.mode === 'navigate') {
+          const pathname = new URL(event.request.url).pathname;
+          if (pathname.startsWith('/seminovos')) {
+            return (await caches.match('/seminovos')) || (await caches.match('/seminovos.html')) || (await caches.match('/index.html'));
+          }
           return caches.match('/index.html');
         }
         return Response.error();
-      }))
+      })
   );
 });
 
