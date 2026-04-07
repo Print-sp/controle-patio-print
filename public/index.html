@@ -1269,6 +1269,9 @@ placeholder="Senha" required autocomplete="current-password">
 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Alternar tema">
 <i class="bi bi-moon-stars-fill" id="themeToggleIcon"></i>
 </button>
+<button class="btn btn-light btn-sm" id="btnSeminovosModule" onclick="openSeminovosModule()" title="Módulo Seminovos">
+<i class="bi bi-truck-front"></i>
+</button>
 <button class="btn btn-light btn-sm" onclick="openManagementDashboard()" title="Modo Gerência"><i class="bi bi-speedometer2"></i></button>
 <button class="btn btn-light btn-sm" onclick="logout()" title="Sair"><i class="bi bi-box-arrow-right"></i></button>
 </div>
@@ -4313,6 +4316,10 @@ currentUser = data.user;
 userPermissions = data.permissions || {};
 userYards = currentUser.yards || [];
 canChangeLiberado = data.canChangeLiberado || false;
+if (currentUser?.role === 'seminovos') {
+window.location.href = '/seminovos';
+return;
+}
 showMainApp();
 } else {
 showLoginScreen();
@@ -4330,10 +4337,14 @@ document.getElementById('mainApp').classList.add('hidden');
 }
 
 async function showMainApp() {
+if (currentUser?.role === 'seminovos') {
+window.location.href = '/seminovos';
+return;
+}
 document.getElementById('loginScreen').classList.add('hidden');
 document.getElementById('mainApp').classList.remove('hidden');
 document.getElementById('userName').textContent = currentUser.username;
-document.getElementById('userRole').textContent = currentUser.role === 'admin' ? 'Administrador' : 'Operador';
+document.getElementById('userRole').textContent = currentUser.role === 'admin' ? 'Administrador' : currentUser.role === 'seminovos' ? 'Seminovos' : 'Operador';
 document.getElementById('userAvatar').textContent = currentUser.username.charAt(0).toUpperCase();
 document.getElementById('userRoleBadge').textContent = currentUser.role.toUpperCase();
 document.getElementById('userRoleBadge').className = `role-badge ${currentUser.role === 'admin' ? 'bg-warning text-dark' : 'bg-secondary text-white'}`;
@@ -4357,6 +4368,7 @@ const cadastrosQuickAction = document.getElementById('cadastrosQuickAction');
 const auditQuickAction = document.getElementById('auditQuickAction');
 const cadastrosBtn = document.getElementById('btnCadastros');
 const auditBtn = document.getElementById('btnAudit');
+const seminovosBtn = document.getElementById('btnSeminovosModule');
 if (importBtn) {
 if (currentUser?.role === 'admin') {
 importBtn.style.display = 'inline-flex';
@@ -4376,6 +4388,10 @@ if (!element) return;
 element.style.display = showAdminAreas ? 'inline-flex' : 'none';
 element.disabled = !showAdminAreas;
 });
+if (seminovosBtn) {
+seminovosBtn.style.display = showAdminAreas ? 'inline-flex' : 'none';
+seminovosBtn.disabled = !showAdminAreas;
+}
 }
 
 function updateYardOptions() {
@@ -4422,8 +4438,13 @@ body: JSON.stringify({ username, password })
 const data = await res.json();
 if (data.success) {
 currentUser = data.user;
+userPermissions = data.permissions || {};
 userYards = data.user.yards || [];
 canChangeLiberado = data.canChangeLiberado || false;
+if (currentUser?.role === 'seminovos') {
+window.location.href = '/seminovos';
+return;
+}
 await showMainApp();
 playAppSound('welcome');
 showToast(data.message, 'success');
@@ -4454,6 +4475,17 @@ stopCamera('exit');
 closeManagementDashboard();
 document.getElementById('liberatedPanel').classList.remove('show');
 showLoginScreen();
+}
+
+function openSeminovosModule() {
+const moduleUrl = '/seminovos';
+const seminovosWindow = window.open(moduleUrl, '_blank', 'noopener');
+if (seminovosWindow) {
+showToast('Módulo Seminovos aberto em outra aba.', 'success');
+return;
+}
+showToast('Não foi possível abrir outra aba. Abrindo Seminovos nesta tela.', 'warning');
+window.location.href = moduleUrl;
 }
 
 function showNotification(title, message, type = 'warning', duration = 5000) {
