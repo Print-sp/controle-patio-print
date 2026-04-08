@@ -721,6 +721,94 @@ function resolveImportedConjuntos(payload) {
     return merged;
 }
 
+function resolveImportedSeminovosPayload(payload) {
+    if (!payload || typeof payload !== 'object') return { vehicles: [], serviceOrders: [] };
+    if (payload.seminovos && typeof payload.seminovos === 'object') {
+        return {
+            vehicles: Array.isArray(payload.seminovos.vehicles) ? payload.seminovos.vehicles : [],
+            serviceOrders: Array.isArray(payload.seminovos.serviceOrders) ? payload.seminovos.serviceOrders : []
+        };
+    }
+    return {
+        vehicles: Array.isArray(payload.seminovosVehicles) ? payload.seminovosVehicles : [],
+        serviceOrders: Array.isArray(payload.seminovosServiceOrders) ? payload.seminovosServiceOrders : (Array.isArray(payload.seminovosOrders) ? payload.seminovosOrders : [])
+    };
+}
+
+function hasImportedSeminovosPayload(payload) {
+    return Boolean(
+        payload
+        && typeof payload === 'object'
+        && (
+            Object.prototype.hasOwnProperty.call(payload, 'seminovos')
+            || Object.prototype.hasOwnProperty.call(payload, 'seminovosVehicles')
+            || Object.prototype.hasOwnProperty.call(payload, 'seminovosServiceOrders')
+            || Object.prototype.hasOwnProperty.call(payload, 'seminovosOrders')
+        )
+    );
+}
+
+function normalizeImportedSeminovosPhoto(photo) {
+    if (!photo || typeof photo !== 'object') return null;
+    return {
+        category: canonicalizeSeminovosPhotoCategory(pickFirstDefined(photo, ['category', 'Category'], 'Frente')),
+        dataUrl: pickFirstDefined(photo, ['dataUrl', 'dataurl', 'data_url'], ''),
+        caption: pickFirstDefined(photo, ['caption', 'Caption'], ''),
+        fileName: pickFirstDefined(photo, ['fileName', 'filename', 'file_name'], ''),
+        mimeType: pickFirstDefined(photo, ['mimeType', 'mimetype', 'mime_type'], ''),
+        filePath: pickFirstDefined(photo, ['filePath', 'filepath', 'file_path'], '')
+    };
+}
+
+function normalizeImportedSeminovosPart(part) {
+    if (!part || typeof part !== 'object') return null;
+    return {
+        partName: pickFirstDefined(part, ['partName', 'partname', 'part_name', 'name', 'nome'], ''),
+        quantity: Math.max(1, Number.parseInt(pickFirstDefined(part, ['quantity', 'qty', 'Quantidade'], 1), 10) || 1),
+        notes: pickFirstDefined(part, ['notes', 'Notes', 'observacoes', 'observacao'], ''),
+        createdAt: pickFirstDefined(part, ['createdAt', 'createdat'], new Date().toISOString())
+    };
+}
+
+function normalizeImportedSeminovosVehicle(vehicle) {
+    if (!vehicle || typeof vehicle !== 'object') return null;
+    return {
+        sourceId: pickFirstDefined(vehicle, ['id', 'sourceId', 'sourceid'], null),
+        plate: normalizePlateValue(pickFirstDefined(vehicle, ['plate', 'Plate'], '')),
+        type: canonicalizeSeminovosVehicleType(pickFirstDefined(vehicle, ['type', 'Type'], 'Truck')),
+        chassis: pickFirstDefined(vehicle, ['chassis', 'Chassis'], ''),
+        odometer: Math.max(0, Number.parseInt(pickFirstDefined(vehicle, ['odometer', 'Odometer'], 0), 10) || 0),
+        operationalStatus: canonicalizeSeminovosOperationalStatus(pickFirstDefined(vehicle, ['operationalStatus', 'operationalstatus', 'statusOperacional'], 'Disponível')),
+        commercialStatus: canonicalizeSeminovosCommercialStatus(pickFirstDefined(vehicle, ['commercialStatus', 'commercialstatus', 'statusComercial'], 'Nenhum')),
+        notes: pickFirstDefined(vehicle, ['notes', 'Notes', 'observacoes', 'observacao'], ''),
+        createdAt: pickFirstDefined(vehicle, ['createdAt', 'createdat'], new Date().toISOString()),
+        updatedAt: pickFirstDefined(vehicle, ['updatedAt', 'updatedat'], new Date().toISOString()),
+        updatedBy: pickFirstDefined(vehicle, ['updatedBy', 'updatedby'], ''),
+        photos: (Array.isArray(vehicle.photos) ? vehicle.photos : []).map(normalizeImportedSeminovosPhoto).filter(Boolean)
+    };
+}
+
+function normalizeImportedSeminovosServiceOrder(order) {
+    if (!order || typeof order !== 'object') return null;
+    return {
+        sourceId: pickFirstDefined(order, ['id', 'sourceId', 'sourceid'], null),
+        sourceVehicleId: pickFirstDefined(order, ['vehicleId', 'vehicleid'], null),
+        vehiclePlate: normalizePlateValue(pickFirstDefined(order, ['vehiclePlate', 'vehicleplate', 'plate', 'placa'], '')),
+        serviceOrderNumber: String(pickFirstDefined(order, ['serviceOrderNumber', 'serviceordernumber', 'numeroOS', 'numeroOs'], '') || '').trim(),
+        category: canonicalizeSeminovosServiceCategory(pickFirstDefined(order, ['category', 'Category'], 'Manutenção')),
+        status: canonicalizeSeminovosServiceStatus(pickFirstDefined(order, ['status', 'Status'], 'Aberta')),
+        odometer: Math.max(0, Number.parseInt(pickFirstDefined(order, ['odometer', 'Odometer'], 0), 10) || 0),
+        description: pickFirstDefined(order, ['description', 'Description', 'descricao'], ''),
+        notes: pickFirstDefined(order, ['notes', 'Notes', 'observacoes', 'observacao'], ''),
+        openedAt: normalizeRequestTimestamp(pickFirstDefined(order, ['openedAt', 'openedat', 'dataAbertura'], new Date().toISOString())),
+        closedAt: normalizeRequestTimestamp(pickFirstDefined(order, ['closedAt', 'closedat', 'dataFechamento'], null)),
+        createdAt: pickFirstDefined(order, ['createdAt', 'createdat'], new Date().toISOString()),
+        updatedAt: pickFirstDefined(order, ['updatedAt', 'updatedat'], new Date().toISOString()),
+        updatedBy: pickFirstDefined(order, ['updatedBy', 'updatedby'], ''),
+        parts: (Array.isArray(order.parts) ? order.parts : []).map(normalizeImportedSeminovosPart).filter(Boolean)
+    };
+}
+
 const systemYardOptions = ['Pátio Jaraguá', 'Pátio Bandeirantes', 'Pátio Superior', 'Pátio Cajamar'];
 const systemBaseOptions = [
     'Jaraguá-SP (Nacional)',
@@ -1999,7 +2087,7 @@ app.delete('/api/occurrences/:id', async (req, res) => {
 function getPermissions(role) {
     return {
         admin: { canDelete: true, canImport: true, canExport: true, canCreate: true, canEdit: true, canExit: true, canManage: true, canUndoLiberado: true },
-        seminovos: { canDelete: false, canImport: false, canExport: true, canCreate: true, canEdit: true, canExit: false, canManage: false, canUndoLiberado: false },
+        seminovos: { canDelete: false, canImport: true, canExport: true, canCreate: true, canEdit: true, canExit: false, canManage: false, canUndoLiberado: false },
         bandeirantes: { canDelete: false, canImport: false, canExport: true, canCreate: true, canEdit: true, canExit: true, canManage: false, canUndoLiberado: true },
         jaragua: { canDelete: false, canImport: false, canExport: true, canCreate: true, canEdit: true, canExit: true, canManage: false, canUndoLiberado: true },
         cajamar: { canDelete: false, canImport: false, canExport: true, canCreate: true, canEdit: true, canExit: true, canManage: false, canUndoLiberado: false },
@@ -2090,6 +2178,215 @@ async function deleteSeminovosVehiclePhotos(vehicleId) {
     if (fs.existsSync(vehicleDir)) {
         fs.rmSync(vehicleDir, { recursive: true, force: true });
     }
+}
+
+function buildSeminovosPhotoDataUrl(photo) {
+    const filePath = resolveSeminovosPhotoFilePath(photo?.filePath);
+    if (!filePath || !fs.existsSync(filePath)) return '';
+    const mimeType = photo?.mimeType || 'image/webp';
+    return `data:${mimeType};base64,${fs.readFileSync(filePath).toString('base64')}`;
+}
+
+async function buildSeminovosExportPayload(exportedBy = 'system', { includePhotoData = true } = {}) {
+    const vehicles = await listSeminovosVehiclesWithRelations();
+    const serviceOrders = await listSeminovosServiceOrdersWithRelations();
+
+    return {
+        module: 'seminovos',
+        vehicles: vehicles.map(vehicle => ({
+            ...vehicle,
+            photos: (vehicle.photos || []).map(photo => ({
+                ...photo,
+                dataUrl: includePhotoData ? buildSeminovosPhotoDataUrl(photo) : ''
+            }))
+        })),
+        serviceOrders: serviceOrders.map(order => ({
+            ...order,
+            parts: (order.parts || []).map(part => ({ ...part }))
+        })),
+        exportedAt: new Date().toISOString(),
+        version: '6.1.0',
+        exportedBy
+    };
+}
+
+function clearSeminovosUploadDirectory() {
+    if (fs.existsSync(SEMINOVOS_UPLOADS_DIR)) {
+        fs.rmSync(SEMINOVOS_UPLOADS_DIR, { recursive: true, force: true });
+    }
+    ensureDirectoryExists(SEMINOVOS_UPLOADS_DIR);
+}
+
+async function replaceSeminovosData(payload, username = 'system') {
+    const importedVehicles = (Array.isArray(payload?.vehicles) ? payload.vehicles : [])
+        .map(normalizeImportedSeminovosVehicle)
+        .filter(vehicle => vehicle && (vehicle.plate || vehicle.chassis));
+
+    const importedOrders = (Array.isArray(payload?.serviceOrders) ? payload.serviceOrders : [])
+        .map(normalizeImportedSeminovosServiceOrder)
+        .filter(order => order && (order.serviceOrderNumber || order.vehiclePlate || order.sourceVehicleId));
+
+    if (isProduction) {
+        await pool.query('DELETE FROM seminovos_service_parts');
+        await pool.query('DELETE FROM seminovos_vehicle_photos');
+        await pool.query('DELETE FROM seminovos_service_orders');
+        await pool.query('DELETE FROM seminovos_vehicles');
+    } else {
+        db.exec('DELETE FROM seminovos_service_parts');
+        db.exec('DELETE FROM seminovos_vehicle_photos');
+        db.exec('DELETE FROM seminovos_service_orders');
+        db.exec('DELETE FROM seminovos_vehicles');
+        db.exec("DELETE FROM sqlite_sequence WHERE name='seminovos_service_parts'");
+        db.exec("DELETE FROM sqlite_sequence WHERE name='seminovos_vehicle_photos'");
+        db.exec("DELETE FROM sqlite_sequence WHERE name='seminovos_service_orders'");
+        db.exec("DELETE FROM sqlite_sequence WHERE name='seminovos_vehicles'");
+    }
+
+    clearSeminovosUploadDirectory();
+
+    const importedVehicleIdMap = new Map();
+    const importedVehiclePlateMap = new Map();
+    let photosImported = 0;
+    let ordersImported = 0;
+    let partsImported = 0;
+    let ignoredOrders = 0;
+
+    for (const vehicle of importedVehicles) {
+        let createdVehicle;
+        if (isProduction) {
+            const result = await pool.query(
+                `INSERT INTO seminovos_vehicles (plate, type, chassis, odometer, operationalStatus, commercialStatus, notes, createdAt, updatedAt, updatedBy)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                 RETURNING *`,
+                [
+                    vehicle.plate,
+                    vehicle.type,
+                    vehicle.chassis || '',
+                    vehicle.odometer || 0,
+                    vehicle.operationalStatus,
+                    vehicle.commercialStatus,
+                    vehicle.notes || '',
+                    vehicle.createdAt || new Date().toISOString(),
+                    vehicle.updatedAt || vehicle.createdAt || new Date().toISOString(),
+                    vehicle.updatedBy || username
+                ]
+            );
+            createdVehicle = mapSeminovosVehicleRow(result.rows[0]);
+        } else {
+            const result = db.prepare(
+                `INSERT INTO seminovos_vehicles (plate, type, chassis, odometer, operationalStatus, commercialStatus, notes, createdAt, updatedAt, updatedBy)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            ).run(
+                vehicle.plate,
+                vehicle.type,
+                vehicle.chassis || '',
+                vehicle.odometer || 0,
+                vehicle.operationalStatus,
+                vehicle.commercialStatus,
+                vehicle.notes || '',
+                vehicle.createdAt || new Date().toISOString(),
+                vehicle.updatedAt || vehicle.createdAt || new Date().toISOString(),
+                vehicle.updatedBy || username
+            );
+            createdVehicle = await getSeminovosVehicleById(result.lastInsertRowid);
+        }
+
+        if (vehicle.sourceId !== null && vehicle.sourceId !== undefined) {
+            importedVehicleIdMap.set(String(vehicle.sourceId), createdVehicle.id);
+        }
+        if (createdVehicle.plate) {
+            importedVehiclePlateMap.set(normalizePlateValue(createdVehicle.plate), createdVehicle.id);
+        }
+
+        const photoPayloads = (vehicle.photos || []).filter(photo => photo?.dataUrl);
+        if (photoPayloads.length > 0) {
+            const createdPhotos = await syncSeminovosVehiclePhotos(createdVehicle, photoPayloads, username);
+            photosImported += createdPhotos.length;
+        }
+    }
+
+    for (const order of importedOrders) {
+        const vehicleIdByPlate = importedVehiclePlateMap.get(normalizePlateValue(order.vehiclePlate || ''));
+        const vehicleIdBySource = order.sourceVehicleId !== null && order.sourceVehicleId !== undefined
+            ? importedVehicleIdMap.get(String(order.sourceVehicleId))
+            : null;
+        const targetVehicleId = vehicleIdByPlate || vehicleIdBySource;
+
+        if (!targetVehicleId) {
+            ignoredOrders += 1;
+            continue;
+        }
+
+        let createdOrderId;
+        if (isProduction) {
+            const result = await pool.query(
+                `INSERT INTO seminovos_service_orders (vehicleId, serviceOrderNumber, category, status, odometer, description, notes, openedAt, closedAt, createdAt, updatedAt, updatedBy)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                 RETURNING id`,
+                [
+                    targetVehicleId,
+                    order.serviceOrderNumber || '',
+                    order.category,
+                    order.status,
+                    order.odometer || 0,
+                    order.description || '',
+                    order.notes || '',
+                    order.openedAt || new Date().toISOString(),
+                    order.closedAt || null,
+                    order.createdAt || new Date().toISOString(),
+                    order.updatedAt || order.createdAt || new Date().toISOString(),
+                    order.updatedBy || username
+                ]
+            );
+            createdOrderId = result.rows[0]?.id;
+        } else {
+            const result = db.prepare(
+                `INSERT INTO seminovos_service_orders (vehicleId, serviceOrderNumber, category, status, odometer, description, notes, openedAt, closedAt, createdAt, updatedAt, updatedBy)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            ).run(
+                targetVehicleId,
+                order.serviceOrderNumber || '',
+                order.category,
+                order.status,
+                order.odometer || 0,
+                order.description || '',
+                order.notes || '',
+                order.openedAt || new Date().toISOString(),
+                order.closedAt || null,
+                order.createdAt || new Date().toISOString(),
+                order.updatedAt || order.createdAt || new Date().toISOString(),
+                order.updatedBy || username
+            );
+            createdOrderId = result.lastInsertRowid;
+        }
+
+        ordersImported += 1;
+
+        for (const part of order.parts || []) {
+            if (!part?.partName) continue;
+            if (isProduction) {
+                await pool.query(
+                    `INSERT INTO seminovos_service_parts (serviceOrderId, partName, quantity, notes, createdAt)
+                     VALUES ($1, $2, $3, $4, $5)`,
+                    [createdOrderId, part.partName, part.quantity || 1, part.notes || '', part.createdAt || new Date().toISOString()]
+                );
+            } else {
+                db.prepare(
+                    `INSERT INTO seminovos_service_parts (serviceOrderId, partName, quantity, notes, createdAt)
+                     VALUES (?, ?, ?, ?, ?)`
+                ).run(createdOrderId, part.partName, part.quantity || 1, part.notes || '', part.createdAt || new Date().toISOString());
+            }
+            partsImported += 1;
+        }
+    }
+
+    return {
+        vehiclesImported: importedVehicles.length,
+        ordersImported,
+        partsImported,
+        photosImported,
+        ignoredOrders
+    };
 }
 
 app.get('/api/seminovos/vehicles', requireSeminovosAccess, async (req, res) => {
@@ -2461,6 +2758,39 @@ app.delete('/api/seminovos/service-orders/:id', requireSeminovosAccess, async (r
     } catch (error) {
         console.error('Erro ao excluir ordem de serviço de seminovos:', error);
         res.status(500).json({ error: 'Erro ao excluir ordem de serviço' });
+    }
+});
+
+app.get('/api/seminovos/export', requireSeminovosAccess, async (req, res) => {
+    try {
+        res.json(await buildSeminovosExportPayload(req.session.user.username));
+    } catch (error) {
+        console.error('Erro ao exportar JSON de seminovos:', error);
+        res.status(500).json({ error: 'Erro ao exportar JSON de seminovos' });
+    }
+});
+
+app.post('/api/seminovos/import', requireSeminovosAccess, async (req, res) => {
+    try {
+        const seminovosPayload = req.body?.seminovos && typeof req.body.seminovos === 'object' ? req.body.seminovos : (req.body || {});
+        const backup = await createPreImportBackup(req.session.user.username);
+        const result = await replaceSeminovosData(seminovosPayload, req.session.user.username);
+
+        await recordAuditEvent(req, {
+            entityType: 'seminovos',
+            action: 'import',
+            summary: `Importação JSON do módulo Seminovos executada por ${req.session.user.username}`,
+            details: result
+        });
+
+        res.json({
+            success: true,
+            backupFile: backup.backupFile,
+            ...result
+        });
+    } catch (error) {
+        console.error('Erro ao importar JSON de seminovos:', error);
+        res.status(500).json({ error: 'Erro ao importar JSON de seminovos: ' + error.message });
     }
 });
 
@@ -3135,8 +3465,9 @@ async function buildExportPayload(exportedBy = 'system') {
         vehicles,
         swaps,
         conjuntos,
+        seminovos: await buildSeminovosExportPayload(exportedBy),
         exportedAt: new Date().toISOString(),
-        version: '6.0.0',
+        version: '6.1.0',
         exportedBy
     };
 }
@@ -3157,6 +3488,8 @@ app.post('/api/import', requireAuth, requireRole(['admin']), async (req, res) =>
     const importedVehiclesRaw = Array.isArray(req.body?.vehicles) ? req.body.vehicles : [];
     const importedSwapsRaw = resolveImportedSwaps(req.body);
     const importedConjuntosRaw = resolveImportedConjuntos(req.body);
+    const importedSeminovosPayload = resolveImportedSeminovosPayload(req.body);
+    const shouldImportSeminovos = hasImportedSeminovosPayload(req.body);
     if (!Array.isArray(importedVehiclesRaw)) return res.status(400).json({ error: 'Dados devem conter: {"vehicles": [...]} ' });
 
     const importedVehicles = importedVehiclesRaw
@@ -3247,7 +3580,24 @@ app.post('/api/import', requireAuth, requireRole(['admin']), async (req, res) =>
         }
         const swapsCount = Array.isArray(importedSwaps) ? importedSwaps.length : 0;
         const conjuntosCount = Array.isArray(importedConjuntos) ? importedConjuntos.length : 0;
-        res.json({ success: true, imported: importedVehicles.length, swapsImported: swapsCount, conjuntosImported: conjuntosCount, backupFile: backup.backupFile, message: `✅ Importação concluída: ${importedVehicles.length} veículo(s), ${swapsCount} troca(s) e ${conjuntosCount} conjunto(s). Backup salvo em ${backup.backupFile}` });
+        let seminovosResult = null;
+        if (shouldImportSeminovos) {
+            seminovosResult = await replaceSeminovosData(importedSeminovosPayload, req.session.user.username);
+        }
+
+        const seminovosSummary = seminovosResult
+            ? `, ${seminovosResult.vehiclesImported} seminovo(s), ${seminovosResult.ordersImported} OS e ${seminovosResult.photosImported} foto(s) do módulo Seminovos`
+            : '';
+
+        res.json({
+            success: true,
+            imported: importedVehicles.length,
+            swapsImported: swapsCount,
+            conjuntosImported: conjuntosCount,
+            seminovos: seminovosResult,
+            backupFile: backup.backupFile,
+            message: `✅ Importação concluída: ${importedVehicles.length} veículo(s), ${swapsCount} troca(s), ${conjuntosCount} conjunto(s)${seminovosSummary}. Backup salvo em ${backup.backupFile}`
+        });
     } catch (err) {
         console.error('❌ Erro ao importar:', err);
         res.status(500).json({ error: 'Erro ao importar: ' + err.message });
