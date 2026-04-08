@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Seminovos - Transportadora Print</title>
+<title>Seminovos Print</title>
 <link rel="icon" href="/images/logo-print.png">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
@@ -15,7 +15,7 @@
 <div id="seminovosLoginScreen" class="login-screen">
   <div class="login-card text-center">
     <img src="/images/logo-print.png" alt="Transportadora Print" class="login-logo">
-    <h1 class="login-title h3 mb-2">Módulo Seminovos</h1>
+    <h1 class="login-title h3 mb-2">Seminovos Print</h1>
     <p class="login-subtitle mb-4">Transportadora Print</p>
     <form id="seminovosLoginForm">
       <div class="mb-3 text-start">
@@ -49,7 +49,7 @@
       <div class="brand-block">
         <img src="/images/logo-print.png" alt="Transportadora Print">
         <div>
-          <p class="brand-title">Seminovos</p>
+          <p class="brand-title">Seminovos Print</p>
           <div class="brand-subtitle">Cadastro, ordens de serviço, peças e acompanhamento operacional</div>
         </div>
       </div>
@@ -73,8 +73,7 @@
 
   <main class="main-content container-fluid">
     <section class="hero-banner">
-      <h2 class="h3">Gestão de veículos seminovos</h2>
-      <p>Controle placas, odômetro, situação operacional, pós-venda, garantia, ordens de serviço, peças utilizadas e fotos do veículo em uma área própria.</p>
+      <h2 class="h3">Aqui o nosso seminovo faz a diferença.</h2>
     </section>
 
     <nav class="module-nav" aria-label="Navegação do módulo">
@@ -112,9 +111,21 @@
           <h5 class="mb-1">Veículos Seminovos</h5>
           <small class="text-muted">Cadastro com situação operacional, situação comercial e fotos otimizadas.</small>
         </div>
-        <button class="btn btn-warning" type="button" id="btnNovoVeiculoSeminovos">
-          <i class="bi bi-plus-circle me-1"></i>Novo veículo
-        </button>
+        <div class="d-flex flex-wrap gap-2">
+          <button class="btn btn-warning" type="button" id="btnNovoVeiculoSeminovos">
+            <i class="bi bi-plus-circle me-1"></i>Novo veículo
+          </button>
+          <button class="btn btn-outline-primary" type="button" id="btnSeminovosExportPdfAll">
+            <i class="bi bi-file-earmark-pdf me-1"></i>Exportar PDF completo
+          </button>
+          <button class="btn btn-outline-success" type="button" id="btnSeminovosExportJson">
+            <i class="bi bi-file-earmark-json me-1"></i>Exportar JSON
+          </button>
+          <button class="btn btn-outline-info" type="button" id="btnSeminovosImportJson">
+            <i class="bi bi-file-earmark-arrow-up me-1"></i>Importar JSON
+          </button>
+          <input type="file" id="seminovosImportJsonFile" accept=".json" class="hidden">
+        </div>
       </div>
       <div class="filter-bar">
         <div class="filter-group">
