@@ -130,6 +130,7 @@
       <div class="filter-bar">
         <div class="filter-group">
           <input type="search" class="form-control" id="seminovosVehicleSearch" placeholder="Buscar por placa, chassi ou observação">
+          <select class="form-select" id="seminovosVehicleYardFilter"></select>
           <select class="form-select" id="seminovosVehicleTypeFilter"></select>
           <select class="form-select" id="seminovosVehicleStatusFilter"></select>
           <select class="form-select" id="seminovosVehicleCommercialFilter"></select>
@@ -141,6 +142,7 @@
             <thead>
               <tr>
                 <th>Placa</th>
+                <th>Pátio</th>
                 <th>Tipo</th>
                 <th>Odômetro</th>
                 <th>Situação do veículo</th>
@@ -263,6 +265,10 @@
               <select class="form-select" id="seminovosVehicleType" required></select>
             </div>
             <div class="col-md-4">
+              <label class="form-label" for="seminovosVehicleYard">Pátio</label>
+              <select class="form-select" id="seminovosVehicleYard" required></select>
+            </div>
+            <div class="col-md-4">
               <label class="form-label" for="seminovosVehicleOdometer">Odômetro</label>
               <input type="number" class="form-control" id="seminovosVehicleOdometer" min="0" step="1" placeholder="0">
             </div>
@@ -383,6 +389,9 @@
       </div>
       <div class="modal-body" id="seminovosVehicleDetailsContent"></div>
       <div class="modal-footer">
+        <button type="button" class="btn btn-warning" id="btnEditSeminovosVehicleDetails">
+          <i class="bi bi-pencil me-1"></i>Editar veículo
+        </button>
         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
       </div>
     </div>
