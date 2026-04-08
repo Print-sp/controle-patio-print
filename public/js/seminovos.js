@@ -1096,6 +1096,35 @@ function openSeminovosVehicleEditFromDetails(id = '') {
   detailsModal.hide();
 }
 
+function ensureSeminovosDetailsEditButton() {
+  const modal = document.getElementById('seminovosVehicleDetailsModal');
+  if (!modal) return null;
+  const footer = modal.querySelector('.modal-footer');
+  if (!footer) return null;
+
+  let editButton = document.getElementById('btnEditSeminovosVehicleDetails');
+  if (editButton) return editButton;
+
+  editButton = document.createElement('button');
+  editButton.type = 'button';
+  editButton.className = 'btn btn-warning';
+  editButton.id = 'btnEditSeminovosVehicleDetails';
+  editButton.innerHTML = '<i class="bi bi-pencil me-1"></i>Editar veículo';
+
+  const closeButton = footer.querySelector('[data-bs-dismiss="modal"]');
+  if (closeButton) {
+    footer.insertBefore(editButton, closeButton);
+  } else {
+    footer.appendChild(editButton);
+  }
+
+  editButton.addEventListener('click', (event) => {
+    openSeminovosVehicleEditFromDetails(event.currentTarget.dataset.vehicleId || '');
+  });
+
+  return editButton;
+}
+
 function resetOrderForm() {
   document.getElementById('seminovosOrderForm').reset();
   document.getElementById('seminovosOrderId').value = '';
@@ -1352,7 +1381,7 @@ function viewSeminovosVehicleDetails(id) {
     </div>
   `;
 
-  const editButton = document.getElementById('btnEditSeminovosVehicleDetails');
+  const editButton = ensureSeminovosDetailsEditButton();
   if (editButton) {
     editButton.dataset.vehicleId = String(vehicle.id);
     editButton.disabled = false;
@@ -1417,9 +1446,7 @@ function bindSeminovosEvents() {
       document.getElementById('seminovosOrderOdometer').value = vehicle.odometer || 0;
     }
   });
-  document.getElementById('btnEditSeminovosVehicleDetails')?.addEventListener('click', (event) => {
-    openSeminovosVehicleEditFromDetails(event.currentTarget.dataset.vehicleId || '');
-  });
+  ensureSeminovosDetailsEditButton();
 
   document.getElementById('seminovosLoginForm')?.addEventListener('submit', async (event) => {
     event.preventDefault();
