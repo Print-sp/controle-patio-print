@@ -89,7 +89,7 @@ function renderYardBadge(yard) {
 
 function renderClickablePlate(plate, vehicleId) {
   if (!vehicleId) return renderPlate(plate);
-  return `<button type="button" class="plate-trigger-btn" onclick="viewSeminovosVehicleDetails('${String(vehicleId)}')" title="Abrir histórico do veículo">${renderPlate(plate)}</button>`;
+  return `<button type="button" class="plate-trigger-btn" onclick="viewSeminovosVehicleDetails('${String(vehicleId)}')" title="Abrir histórico do veículo" aria-label="Abrir histórico do veículo ${escapeHtml(String(plate || ''))}">${renderPlate(plate)}</button>`;
 }
 
 function getVehicleStatusClass(status) {
@@ -595,15 +595,15 @@ function renderDashboard() {
     attentionList.innerHTML = '<div class="empty-state"><i class="bi bi-check2-circle fs-2 d-block mb-2"></i>Nenhum veículo exige atenção imediata neste momento.</div>';
   } else {
     attentionList.innerHTML = attentionVehicles.map(vehicle => `
-      <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 py-2 border-bottom">
+      <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-start gap-3 py-2 border-bottom">
         <div>
           <div class="mb-2">${renderClickablePlate(vehicle.plate, vehicle.id)}</div>
           <div class="d-flex flex-wrap gap-2 mb-2">${renderYardBadge(vehicle.yard)} ${renderVehicleType(vehicle.type)} ${renderVehicleStatus(vehicle.operationalStatus)} ${renderCommercialStatus(vehicle.commercialStatus)}</div>
           <small class="text-muted">Odômetro: ${formatNumberBR(vehicle.odometer)} km • Atualizado em ${formatDateTimeBR(vehicle.updatedAt)}</small>
         </div>
-        <div class="d-flex gap-2">
-          <button type="button" class="btn btn-outline-warning btn-sm" onclick="openSeminovosVehicleModal('${vehicle.id}')"><i class="bi bi-pencil"></i></button>
-          <button type="button" class="btn btn-outline-secondary btn-sm" onclick="viewSeminovosVehicleDetails('${vehicle.id}')"><i class="bi bi-eye"></i></button>
+        <div class="d-flex gap-2 flex-wrap attention-actions">
+          <button type="button" class="btn btn-outline-warning btn-sm" onclick="openSeminovosVehicleModal('${vehicle.id}')" title="Editar veículo ${escapeHtml(vehicle.plate)}"><i class="bi bi-pencil me-1"></i>Editar</button>
+          <button type="button" class="btn btn-outline-secondary btn-sm" onclick="viewSeminovosVehicleDetails('${vehicle.id}')" title="Ver ficha do veículo ${escapeHtml(vehicle.plate)}"><i class="bi bi-eye me-1"></i>Ficha</button>
         </div>
       </div>
     `).join('');
