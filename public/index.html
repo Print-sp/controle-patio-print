@@ -6773,12 +6773,21 @@ const conjuntosImportados = [
 ...(Array.isArray(jsonData.conjuntosMontados) ? jsonData.conjuntosMontados : []),
 ...(Array.isArray(jsonData.mountedSets) ? jsonData.mountedSets : [])
 ];
+const seminovosImportados = jsonData.seminovos && typeof jsonData.seminovos === 'object'
+? jsonData.seminovos
+: null;
+const seminovosVehiclesCount = Array.isArray(seminovosImportados?.vehicles) ? seminovosImportados.vehicles.length : 0;
+const seminovosOrdersCount = Array.isArray(seminovosImportados?.serviceOrders) ? seminovosImportados.serviceOrders.length : 0;
 
-if (!confirm(`ðŸ”„ Substituir TODOS os dados por ${jsonData.vehicles.length} veículo(s)?`)) return;
+const seminovosConfirmText = seminovosImportados
+? `\nInclui também ${seminovosVehiclesCount} veículo(s) e ${seminovosOrdersCount} ordem(ns) de serviço do módulo Seminovos.`
+: '';
+if (!confirm(`ðŸ”„ Substituir TODOS os dados por ${jsonData.vehicles.length} veículo(s)?${seminovosConfirmText}`)) return;
 const payload = {
 vehicles: jsonData.vehicles,
 swaps: swapsImportados,
-conjuntos: conjuntosImportados
+conjuntos: conjuntosImportados,
+seminovos: seminovosImportados
 };
 
 const res = await fetch(`${API_URL}/import`, {
@@ -6798,7 +6807,10 @@ return;
 const swapsCount = swapsImportados.length;
 const conjuntosCount = conjuntosImportados.length;
 const backupInfo = result.backupFile ? `<br>💾 Backup automático criado: <code>${result.backupFile}</code>` : '';
-document.getElementById('importPreview').innerHTML = `<div class="alert alert-success mt-3">âœ… <strong>Importação concluída!</strong><br>ðŸ“¥ ${result.imported} veículo(s), ${swapsCount} troca(s)/empréstimo(s) e ${conjuntosCount} conjunto(s) carregado(s)${backupInfo}</div>`;
+const seminovosSummary = result?.seminovos
+? `<br>🚛 Seminovos: ${result.seminovos.vehiclesImported || 0} veículo(s), ${result.seminovos.ordersImported || 0} ordem(ns) e ${result.seminovos.photosImported || 0} foto(s).`
+: '';
+document.getElementById('importPreview').innerHTML = `<div class="alert alert-success mt-3">âœ… <strong>Importação concluída!</strong><br>ðŸ“¥ ${result.imported} veículo(s), ${swapsCount} troca(s)/empréstimo(s) e ${conjuntosCount} conjunto(s) carregado(s)${seminovosSummary}${backupInfo}</div>`;
 setTimeout(async () => {
 await loadConjuntos();
 await loadStats();
