@@ -223,6 +223,313 @@ async function loadSeminovosData() {
   }
 }
 
+function getSeminovosDateStamp() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function downloadJsonFile(filename, data) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function openPrintWindow(title, html) {
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) {
+    showToast('Permita pop-ups para gerar o PDF.', 'warning');
+    return false;
+  }
+  printWindow.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${escapeHtml(title)}</title></head><body>${html}</body></html>`);
+  printWindow.document.close();
+  setTimeout(() => {
+    printWindow.focus();
+    printWindow.print();
+  }, 250);
+  return true;
+}
+
+function getVehicleOrdersContext(vehicleId) {
+  const vehicle = getVehicleById(vehicleId);
+  const orders = seminovosServiceOrders
+    .filter(order => String(order.vehicleId) === String(vehicleId))
+    .sort((a, b) => new Date(b.openedAt || 0) - new Date(a.openedAt || 0));
+  const parts = orders.flatMap(order => (order.parts || []).map(part => ({
+    ...part,
+    serviceOrderNumber: order.serviceOrderNumber,
+    category: order.category
+  })));
+  return { vehicle, orders, parts };
+}
+
+function exportSeminovosFullPDF() {
+  const parts = getFlattenedParts();
+  const generatedAt = new Date().toLocaleString('pt-BR');
+  const html = `
+    <style>
+      body{font-family:Arial,sans-serif;margin:20px;color:#10233d;}
+      h1{color:#1a3a5c;border-bottom:3px solid #1a3a5c;padding-bottom:10px;}
+      h2{color:#2c5282;margin-top:28px;}
+      .header{background:#f8fbff;border:1px solid #d8e3f1;border-radius:12px;padding:18px;margin-bottom:20px;}
+      .meta{margin:4px 0;}
+      table{width:100%;border-collapse:collapse;margin:18px 0;font-size:12px;}
+      th{background:#1a3a5c;color:#fff;padding:10px;text-align:left;}
+      td{padding:8px;border-bottom:1px solid #dbe4ef;vertical-align:top;}
+      tr:nth-child(even){background:#f8fbff;}
+      .pill{display:inline-block;padding:4px 8px;border-radius:999px;background:#e8f1fb;color:#1a3a5c;font-weight:700;font-size:11px;}
+      @media print{body{margin:10px;}table{font-size:10px;}}
+    </style>
+    <div class="header">
+      <h1>SEMINOVOS PRINT</h1>
+      <p class="meta"><strong>Relatório:</strong> Completo</p>
+      <p class="meta"><strong>Gerado em:</strong> ${escapeHtml(generatedAt)}</p>
+      <p class="meta"><strong>Total de veículos:</strong> ${seminovosVehicles.length}</p>
+      <p class="meta"><strong>Total de OS:</strong> ${seminovosServiceOrders.length}</p>
+      <p class="meta"><strong>Total de peças lançadas:</strong> ${parts.length}</p>
+    </div>
+    <h2>Veículos</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Placa</th>
+          <th>Tipo</th>
+          <th>Odômetro</th>
+          <th>Situação</th>
+          <th>Pós-venda / Garantia</th>
+          <th>Última OS</th>
+          <th>Observações</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${seminovosVehicles.map(vehicle => `
+          <tr>
+            <td><strong>${escapeHtml(vehicle.plate)}</strong></td>
+            <td>${escapeHtml(vehicle.type)}</td>
+            <td>${formatNumberBR(vehicle.odometer)} km</td>
+            <td>${escapeHtml(vehicle.operationalStatus)}</td>
+            <td>${escapeHtml(vehicle.commercialStatus)}</td>
+            <td>${escapeHtml(vehicle.latestServiceOrderNumber || 'Sem OS')}</td>
+            <td>${escapeHtml(vehicle.notes || '—')}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+    <h2>Ordens de serviço</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Nº da OS</th>
+          <th>Veículo</th>
+          <th>Categoria</th>
+          <th>Situação</th>
+          <th>Odômetro</th>
+          <th>Abertura</th>
+          <th>Fechamento</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${seminovosServiceOrders.length ? seminovosServiceOrders.map(order => `
+          <tr>
+            <td><strong>${escapeHtml(order.serviceOrderNumber)}</strong></td>
+            <td>${escapeHtml(order.vehiclePlate)}</td>
+            <td>${escapeHtml(order.category)}</td>
+            <td>${escapeHtml(order.status)}</td>
+            <td>${formatNumberBR(order.odometer)} km</td>
+            <td>${escapeHtml(formatDateTimeBR(order.openedAt))}</td>
+            <td>${escapeHtml(formatDateTimeBR(order.closedAt))}</td>
+          </tr>
+        `).join('') : '<tr><td colspan="7">Nenhuma ordem de serviço cadastrada.</td></tr>'}
+      </tbody>
+    </table>
+    <h2>Peças utilizadas</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Veículo</th>
+          <th>Nº da OS</th>
+          <th>Categoria</th>
+          <th>Peça</th>
+          <th>Quantidade</th>
+          <th>Observação</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${parts.length ? parts.map(part => `
+          <tr>
+            <td>${escapeHtml(part.vehiclePlate)}</td>
+            <td>${escapeHtml(part.serviceOrderNumber)}</td>
+            <td>${escapeHtml(part.category)}</td>
+            <td>${escapeHtml(part.partName)}</td>
+            <td>${formatNumberBR(part.quantity)}</td>
+            <td>${escapeHtml(part.notes || '—')}</td>
+          </tr>
+        `).join('') : '<tr><td colspan="6">Nenhuma peça lançada no módulo.</td></tr>'}
+      </tbody>
+    </table>
+  `;
+
+  if (openPrintWindow('Seminovos Print - PDF Completo', html)) {
+    showToast('PDF completo do Seminovos gerado com sucesso', 'success');
+  }
+}
+
+function exportSeminovosVehiclePDF(vehicleId) {
+  const { vehicle, orders, parts } = getVehicleOrdersContext(vehicleId);
+  if (!vehicle) {
+    showToast('Veículo não encontrado para exportação', 'warning');
+    return;
+  }
+
+  const photosHtml = (vehicle.photos || []).length
+    ? `
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;">
+        ${(vehicle.photos || []).map(photo => `
+          <div style="border:1px solid #dbe4ef;border-radius:12px;padding:10px;background:#fff;">
+            <div style="font-weight:700;color:#1a3a5c;margin-bottom:8px;">${escapeHtml(photo.category)}</div>
+            <img src="${escapeHtml(photo.filePath)}" alt="${escapeHtml(photo.category)}" style="width:100%;height:150px;object-fit:cover;border-radius:10px;border:1px solid #dbe4ef;">
+          </div>
+        `).join('')}
+      </div>
+    `
+    : '<p>Nenhuma foto cadastrada.</p>';
+
+  const html = `
+    <style>
+      body{font-family:Arial,sans-serif;margin:20px;color:#10233d;}
+      h1{color:#1a3a5c;border-bottom:3px solid #1a3a5c;padding-bottom:10px;}
+      h2{color:#2c5282;margin-top:28px;}
+      .header{background:#f8fbff;border:1px solid #d8e3f1;border-radius:12px;padding:18px;margin-bottom:20px;}
+      .meta-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:14px;}
+      .meta-card{background:#fff;border:1px solid #dbe4ef;border-radius:12px;padding:12px;}
+      .meta-card small{display:block;color:#5b6b82;text-transform:uppercase;font-weight:700;margin-bottom:6px;}
+      table{width:100%;border-collapse:collapse;margin:18px 0;font-size:12px;}
+      th{background:#1a3a5c;color:#fff;padding:10px;text-align:left;}
+      td{padding:8px;border-bottom:1px solid #dbe4ef;vertical-align:top;}
+      tr:nth-child(even){background:#f8fbff;}
+      .note-box{background:#fff;border:1px solid #dbe4ef;border-radius:12px;padding:14px;}
+      @media print{body{margin:10px;}table{font-size:10px;}}
+    </style>
+    <div class="header">
+      <h1>SEMINOVOS PRINT</h1>
+      <p><strong>Ficha do veículo:</strong> ${escapeHtml(vehicle.plate)}</p>
+      <p><strong>Gerado em:</strong> ${escapeHtml(new Date().toLocaleString('pt-BR'))}</p>
+      <div class="meta-grid">
+        <div class="meta-card"><small>Tipo</small>${escapeHtml(vehicle.type)}</div>
+        <div class="meta-card"><small>Odômetro</small>${formatNumberBR(vehicle.odometer)} km</div>
+        <div class="meta-card"><small>Situação</small>${escapeHtml(vehicle.operationalStatus)}</div>
+        <div class="meta-card"><small>Pós-venda / Garantia</small>${escapeHtml(vehicle.commercialStatus)}</div>
+        <div class="meta-card"><small>Chassi</small>${escapeHtml(vehicle.chassis || 'Não informado')}</div>
+        <div class="meta-card"><small>Última OS</small>${escapeHtml(vehicle.latestServiceOrderNumber || 'Sem OS')}</div>
+      </div>
+    </div>
+    <h2>Observações gerais</h2>
+    <div class="note-box">${escapeHtml(vehicle.notes || 'Sem observações registradas.')}</div>
+    <h2>Fotos do veículo</h2>
+    ${photosHtml}
+    <h2>Ordens de serviço</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Nº da OS</th>
+          <th>Categoria</th>
+          <th>Situação</th>
+          <th>Odômetro</th>
+          <th>Abertura</th>
+          <th>Fechamento</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${orders.length ? orders.map(order => `
+          <tr>
+            <td><strong>${escapeHtml(order.serviceOrderNumber)}</strong></td>
+            <td>${escapeHtml(order.category)}</td>
+            <td>${escapeHtml(order.status)}</td>
+            <td>${formatNumberBR(order.odometer)} km</td>
+            <td>${escapeHtml(formatDateTimeBR(order.openedAt))}</td>
+            <td>${escapeHtml(formatDateTimeBR(order.closedAt))}</td>
+          </tr>
+        `).join('') : '<tr><td colspan="6">Nenhuma ordem de serviço cadastrada para este veículo.</td></tr>'}
+      </tbody>
+    </table>
+    <h2>Peças utilizadas</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Nº da OS</th>
+          <th>Categoria</th>
+          <th>Peça</th>
+          <th>Quantidade</th>
+          <th>Observação</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${parts.length ? parts.map(part => `
+          <tr>
+            <td>${escapeHtml(part.serviceOrderNumber)}</td>
+            <td>${escapeHtml(part.category)}</td>
+            <td>${escapeHtml(part.partName)}</td>
+            <td>${formatNumberBR(part.quantity)}</td>
+            <td>${escapeHtml(part.notes || '—')}</td>
+          </tr>
+        `).join('') : '<tr><td colspan="5">Nenhuma peça lançada para este veículo.</td></tr>'}
+      </tbody>
+    </table>
+  `;
+
+  if (openPrintWindow(`Seminovos Print - ${vehicle.plate}`, html)) {
+    showToast(`PDF do veículo ${vehicle.plate} gerado com sucesso`, 'success');
+  }
+}
+
+async function exportSeminovosJson() {
+  try {
+    const payload = await fetchJson(`${SEMINOVOS_API}/export`);
+    downloadJsonFile(`seminovos-print-${getSeminovosDateStamp()}.json`, payload);
+    showToast('JSON do módulo Seminovos exportado com sucesso', 'success');
+  } catch (error) {
+    showToast(error.message || 'Não foi possível exportar o JSON de Seminovos', 'danger');
+  }
+}
+
+function triggerSeminovosJsonImport() {
+  document.getElementById('seminovosImportJsonFile')?.click();
+}
+
+async function processSeminovosJsonImport(event) {
+  const fileInput = event.currentTarget;
+  const file = fileInput.files?.[0];
+  if (!file) return;
+
+  try {
+    const rawText = await file.text();
+    const parsed = JSON.parse(rawText);
+    const seminovosPayload = parsed?.seminovos && typeof parsed.seminovos === 'object' ? parsed.seminovos : parsed;
+    const vehiclesCount = Array.isArray(seminovosPayload?.vehicles) ? seminovosPayload.vehicles.length : 0;
+    const ordersCount = Array.isArray(seminovosPayload?.serviceOrders) ? seminovosPayload.serviceOrders.length : 0;
+
+    if (!window.confirm(`Substituir os dados do módulo Seminovos por ${vehiclesCount} veículo(s) e ${ordersCount} ordem(ns) de serviço?`)) {
+      return;
+    }
+
+    const result = await fetchJson(`${SEMINOVOS_API}/import`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(seminovosPayload)
+    });
+
+    await loadSeminovosData();
+    const backupInfo = result?.backupFile ? ` Backup automático: ${result.backupFile}.` : '';
+    showToast(`Importação do Seminovos concluída.${backupInfo}`, 'success');
+  } catch (error) {
+    showToast(error.message || 'Não foi possível importar o JSON de Seminovos', 'danger');
+  } finally {
+    fileInput.value = '';
+  }
+}
+
 function renderSeminovosModule() {
   renderDashboard();
   renderVehiclesTable();
@@ -347,6 +654,7 @@ function renderVehiclesTable() {
       <td><small>${formatDateTimeBR(vehicle.updatedAt)}</small></td>
       <td>
         <div class="d-flex gap-2 flex-wrap">
+          <button type="button" class="btn btn-outline-primary btn-sm" onclick="exportSeminovosVehiclePDF('${vehicle.id}')" title="Exportar PDF do veículo"><i class="bi bi-file-earmark-pdf"></i></button>
           <button type="button" class="btn btn-outline-secondary btn-sm" onclick="viewSeminovosVehicleDetails('${vehicle.id}')"><i class="bi bi-eye"></i></button>
           <button type="button" class="btn btn-outline-warning btn-sm" onclick="openSeminovosVehicleModal('${vehicle.id}')"><i class="bi bi-pencil"></i></button>
           <button type="button" class="btn btn-outline-dark btn-sm" onclick="openSeminovosOrderModal('', '${vehicle.id}')"><i class="bi bi-tools"></i></button>
@@ -998,6 +1306,10 @@ function bindSeminovosEvents() {
 
   document.getElementById('seminovosPartsSearch')?.addEventListener('input', renderPartsView);
   document.getElementById('btnNovoVeiculoSeminovos')?.addEventListener('click', () => openSeminovosVehicleModal());
+  document.getElementById('btnSeminovosExportPdfAll')?.addEventListener('click', exportSeminovosFullPDF);
+  document.getElementById('btnSeminovosExportJson')?.addEventListener('click', exportSeminovosJson);
+  document.getElementById('btnSeminovosImportJson')?.addEventListener('click', triggerSeminovosJsonImport);
+  document.getElementById('seminovosImportJsonFile')?.addEventListener('change', processSeminovosJsonImport);
   document.getElementById('btnNovaOSSeminovos')?.addEventListener('click', () => openSeminovosOrderModal());
   document.getElementById('btnAddSeminovosPart')?.addEventListener('click', () => addSeminovosPartRow());
   document.getElementById('btnBackToPatio')?.addEventListener('click', () => { window.location.href = '/'; });
@@ -1049,6 +1361,7 @@ window.deleteSeminovosVehicle = deleteSeminovosVehicle;
 window.openSeminovosOrderModal = openSeminovosOrderModal;
 window.deleteSeminovosOrder = deleteSeminovosOrder;
 window.viewSeminovosVehicleDetails = viewSeminovosVehicleDetails;
+window.exportSeminovosVehiclePDF = exportSeminovosVehiclePDF;
 
 document.addEventListener('DOMContentLoaded', async () => {
   bindSeminovosEvents();
