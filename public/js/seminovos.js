@@ -1103,24 +1103,27 @@ function ensureSeminovosDetailsEditButton() {
   if (!footer) return null;
 
   let editButton = document.getElementById('btnEditSeminovosVehicleDetails');
-  if (editButton) return editButton;
+  if (!editButton) {
+    editButton = document.createElement('button');
+    editButton.type = 'button';
+    editButton.className = 'btn btn-warning';
+    editButton.id = 'btnEditSeminovosVehicleDetails';
+    editButton.innerHTML = '<i class="bi bi-pencil me-1"></i>Editar veículo';
 
-  editButton = document.createElement('button');
-  editButton.type = 'button';
-  editButton.className = 'btn btn-warning';
-  editButton.id = 'btnEditSeminovosVehicleDetails';
-  editButton.innerHTML = '<i class="bi bi-pencil me-1"></i>Editar veículo';
-
-  const closeButton = footer.querySelector('[data-bs-dismiss="modal"]');
-  if (closeButton) {
-    footer.insertBefore(editButton, closeButton);
-  } else {
-    footer.appendChild(editButton);
+    const closeButton = footer.querySelector('[data-bs-dismiss="modal"]');
+    if (closeButton) {
+      footer.insertBefore(editButton, closeButton);
+    } else {
+      footer.appendChild(editButton);
+    }
   }
 
-  editButton.addEventListener('click', (event) => {
-    openSeminovosVehicleEditFromDetails(event.currentTarget.dataset.vehicleId || '');
-  });
+  if (editButton.dataset.editBound !== 'true') {
+    editButton.addEventListener('click', (event) => {
+      openSeminovosVehicleEditFromDetails(event.currentTarget.dataset.vehicleId || '');
+    });
+    editButton.dataset.editBound = 'true';
+  }
 
   return editButton;
 }
