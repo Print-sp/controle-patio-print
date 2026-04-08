@@ -315,7 +315,8 @@ body {
 
 .status-pill,
 .commercial-pill,
-.type-pill {
+.type-pill,
+.yard-pill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -341,6 +342,36 @@ body {
 .commercial-pill.finalizado { background: rgba(100, 116, 139, 0.18); color: #475569; }
 
 .type-pill { background: rgba(74,31,10,0.08); color: var(--seminovos-primary-dark); }
+.yard-pill { background: rgba(26,58,92,0.08); color: var(--seminovos-primary-dark); }
+
+.plate-trigger-btn {
+  padding: 0;
+  border: 0 !important;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  appearance: none;
+  -webkit-appearance: none;
+  box-shadow: none !important;
+  cursor: pointer;
+}
+
+.plate-trigger-btn:hover,
+.plate-trigger-btn:focus,
+.plate-trigger-btn:active {
+  outline: none !important;
+  box-shadow: none !important;
+  border: 0 !important;
+}
+
+.plate-trigger-btn:focus-visible {
+  outline: none !important;
+}
+
+.plate-trigger-btn:focus-visible .placa-container {
+  box-shadow: 0 0 0 3px rgba(44, 82, 130, 0.16), 0 2px 6px rgba(0,0,0,0.15);
+}
 
 .placa-container {
   display: inline-block;
@@ -567,6 +598,11 @@ body {
   text-align: center;
   color: var(--seminovos-muted);
   background: rgba(255,255,255,0.78);
+}
+
+.attention-actions .btn {
+  min-width: 96px;
+  justify-content: center;
 }
 
 .toast-wrap {
