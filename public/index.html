@@ -5382,6 +5382,13 @@ if (vehicle.hasNewLine) {
 const details = [vehicle.newLineName, vehicle.newLineState].filter(Boolean).join(' • ');
 badges.push(`<span class="badge bg-success-subtle text-success-emphasis ms-1"><i class="bi bi-signpost-split me-1"></i>${escapeHtml(details || 'Nova linha')}</span>`);
 }
+if (vehicle.movedToSeminovos) {
+const seminovosDetails = [
+vehicle.seminovosMovedAt ? `Encaminhado em ${formatDateBR(vehicle.seminovosMovedAt)}` : 'Encaminhado ao módulo Seminovos',
+vehicle.seminovosYard ? `Pátio de origem: ${vehicle.seminovosYard}` : ''
+].filter(Boolean).join(' • ');
+badges.push(`<span class="badge bg-primary-subtle text-primary-emphasis ms-1" title="${escapeHtml(seminovosDetails)}"><i class="bi bi-box-arrow-up-right me-1"></i>Seminovos</span>`);
+}
 return badges.join('');
 }
 
@@ -5436,7 +5443,11 @@ checklistItems.push(renderVehicleReportChecklistItem('Forração interna', Boole
 }
 const mountedPlates = getMountedConjuntoPlateSet();
 const inConjunto = mountedPlates.has(String(vehicle.plate || '').toUpperCase());
+const seminovosTransferLabel = vehicle.movedToSeminovos
+? `Encaminhado ao Seminovos${vehicle.seminovosMovedAt ? ` em ${formatDateBR(vehicle.seminovosMovedAt)}` : ''}${vehicle.seminovosYard ? ` • Pátio de origem: ${vehicle.seminovosYard}` : ''}`
+: '';
 const operationalFlags = [
+vehicle.movedToSeminovos ? `<span class="badge bg-primary-subtle text-primary-emphasis"><i class="bi bi-box-arrow-up-right me-1"></i>${escapeHtml(seminovosTransferLabel || 'Encaminhado ao módulo Seminovos')}</span>` : '',
 vehicle.entregue ? `<span class="badge bg-success-subtle text-success-emphasis"><i class="bi bi-box-seam me-1"></i>Entregue para ${escapeHtml(getEntregueParaLabel(vehicle.entreguePara))}</span>` : '',
 vehicle.entregarCorreios ? '<span class="badge bg-info-subtle text-info-emphasis"><i class="bi bi-envelope me-1"></i>Marcar para Correios</span>' : '',
 vehicle.entregarDiversos ? '<span class="badge bg-secondary-subtle text-secondary-emphasis"><i class="bi bi-box me-1"></i>Marcar para Diversos</span>' : '',
@@ -5490,6 +5501,8 @@ ${renderVehicleReportMeta('Base de origem', formatVehicleReportValue(vehicle.bas
 ${renderVehicleReportMeta('Base de destino', formatVehicleReportValue(vehicle.baseDestino))}
 ${renderVehicleReportMeta('Nova linha', vehicle.hasNewLine ? formatVehicleReportValue(vehicle.newLineName, 'Linha nova sem nome') : '<span class="text-muted">Não vinculada</span>')}
 ${renderVehicleReportMeta('Estado/UF', vehicle.hasNewLine ? formatVehicleReportValue(vehicle.newLineState, 'Não informado') : '<span class="text-muted">—</span>')}
+${renderVehicleReportMeta('Seminovos', vehicle.movedToSeminovos ? formatVehicleReportValue(vehicle.seminovosMovedAt ? formatDateBR(vehicle.seminovosMovedAt) : 'Encaminhado') : '<span class="text-muted">Não</span>')}
+${renderVehicleReportMeta('Pátio de origem', vehicle.movedToSeminovos ? formatVehicleReportValue(vehicle.seminovosYard, 'Não informado') : '<span class="text-muted">—</span>')}
 </div>
 </div>
 </div>
@@ -5724,11 +5737,12 @@ const sinistroBadge = v.hasAccident ? `<span class="badge-sinistro"><i class="bi
 const docBadge = v.documentIssue ? `<span class="badge bg-warning text-dark ms-1"><i class="bi bi-file-earmark-text me-1"></i>Doc.</span>` : '';
 const conjuntoBadge = inConjunto === 'true' ? `<span class="badge bg-primary ms-1"><i class="bi bi-truck me-1"></i>Conjunto</span>` : '';
 const workflowBadges = renderVehicleWorkflowBadges(v);
+const seminovosHint = v.movedToSeminovos ? `<span class="conjunto-hint text-primary-emphasis"><i class="bi bi-box-arrow-up-right"></i>Seminovos${v.seminovosMovedAt ? ` em ${escapeHtml(formatDateBR(v.seminovosMovedAt))}` : ''}${v.seminovosYard ? ` • ${escapeHtml(v.seminovosYard)}` : ''}</span>` : '';
 const entregueBadge = v.entregue ? `<span class="badge-entregue"><i class="bi bi-box-seam"></i>${v.entreguePara === 'correios' ? 'Correios' : v.entreguePara === 'diversos' ? 'Diversos' : 'Entregue'}</span>` : '';
 const canUndoLiberado = v.canChangeLiberado && v.status === 'Liberado';
-return `<tr data-yard="${v.yard}" data-status="${v.status}" data-type="${v.type}" data-search="${v.plate} ${v.type} ${v.yard} ${v.base} ${v.baseDestino} ${v.notes || ''} ${v.manager || ''} ${v.newLineName || ''} ${v.newLineState || ''} ${v.newVehicleNotes || ''}" data-entregar-diversos="${entregarDiversos}" data-entregar-correios="${entregarCorreios}" data-entregue="${v.entregue ? 'true' : 'false'}" data-has-accident="${hasAccident}" data-document-issue="${documentIssue}" data-in-conjunto="${inConjunto}" data-is-new-vehicle="${v.isNewVehicle ? 'true' : 'false'}" data-sascar="${sascarStatus}" data-id="${v.id}">
+return `<tr data-yard="${v.yard}" data-status="${v.status}" data-type="${v.type}" data-search="${v.plate} ${v.type} ${v.yard} ${v.base} ${v.baseDestino} ${v.notes || ''} ${v.manager || ''} ${v.newLineName || ''} ${v.newLineState || ''} ${v.newVehicleNotes || ''} ${v.seminovosYard || ''} ${v.movedToSeminovos ? 'seminovos' : ''}" data-entregar-diversos="${entregarDiversos}" data-entregar-correios="${entregarCorreios}" data-entregue="${v.entregue ? 'true' : 'false'}" data-has-accident="${hasAccident}" data-document-issue="${documentIssue}" data-in-conjunto="${inConjunto}" data-is-new-vehicle="${v.isNewVehicle ? 'true' : 'false'}" data-sascar="${sascarStatus}" data-id="${v.id}">
 <td>${renderVehicleTypeBadge(v.type)}</td>
-<td>${placaHtml}${sinistroBadge}${docBadge}${conjuntoBadge}${workflowBadges}${conjuntoDescription ? `<span class="conjunto-hint"><i class="bi bi-link-45deg"></i>${conjuntoDescription}</span>` : ''}</td>
+<td>${placaHtml}${sinistroBadge}${docBadge}${conjuntoBadge}${workflowBadges}${seminovosHint}${conjuntoDescription ? `<span class="conjunto-hint"><i class="bi bi-link-45deg"></i>${conjuntoDescription}</span>` : ''}</td>
 <td><small>${v.chassis || '—'}</small></td>
 <td><span class="date-badge">${v.entryDate}</span></td>
 <td>${v.exitDate ? `<span class="date-badge text-success">${v.exitDate}</span>` : '—'}</td>
