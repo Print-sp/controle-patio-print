@@ -89,7 +89,7 @@ function renderYardBadge(yard) {
 
 function renderClickablePlate(plate, vehicleId) {
   if (!vehicleId) return renderPlate(plate);
-  return `<button type="button" class="plate-trigger-btn" onclick="viewSeminovosVehicleDetails('${String(vehicleId)}')" title="Abrir histórico do veículo" aria-label="Abrir histórico do veículo ${escapeHtml(String(plate || ''))}">${renderPlate(plate)}</button>`;
+  return `<button type="button" class="plate-trigger-btn" onclick="viewSeminovosVehicleDetails('${String(vehicleId)}')" title="Abrir ficha do veículo" aria-label="Abrir ficha do veículo ${escapeHtml(String(plate || ''))}">${renderPlate(plate)}</button>`;
 }
 
 function getVehicleStatusClass(status) {
@@ -1048,8 +1048,19 @@ function populateOrderVehicleOptions() {
 function openSeminovosVehicleEditFromDetails(id = '') {
   if (!id) return;
   const detailsModalEl = document.getElementById('seminovosVehicleDetailsModal');
-  bootstrap.Modal.getInstance(detailsModalEl)?.hide();
-  setTimeout(() => openSeminovosVehicleModal(id), 180);
+  const detailsModal = bootstrap.Modal.getInstance(detailsModalEl);
+  if (!detailsModal) {
+    openSeminovosVehicleModal(id);
+    return;
+  }
+
+  const handleHidden = () => {
+    detailsModalEl.removeEventListener('hidden.bs.modal', handleHidden);
+    openSeminovosVehicleModal(id);
+  };
+
+  detailsModalEl.addEventListener('hidden.bs.modal', handleHidden, { once: true });
+  detailsModal.hide();
 }
 
 function resetOrderForm() {
