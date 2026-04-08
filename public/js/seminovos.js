@@ -923,53 +923,86 @@ async function collectVehiclePhotoPayloads() {
   }
   return payloads;
 }
+
+function getVehicleFormElements() {
+  const requiredIds = [
+    'seminovosVehicleForm',
+    'seminovosVehicleId',
+    'seminovosVehicleModalTitle',
+    'seminovosVehiclePlate',
+    'seminovosVehicleType',
+    'seminovosVehicleYard',
+    'seminovosVehicleChassis',
+    'seminovosVehicleOdometer',
+    'seminovosVehicleOperationalStatus',
+    'seminovosVehicleCommercialStatus',
+    'seminovosVehicleNotes'
+  ];
+  const elements = Object.fromEntries(requiredIds.map(id => [id, document.getElementById(id)]));
+  const missing = requiredIds.filter(id => !elements[id]);
+  if (missing.length) {
+    throw new Error('Tela do Seminovos desatualizada. Atualize public/seminovos.html e public/js/seminovos.js no servidor.');
+  }
+  return elements;
+}
+
 function resetVehicleForm() {
-  document.getElementById('seminovosVehicleForm').reset();
-  document.getElementById('seminovosVehicleId').value = '';
-  document.getElementById('seminovosVehicleModalTitle').textContent = 'Novo veículo seminovo';
-  document.getElementById('seminovosVehicleYard').value = SEMINOVOS_YARDS[0];
-  document.getElementById('seminovosVehicleOperationalStatus').value = 'Disponível';
-  document.getElementById('seminovosVehicleCommercialStatus').value = 'Nenhum';
+  const fields = getVehicleFormElements();
+  fields.seminovosVehicleForm.reset();
+  fields.seminovosVehicleId.value = '';
+  fields.seminovosVehicleModalTitle.textContent = 'Novo veículo seminovo';
+  fields.seminovosVehicleYard.value = SEMINOVOS_YARDS[0];
+  fields.seminovosVehicleOperationalStatus.value = 'Disponível';
+  fields.seminovosVehicleCommercialStatus.value = 'Nenhum';
   renderVehiclePhotoFields([]);
 }
 
 function openSeminovosVehicleModal(id = '') {
-  const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('seminovosVehicleModal'));
-  resetVehicleForm();
-  if (id) {
-    const vehicle = getVehicleById(id);
-    if (!vehicle) return;
-    document.getElementById('seminovosVehicleModalTitle').textContent = `Editar veículo ${vehicle.plate}`;
-    document.getElementById('seminovosVehicleId').value = vehicle.id;
-    document.getElementById('seminovosVehiclePlate').value = vehicle.plate;
-    document.getElementById('seminovosVehicleType').value = vehicle.type;
-    document.getElementById('seminovosVehicleYard').value = vehicle.yard || '';
-    document.getElementById('seminovosVehicleChassis').value = vehicle.chassis || '';
-    document.getElementById('seminovosVehicleOdometer').value = vehicle.odometer || 0;
-    document.getElementById('seminovosVehicleOperationalStatus').value = vehicle.operationalStatus;
-    document.getElementById('seminovosVehicleCommercialStatus').value = vehicle.commercialStatus;
-    document.getElementById('seminovosVehicleNotes').value = vehicle.notes || '';
-    renderVehiclePhotoFields(vehicle.photos || []);
+  try {
+    const modalElement = document.getElementById('seminovosVehicleModal');
+    if (!modalElement) {
+      throw new Error('Modal do Seminovos não encontrado. Atualize public/seminovos.html no servidor.');
+    }
+    const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+    resetVehicleForm();
+    if (id) {
+      const vehicle = getVehicleById(id);
+      if (!vehicle) return;
+      const fields = getVehicleFormElements();
+      fields.seminovosVehicleModalTitle.textContent = `Editar veículo ${vehicle.plate}`;
+      fields.seminovosVehicleId.value = vehicle.id;
+      fields.seminovosVehiclePlate.value = vehicle.plate;
+      fields.seminovosVehicleType.value = vehicle.type;
+      fields.seminovosVehicleYard.value = vehicle.yard || '';
+      fields.seminovosVehicleChassis.value = vehicle.chassis || '';
+      fields.seminovosVehicleOdometer.value = vehicle.odometer || 0;
+      fields.seminovosVehicleOperationalStatus.value = vehicle.operationalStatus;
+      fields.seminovosVehicleCommercialStatus.value = vehicle.commercialStatus;
+      fields.seminovosVehicleNotes.value = vehicle.notes || '';
+      renderVehiclePhotoFields(vehicle.photos || []);
+    }
+    modal.show();
+  } catch (error) {
+    showToast(error.message || 'Não foi possível abrir o formulário do veículo', 'danger');
   }
-  modal.show();
 }
 
 async function saveSeminovosVehicle(event) {
   event.preventDefault();
-  const id = document.getElementById('seminovosVehicleId').value;
-  const payload = {
-    plate: document.getElementById('seminovosVehiclePlate').value.trim().toUpperCase(),
-    type: document.getElementById('seminovosVehicleType').value,
-    yard: document.getElementById('seminovosVehicleYard').value,
-    chassis: document.getElementById('seminovosVehicleChassis').value.trim(),
-    odometer: document.getElementById('seminovosVehicleOdometer').value,
-    operationalStatus: document.getElementById('seminovosVehicleOperationalStatus').value,
-    commercialStatus: document.getElementById('seminovosVehicleCommercialStatus').value,
-    notes: document.getElementById('seminovosVehicleNotes').value,
-    photos: await collectVehiclePhotoPayloads()
-  };
-
   try {
+    const fields = getVehicleFormElements();
+    const id = fields.seminovosVehicleId.value;
+    const payload = {
+      plate: fields.seminovosVehiclePlate.value.trim().toUpperCase(),
+      type: fields.seminovosVehicleType.value,
+      yard: fields.seminovosVehicleYard.value,
+      chassis: fields.seminovosVehicleChassis.value.trim(),
+      odometer: fields.seminovosVehicleOdometer.value,
+      operationalStatus: fields.seminovosVehicleOperationalStatus.value,
+      commercialStatus: fields.seminovosVehicleCommercialStatus.value,
+      notes: fields.seminovosVehicleNotes.value,
+      photos: await collectVehiclePhotoPayloads()
+    };
     const result = await fetchJson(id ? `${SEMINOVOS_API}/vehicles/${id}` : `${SEMINOVOS_API}/vehicles`, {
       method: id ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json' },
