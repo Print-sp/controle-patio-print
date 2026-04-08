@@ -1,5 +1,6 @@
 const SEMINOVOS_API = '/api/seminovos';
 const SEMINOVOS_VEHICLE_TYPES = ['Toco', 'Truck', 'Carreta', 'Cavalo'];
+const SEMINOVOS_YARDS = ['Pátio Jaraguá', 'Pátio Bandeirantes', 'Pátio Superior', 'Pátio Cajamar'];
 const SEMINOVOS_OPERATIONAL_STATUSES = [
   'Disponível',
   'Em manutenção',
@@ -74,6 +75,21 @@ function renderPlate(plate) {
   const safePlate = escapeHtml(plate || '—');
   const cssClass = getPlateType(plate) === 'vermelha' ? 'placa-vermelha' : 'placa-mercosul';
   return `<span class="placa-container ${cssClass}"><span class="placa-texto">${safePlate}</span></span>`;
+}
+
+function formatSeminovosYardLabel(yard) {
+  const value = String(yard || '').trim();
+  if (!value) return 'Não informado';
+  return value.replace(/^Pátio\s+/i, '') || value;
+}
+
+function renderYardBadge(yard) {
+  return `<span class="yard-pill"><i class="bi bi-geo-alt"></i>${escapeHtml(formatSeminovosYardLabel(yard))}</span>`;
+}
+
+function renderClickablePlate(plate, vehicleId) {
+  if (!vehicleId) return renderPlate(plate);
+  return `<button type="button" class="plate-trigger-btn" onclick="viewSeminovosVehicleDetails('${String(vehicleId)}')" title="Abrir histórico do veículo">${renderPlate(plate)}</button>`;
 }
 
 function getVehicleStatusClass(status) {
@@ -295,6 +311,7 @@ function exportSeminovosFullPDF() {
       <thead>
         <tr>
           <th>Placa</th>
+          <th>Pátio</th>
           <th>Tipo</th>
           <th>Odômetro</th>
           <th>Situação</th>
@@ -307,6 +324,7 @@ function exportSeminovosFullPDF() {
         ${seminovosVehicles.map(vehicle => `
           <tr>
             <td><strong>${escapeHtml(vehicle.plate)}</strong></td>
+            <td>${escapeHtml(vehicle.yard || 'Não informado')}</td>
             <td>${escapeHtml(vehicle.type)}</td>
             <td>${formatNumberBR(vehicle.odometer)} km</td>
             <td>${escapeHtml(vehicle.operationalStatus)}</td>
@@ -417,6 +435,7 @@ function exportSeminovosVehiclePDF(vehicleId) {
       <p><strong>Ficha do veículo:</strong> ${escapeHtml(vehicle.plate)}</p>
       <p><strong>Gerado em:</strong> ${escapeHtml(new Date().toLocaleString('pt-BR'))}</p>
       <div class="meta-grid">
+        <div class="meta-card"><small>Pátio</small>${escapeHtml(vehicle.yard || 'Não informado')}</div>
         <div class="meta-card"><small>Tipo</small>${escapeHtml(vehicle.type)}</div>
         <div class="meta-card"><small>Odômetro</small>${formatNumberBR(vehicle.odometer)} km</div>
         <div class="meta-card"><small>Situação</small>${escapeHtml(vehicle.operationalStatus)}</div>
@@ -578,8 +597,8 @@ function renderDashboard() {
     attentionList.innerHTML = attentionVehicles.map(vehicle => `
       <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 py-2 border-bottom">
         <div>
-          <div class="mb-2">${renderPlate(vehicle.plate)}</div>
-          <div class="d-flex flex-wrap gap-2 mb-2">${renderVehicleType(vehicle.type)} ${renderVehicleStatus(vehicle.operationalStatus)} ${renderCommercialStatus(vehicle.commercialStatus)}</div>
+          <div class="mb-2">${renderClickablePlate(vehicle.plate, vehicle.id)}</div>
+          <div class="d-flex flex-wrap gap-2 mb-2">${renderYardBadge(vehicle.yard)} ${renderVehicleType(vehicle.type)} ${renderVehicleStatus(vehicle.operationalStatus)} ${renderCommercialStatus(vehicle.commercialStatus)}</div>
           <small class="text-muted">Odômetro: ${formatNumberBR(vehicle.odometer)} km • Atualizado em ${formatDateTimeBR(vehicle.updatedAt)}</small>
         </div>
         <div class="d-flex gap-2">
@@ -612,12 +631,14 @@ function renderDashboard() {
 
 function getFilteredVehicles() {
   const search = document.getElementById('seminovosVehicleSearch').value.trim().toLowerCase();
+  const yard = document.getElementById('seminovosVehicleYardFilter').value;
   const type = document.getElementById('seminovosVehicleTypeFilter').value;
   const status = document.getElementById('seminovosVehicleStatusFilter').value;
   const commercial = document.getElementById('seminovosVehicleCommercialFilter').value;
   return seminovosVehicles.filter(vehicle => {
-    const haystack = `${vehicle.plate} ${vehicle.chassis} ${vehicle.notes} ${vehicle.latestServiceOrderNumber}`.toLowerCase();
+    const haystack = `${vehicle.plate} ${vehicle.yard} ${vehicle.chassis} ${vehicle.notes} ${vehicle.latestServiceOrderNumber}`.toLowerCase();
     if (search && !haystack.includes(search)) return false;
+    if (yard && vehicle.yard !== yard) return false;
     if (type && vehicle.type !== type) return false;
     if (status && vehicle.operationalStatus !== status) return false;
     if (commercial) {
@@ -644,7 +665,8 @@ function renderVehiclesTable() {
   }
   tbody.innerHTML = filtered.map(vehicle => `
     <tr>
-      <td>${renderPlate(vehicle.plate)}</td>
+      <td>${renderClickablePlate(vehicle.plate, vehicle.id)}</td>
+      <td>${renderYardBadge(vehicle.yard)}</td>
       <td>${renderVehicleType(vehicle.type)}</td>
       <td><strong>${formatNumberBR(vehicle.odometer)}</strong> km</td>
       <td>${renderVehicleStatus(vehicle.operationalStatus)}</td>
@@ -690,7 +712,7 @@ function renderOrdersTable() {
     <tr>
       <td><strong>${escapeHtml(order.serviceOrderNumber)}</strong></td>
       <td>
-        <div class="mb-1">${renderPlate(order.vehiclePlate)}</div>
+        <div class="mb-1">${renderClickablePlate(order.vehiclePlate, order.vehicleId)}</div>
         <small>${renderVehicleType(order.vehicleType)}</small>
       </td>
       <td>${escapeHtml(order.category)}</td>
@@ -712,6 +734,7 @@ function renderOrdersTable() {
 function getFlattenedParts() {
   return seminovosServiceOrders.flatMap(order => (order.parts || []).map(part => ({
     ...part,
+    vehicleId: order.vehicleId,
     vehiclePlate: order.vehiclePlate,
     serviceOrderNumber: order.serviceOrderNumber,
     category: order.category,
@@ -751,7 +774,7 @@ function renderPartsView() {
   }
   tbody.innerHTML = filtered.map(part => `
     <tr>
-      <td>${renderPlate(part.vehiclePlate)}</td>
+      <td>${renderClickablePlate(part.vehiclePlate, part.vehicleId)}</td>
       <td><strong>${escapeHtml(part.serviceOrderNumber)}</strong></td>
       <td>${escapeHtml(part.category)}</td>
       <td>${escapeHtml(part.partName)}</td>
@@ -764,6 +787,7 @@ function renderPartsView() {
 
 function clearVehicleFilters() {
   document.getElementById('seminovosVehicleSearch').value = '';
+  document.getElementById('seminovosVehicleYardFilter').value = '';
   document.getElementById('seminovosVehicleTypeFilter').value = '';
   document.getElementById('seminovosVehicleStatusFilter').value = '';
   document.getElementById('seminovosVehicleCommercialFilter').value = '';
@@ -903,6 +927,7 @@ function resetVehicleForm() {
   document.getElementById('seminovosVehicleForm').reset();
   document.getElementById('seminovosVehicleId').value = '';
   document.getElementById('seminovosVehicleModalTitle').textContent = 'Novo veículo seminovo';
+  document.getElementById('seminovosVehicleYard').value = SEMINOVOS_YARDS[0];
   document.getElementById('seminovosVehicleOperationalStatus').value = 'Disponível';
   document.getElementById('seminovosVehicleCommercialStatus').value = 'Nenhum';
   renderVehiclePhotoFields([]);
@@ -918,6 +943,7 @@ function openSeminovosVehicleModal(id = '') {
     document.getElementById('seminovosVehicleId').value = vehicle.id;
     document.getElementById('seminovosVehiclePlate').value = vehicle.plate;
     document.getElementById('seminovosVehicleType').value = vehicle.type;
+    document.getElementById('seminovosVehicleYard').value = vehicle.yard || '';
     document.getElementById('seminovosVehicleChassis').value = vehicle.chassis || '';
     document.getElementById('seminovosVehicleOdometer').value = vehicle.odometer || 0;
     document.getElementById('seminovosVehicleOperationalStatus').value = vehicle.operationalStatus;
@@ -934,6 +960,7 @@ async function saveSeminovosVehicle(event) {
   const payload = {
     plate: document.getElementById('seminovosVehiclePlate').value.trim().toUpperCase(),
     type: document.getElementById('seminovosVehicleType').value,
+    yard: document.getElementById('seminovosVehicleYard').value,
     chassis: document.getElementById('seminovosVehicleChassis').value.trim(),
     odometer: document.getElementById('seminovosVehicleOdometer').value,
     operationalStatus: document.getElementById('seminovosVehicleOperationalStatus').value,
@@ -943,13 +970,17 @@ async function saveSeminovosVehicle(event) {
   };
 
   try {
-    await fetchJson(id ? `${SEMINOVOS_API}/vehicles/${id}` : `${SEMINOVOS_API}/vehicles`, {
+    const result = await fetchJson(id ? `${SEMINOVOS_API}/vehicles/${id}` : `${SEMINOVOS_API}/vehicles`, {
       method: id ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
     bootstrap.Modal.getInstance(document.getElementById('seminovosVehicleModal')).hide();
     await loadSeminovosData();
+    if (!id && result?.linkedPatioVehicle) {
+      showToast(`Veículo cadastrado no Seminovos e baixado no sistema principal (${result.linkedPatioVehicle.plate})`, 'success');
+      return;
+    }
     showToast(id ? 'Veículo atualizado com sucesso' : 'Veículo cadastrado com sucesso', 'success');
   } catch (error) {
     showToast(error.message || 'Não foi possível salvar o veículo', 'danger');
@@ -1010,8 +1041,15 @@ function populateOrderVehicleOptions() {
   const options = ['<option value="">Selecione um veículo</option>']
     .concat([...seminovosVehicles]
       .sort((a, b) => a.plate.localeCompare(b.plate))
-      .map(vehicle => `<option value="${vehicle.id}">${escapeHtml(vehicle.plate)} • ${escapeHtml(vehicle.type)}</option>`));
+      .map(vehicle => `<option value="${vehicle.id}">${escapeHtml(vehicle.plate)} • ${escapeHtml(vehicle.type)} • ${escapeHtml(formatSeminovosYardLabel(vehicle.yard))}</option>`));
   select.innerHTML = options.join('');
+}
+
+function openSeminovosVehicleEditFromDetails(id = '') {
+  if (!id) return;
+  const detailsModalEl = document.getElementById('seminovosVehicleDetailsModal');
+  bootstrap.Modal.getInstance(detailsModalEl)?.hide();
+  setTimeout(() => openSeminovosVehicleModal(id), 180);
 }
 
 function resetOrderForm() {
@@ -1198,6 +1236,7 @@ function viewSeminovosVehicleDetails(id) {
             <div>
               <div class="mb-3">${renderPlate(vehicle.plate)}</div>
               <div class="d-flex flex-wrap gap-2 mb-3">
+                ${renderYardBadge(vehicle.yard)}
                 ${renderVehicleType(vehicle.type)}
                 ${renderVehicleStatus(vehicle.operationalStatus)}
                 ${renderCommercialStatus(vehicle.commercialStatus)}
@@ -1209,15 +1248,19 @@ function viewSeminovosVehicleDetails(id) {
             </div>
           </div>
           <div class="row g-3 mt-1">
-            <div class="col-md-4">
+            <div class="col-md-3">
+              <div class="small text-muted text-uppercase">Pátio</div>
+              <div class="fw-semibold">${escapeHtml(vehicle.yard || 'Não informado')}</div>
+            </div>
+            <div class="col-md-3">
               <div class="small text-muted text-uppercase">Odômetro</div>
               <div class="fw-semibold">${formatNumberBR(vehicle.odometer)} km</div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
               <div class="small text-muted text-uppercase">Chassi</div>
               <div class="fw-semibold">${escapeHtml(vehicle.chassis || 'Não informado')}</div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
               <div class="small text-muted text-uppercase">Última OS</div>
               <div class="fw-semibold">${escapeHtml(vehicle.latestServiceOrderNumber || 'Sem OS')}</div>
             </div>
@@ -1265,6 +1308,12 @@ function viewSeminovosVehicleDetails(id) {
     </div>
   `;
 
+  const editButton = document.getElementById('btnEditSeminovosVehicleDetails');
+  if (editButton) {
+    editButton.dataset.vehicleId = String(vehicle.id);
+    editButton.disabled = false;
+  }
+
   bootstrap.Modal.getOrCreateInstance(document.getElementById('seminovosVehicleDetailsModal')).show();
 }
 
@@ -1281,9 +1330,11 @@ async function logoutSeminovos() {
 }
 
 function bindSeminovosEvents() {
+  populateSelect('seminovosVehicleYard', SEMINOVOS_YARDS, { placeholder: 'Selecione o pátio' });
   populateSelect('seminovosVehicleType', SEMINOVOS_VEHICLE_TYPES, { placeholder: 'Selecione o tipo' });
   populateSelect('seminovosVehicleOperationalStatus', SEMINOVOS_OPERATIONAL_STATUSES);
   populateSelect('seminovosVehicleCommercialStatus', SEMINOVOS_COMMERCIAL_STATUSES);
+  populateSelect('seminovosVehicleYardFilter', SEMINOVOS_YARDS, { includeAll: true, allLabel: 'Todos os pátios' });
   populateSelect('seminovosVehicleTypeFilter', SEMINOVOS_VEHICLE_TYPES, { includeAll: true, allLabel: 'Todos os tipos' });
   populateSelect('seminovosVehicleStatusFilter', SEMINOVOS_OPERATIONAL_STATUSES, { includeAll: true, allLabel: 'Todas as situações' });
   populateSelect('seminovosVehicleCommercialFilter', SEMINOVOS_COMMERCIAL_STATUSES, { includeAll: true, allLabel: 'Toda situação comercial' });
@@ -1296,7 +1347,7 @@ function bindSeminovosEvents() {
     button.addEventListener('click', () => openView(button.dataset.view));
   });
 
-  ['seminovosVehicleSearch', 'seminovosVehicleTypeFilter', 'seminovosVehicleStatusFilter', 'seminovosVehicleCommercialFilter'].forEach(id => {
+  ['seminovosVehicleSearch', 'seminovosVehicleYardFilter', 'seminovosVehicleTypeFilter', 'seminovosVehicleStatusFilter', 'seminovosVehicleCommercialFilter'].forEach(id => {
     document.getElementById(id)?.addEventListener(id.includes('Search') ? 'input' : 'change', renderVehiclesTable);
   });
 
@@ -1321,6 +1372,9 @@ function bindSeminovosEvents() {
     if (vehicle) {
       document.getElementById('seminovosOrderOdometer').value = vehicle.odometer || 0;
     }
+  });
+  document.getElementById('btnEditSeminovosVehicleDetails')?.addEventListener('click', (event) => {
+    openSeminovosVehicleEditFromDetails(event.currentTarget.dataset.vehicleId || '');
   });
 
   document.getElementById('seminovosLoginForm')?.addEventListener('submit', async (event) => {
@@ -1362,6 +1416,7 @@ window.openSeminovosOrderModal = openSeminovosOrderModal;
 window.deleteSeminovosOrder = deleteSeminovosOrder;
 window.viewSeminovosVehicleDetails = viewSeminovosVehicleDetails;
 window.exportSeminovosVehiclePDF = exportSeminovosVehiclePDF;
+window.openSeminovosVehicleEditFromDetails = openSeminovosVehicleEditFromDetails;
 
 document.addEventListener('DOMContentLoaded', async () => {
   bindSeminovosEvents();
