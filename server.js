@@ -245,7 +245,18 @@ const SEMINOVOS_PHOTO_CATEGORIES = Object.freeze([
     'Painel / odômetro',
     'Avaria / observação'
 ]);
+const VEHICLE_ACCIDENT_PHOTO_CATEGORIES = Object.freeze([
+    'Frente',
+    'Traseira',
+    'Lado esquerdo',
+    'Lado direito',
+    'Cabine / interior',
+    'Avaria principal',
+    'Detalhe 1',
+    'Detalhe 2'
+]);
 const SEMINOVOS_UPLOADS_DIR = path.join(__dirname, 'public', 'uploads', 'seminovos');
+const VEHICLE_ACCIDENT_UPLOADS_DIR = path.join(__dirname, 'public', 'uploads', 'sinistros');
 
 function ensureDirectoryExists(targetPath) {
     if (!fs.existsSync(targetPath)) {
@@ -333,6 +344,19 @@ function canonicalizeSeminovosPhotoCategory(category) {
     return 'Frente';
 }
 
+function canonicalizeVehicleAccidentPhotoCategory(category) {
+    const normalized = canonicalText(category);
+    if (normalized.includes('frente')) return 'Frente';
+    if (normalized.includes('traseira')) return 'Traseira';
+    if (normalized.includes('lado esquerdo')) return 'Lado esquerdo';
+    if (normalized.includes('lado direito')) return 'Lado direito';
+    if (normalized.includes('cabine') || normalized.includes('interior')) return 'Cabine / interior';
+    if (normalized.includes('avaria') || normalized.includes('principal')) return 'Avaria principal';
+    if (normalized.includes('detalhe 2') || normalized.includes('detalhe2')) return 'Detalhe 2';
+    if (normalized.includes('detalhe 1') || normalized.includes('detalhe1') || normalized.includes('detalhe')) return 'Detalhe 1';
+    return 'Frente';
+}
+
 function canAccessSeminovos(user) {
     return user?.role === 'admin' || user?.role === 'seminovos';
 }
@@ -394,6 +418,22 @@ function mapSeminovosPhotoRow(row) {
         id: row.id,
         vehicleId: row.vehicleid || row.vehicleId,
         category: canonicalizeSeminovosPhotoCategory(row.category),
+        filePath: row.filepath || row.filePath || '',
+        fileName: row.filename || row.fileName || '',
+        mimeType: row.mimetype || row.mimeType || '',
+        sizeBytes: Number(row.sizebytes || row.sizeBytes || 0),
+        caption: row.caption || '',
+        createdAt: row.createdat || row.createdAt,
+        updatedBy: row.updatedby || row.updatedBy || ''
+    };
+}
+
+function mapVehicleAccidentPhotoRow(row) {
+    if (!row) return null;
+    return {
+        id: row.id,
+        vehicleId: row.vehicleid || row.vehicleId,
+        category: canonicalizeVehicleAccidentPhotoCategory(row.category),
         filePath: row.filepath || row.filePath || '',
         fileName: row.filename || row.fileName || '',
         mimeType: row.mimetype || row.mimeType || '',
@@ -549,6 +589,203 @@ async function syncSeminovosVehiclePhotos(vehicle, photoPayloads, username) {
     return listSeminovosPhotosByVehicleIds([vehicle.id]);
 }
 
+function buildVehicleAccidentPhotoPublicPath(vehicleId, fileName) {
+    return `/uploads/sinistros/${vehicleId}/${fileName}`;
+}
+
+function resolveVehicleAccidentPhotoFilePath(publicPath) {
+    if (!publicPath) return null;
+    const normalized = String(publicPath).replace(/^\/+/, '').replace(/\//g, path.sep);
+    return path.join(__dirname, 'public', normalized);
+}
+
+async function listVehicleAccidentPhotosByVehicleIds(vehicleIds) {
+    const ids = Array.from(new Set(vehicleIds.map(id => Number(id)).filter(Number.isFinite)));
+    if (!ids.length) return [];
+
+    if (isProduction) {
+        const result = await pool.query(
+            'SELECT * FROM vehicle_accident_photos WHERE vehicleId = ANY($1::int[]) ORDER BY createdAt DESC',
+            [ids]
+        );
+        return result.rows.map(mapVehicleAccidentPhotoRow);
+    }
+
+    const placeholders = ids.map(() => '?').join(', ');
+    return db.prepare(`SELECT * FROM vehicle_accident_photos WHERE vehicleId IN (${placeholders}) ORDER BY createdAt DESC`).all(...ids).map(mapVehicleAccidentPhotoRow);
+}
+
+async function attachVehicleAccidentPhotos(vehicles = []) {
+    if (!Array.isArray(vehicles) || !vehicles.length) return vehicles;
+    const photos = await listVehicleAccidentPhotosByVehicleIds(vehicles.map(vehicle => vehicle.id));
+    const photoMap = new Map();
+    photos.forEach(photo => {
+        const bucket = photoMap.get(photo.vehicleId) || [];
+        bucket.push(photo);
+        photoMap.set(photo.vehicleId, bucket);
+    });
+    return vehicles.map(vehicle => normalizeVehicleRecord({
+        ...vehicle,
+        accidentPhotos: photoMap.get(Number(vehicle.id)) || [],
+        accidentPhotoCount: (photoMap.get(Number(vehicle.id)) || []).length
+    }));
+}
+
+async function getVehicleAccidentPhotoByCategory(vehicleId, category) {
+    const normalizedCategory = canonicalizeVehicleAccidentPhotoCategory(category);
+    if (isProduction) {
+        const result = await pool.query(
+            'SELECT * FROM vehicle_accident_photos WHERE vehicleId = $1 AND category = $2 LIMIT 1',
+            [vehicleId, normalizedCategory]
+        );
+        return mapVehicleAccidentPhotoRow(result.rows[0]);
+    }
+
+    return mapVehicleAccidentPhotoRow(
+        db.prepare('SELECT * FROM vehicle_accident_photos WHERE vehicleId = ? AND category = ? LIMIT 1').get(vehicleId, normalizedCategory)
+    );
+}
+
+async function removeVehicleAccidentPhotoRecord(photo) {
+    if (!photo) return;
+    const filePath = resolveVehicleAccidentPhotoFilePath(photo.filePath);
+    if (filePath && fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+    }
+
+    if (isProduction) {
+        await pool.query('DELETE FROM vehicle_accident_photos WHERE id = $1', [photo.id]);
+        return;
+    }
+
+    db.prepare('DELETE FROM vehicle_accident_photos WHERE id = ?').run(photo.id);
+}
+
+async function clearVehicleAccidentPhotoRecords() {
+    if (isProduction) {
+        await pool.query('DELETE FROM vehicle_accident_photos');
+        return;
+    }
+
+    db.exec('DELETE FROM vehicle_accident_photos');
+    try { db.exec("DELETE FROM sqlite_sequence WHERE name='vehicle_accident_photos'"); } catch (error) {}
+}
+
+function clearVehicleAccidentUploadDirectory() {
+    if (fs.existsSync(VEHICLE_ACCIDENT_UPLOADS_DIR)) {
+        fs.rmSync(VEHICLE_ACCIDENT_UPLOADS_DIR, { recursive: true, force: true });
+    }
+    ensureDirectoryExists(VEHICLE_ACCIDENT_UPLOADS_DIR);
+}
+
+async function deleteVehicleAccidentPhotos(vehicleId) {
+    const photos = await listVehicleAccidentPhotosByVehicleIds([vehicleId]);
+    for (const photo of photos) {
+        await removeVehicleAccidentPhotoRecord(photo);
+    }
+
+    const vehicleDir = path.join(VEHICLE_ACCIDENT_UPLOADS_DIR, String(vehicleId));
+    if (fs.existsSync(vehicleDir)) {
+        fs.rmSync(vehicleDir, { recursive: true, force: true });
+    }
+}
+
+async function upsertVehicleAccidentPhoto(vehicle, photoPayload, username) {
+    const category = canonicalizeVehicleAccidentPhotoCategory(photoPayload?.category);
+    const existing = await getVehicleAccidentPhotoByCategory(vehicle.id, category);
+
+    if (photoPayload?.remove) {
+        await removeVehicleAccidentPhotoRecord(existing);
+        return null;
+    }
+
+    if (!photoPayload?.dataUrl) return existing;
+
+    const parsed = parsePhotoDataUrl(photoPayload.dataUrl);
+    const vehicleDir = path.join(VEHICLE_ACCIDENT_UPLOADS_DIR, String(vehicle.id));
+    ensureDirectoryExists(vehicleDir);
+
+    if (existing) {
+        await removeVehicleAccidentPhotoRecord(existing);
+    }
+
+    const safePlate = sanitizeFileNameSegment(vehicle.plate || `veiculo-${vehicle.id}`);
+    const safeCategory = sanitizeFileNameSegment(category);
+    const fileName = `${safePlate}-${safeCategory}-${Date.now()}.${parsed.extension}`;
+    const absolutePath = path.join(vehicleDir, fileName);
+    fs.writeFileSync(absolutePath, parsed.buffer);
+    const publicPath = buildVehicleAccidentPhotoPublicPath(vehicle.id, fileName);
+
+    if (isProduction) {
+        const result = await pool.query(
+            `INSERT INTO vehicle_accident_photos (vehicleId, category, filePath, fileName, mimeType, sizeBytes, caption, updatedBy)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+             RETURNING *`,
+            [vehicle.id, category, publicPath, fileName, parsed.mimeType, parsed.buffer.length, photoPayload.caption || '', username]
+        );
+        return mapVehicleAccidentPhotoRow(result.rows[0]);
+    }
+
+    const result = db.prepare(
+        `INSERT INTO vehicle_accident_photos (vehicleId, category, filePath, fileName, mimeType, sizeBytes, caption, updatedBy)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(vehicle.id, category, publicPath, fileName, parsed.mimeType, parsed.buffer.length, photoPayload.caption || '', username);
+    return mapVehicleAccidentPhotoRow(db.prepare('SELECT * FROM vehicle_accident_photos WHERE id = ?').get(result.lastInsertRowid));
+}
+
+async function syncVehicleAccidentPhotos(vehicle, photoPayloads, username) {
+    if (!Array.isArray(photoPayloads)) return listVehicleAccidentPhotosByVehicleIds([vehicle.id]);
+    for (const payload of photoPayloads) {
+        if (!payload?.category) continue;
+        await upsertVehicleAccidentPhoto(vehicle, payload, username);
+    }
+    return listVehicleAccidentPhotosByVehicleIds([vehicle.id]);
+}
+
+function buildVehicleAccidentPhotoDataUrl(photo) {
+    const filePath = resolveVehicleAccidentPhotoFilePath(photo?.filePath);
+    if (!filePath || !fs.existsSync(filePath)) return '';
+    const mimeType = photo?.mimeType || 'image/webp';
+    return `data:${mimeType};base64,${fs.readFileSync(filePath).toString('base64')}`;
+}
+
+async function buildVehicleExportRecords(vehicleRecords = [], { includePhotoData = true } = {}) {
+    if (!Array.isArray(vehicleRecords) || !vehicleRecords.length) return [];
+    const photos = await listVehicleAccidentPhotosByVehicleIds(vehicleRecords.map(vehicle => vehicle.id));
+    const photoMap = new Map();
+    photos.forEach(photo => {
+        const bucket = photoMap.get(photo.vehicleId) || [];
+        bucket.push(photo);
+        photoMap.set(photo.vehicleId, bucket);
+    });
+
+    return vehicleRecords.map(vehicle => ({
+        ...vehicle,
+        accidentPhotos: (photoMap.get(Number(vehicle.id)) || []).map(photo => ({
+            ...photo,
+            dataUrl: includePhotoData ? buildVehicleAccidentPhotoDataUrl(photo) : ''
+        }))
+    }));
+}
+
+async function replaceImportedVehicleAccidentPhotos(vehicleRefs = [], username = 'system') {
+    await clearVehicleAccidentPhotoRecords();
+    clearVehicleAccidentUploadDirectory();
+
+    let photosImported = 0;
+    for (const ref of vehicleRefs) {
+        const importedVehicle = ref?.importedVehicle;
+        const createdVehicle = ref?.createdVehicle;
+        if (!importedVehicle || !createdVehicle?.id) continue;
+        const photoPayloads = (Array.isArray(importedVehicle.accidentPhotos) ? importedVehicle.accidentPhotos : []).filter(photo => photo?.dataUrl);
+        if (!photoPayloads.length) continue;
+        const createdPhotos = await syncVehicleAccidentPhotos(createdVehicle, photoPayloads, username);
+        photosImported += createdPhotos.length;
+    }
+
+    return photosImported;
+}
+
 function canonicalizeBaseLocation(value) {
     const trimmed = String(value || '').trim();
     if (!trimmed) return '';
@@ -579,6 +816,11 @@ function canonicalizeMaintenanceCategory(category) {
 function normalizeVehicleRecord(vehicle) {
     if (!vehicle || typeof vehicle !== 'object') return vehicle;
     const normalizedType = canonicalizeVehicleType(vehicle.type);
+    const rawAccidentPhotos = Array.isArray(vehicle.accidentPhotos ?? vehicle.accidentphotos)
+        ? (vehicle.accidentPhotos ?? vehicle.accidentphotos)
+        : [];
+    const accidentPhotos = rawAccidentPhotos.map(mapVehicleAccidentPhotoRow).filter(Boolean);
+    const accidentPhotoCountValue = Number(vehicle.accidentPhotoCount ?? vehicle.accidentphotocount);
     return {
         ...vehicle,
         type: normalizedType,
@@ -607,7 +849,9 @@ function normalizeVehicleRecord(vehicle) {
         entregue: Boolean(vehicle.entregue),
         movedToSeminovos: Boolean(vehicle.movedToSeminovos ?? vehicle.movedtoseminovos),
         seminovosMovedAt: vehicle.seminovosMovedAt ?? vehicle.seminovosmovedat ?? null,
-        seminovosYard: String(vehicle.seminovosYard ?? vehicle.seminovosyard ?? '').trim()
+        seminovosYard: String(vehicle.seminovosYard ?? vehicle.seminovosyard ?? '').trim(),
+        accidentPhotos,
+        accidentPhotoCount: Number.isFinite(accidentPhotoCountValue) ? accidentPhotoCountValue : accidentPhotos.length
     };
 }
 
@@ -688,7 +932,14 @@ function normalizeImportedVehicle(v) {
         seminovosYard: pickFirstDefined(v, ['seminovosYard', 'seminovosyard'], ''),
         readyTime: pickFirstDefined(v, ['readyTime', 'readytime'], null),
         entryTime: pickFirstDefined(v, ['entryTime', 'entrytime'], new Date().toISOString()),
-        exitTime: pickFirstDefined(v, ['exitTime', 'exittime'], null)
+        exitTime: pickFirstDefined(v, ['exitTime', 'exittime'], null),
+        accidentPhotos: [
+            ...(Array.isArray(v.accidentPhotos) ? v.accidentPhotos : []),
+            ...(Array.isArray(v.accidentphotos) ? v.accidentphotos : []),
+            ...(Array.isArray(v.sinistroPhotos) ? v.sinistroPhotos : []),
+            ...(Array.isArray(v.sinistrophotos) ? v.sinistrophotos : []),
+            ...(Array.isArray(v.fotosSinistro) ? v.fotosSinistro : [])
+        ].map(normalizeImportedVehicleAccidentPhoto).filter(Boolean)
     };
 }
 
@@ -767,6 +1018,18 @@ function hasImportedSeminovosPayload(payload) {
             || Object.prototype.hasOwnProperty.call(payload, 'seminovosOrders')
         )
     );
+}
+
+function normalizeImportedVehicleAccidentPhoto(photo) {
+    if (!photo || typeof photo !== 'object') return null;
+    return {
+        category: canonicalizeVehicleAccidentPhotoCategory(pickFirstDefined(photo, ['category', 'Category'], 'Frente')),
+        dataUrl: pickFirstDefined(photo, ['dataUrl', 'dataurl', 'data_url'], ''),
+        caption: pickFirstDefined(photo, ['caption', 'Caption'], ''),
+        fileName: pickFirstDefined(photo, ['fileName', 'filename', 'file_name'], ''),
+        mimeType: pickFirstDefined(photo, ['mimeType', 'mimetype', 'mime_type'], ''),
+        filePath: pickFirstDefined(photo, ['filePath', 'filepath', 'file_path'], '')
+    };
 }
 
 function normalizeImportedSeminovosPhoto(photo) {
@@ -1112,6 +1375,7 @@ function validateOccurrencePayload(payload) {
 
 async function initDatabase() {
     ensureDirectoryExists(SEMINOVOS_UPLOADS_DIR);
+    ensureDirectoryExists(VEHICLE_ACCIDENT_UPLOADS_DIR);
     if (isProduction) {
         try {
             await pool.query(`
@@ -1146,6 +1410,20 @@ async function initDatabase() {
                     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updatedBy TEXT DEFAULT 'system'
+                );
+                CREATE TABLE IF NOT EXISTS vehicle_accident_photos (
+                    id SERIAL PRIMARY KEY,
+                    vehicleId INTEGER NOT NULL,
+                    category TEXT NOT NULL,
+                    filePath TEXT NOT NULL,
+                    fileName TEXT DEFAULT '',
+                    mimeType TEXT DEFAULT '',
+                    sizeBytes INTEGER DEFAULT 0,
+                    caption TEXT DEFAULT '',
+                    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updatedBy TEXT DEFAULT 'system',
+                    UNIQUE(vehicleId, category),
+                    FOREIGN KEY(vehicleId) REFERENCES vehicles(id) ON DELETE CASCADE
                 );
                 CREATE TABLE IF NOT EXISTS swaps (
                     id SERIAL PRIMARY KEY,
@@ -1420,6 +1698,20 @@ async function initDatabase() {
                     createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
                     updatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
                     updatedBy TEXT DEFAULT 'system'
+                );
+                CREATE TABLE IF NOT EXISTS vehicle_accident_photos (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    vehicleId INTEGER NOT NULL,
+                    category TEXT NOT NULL,
+                    filePath TEXT NOT NULL,
+                    fileName TEXT DEFAULT '',
+                    mimeType TEXT DEFAULT '',
+                    sizeBytes INTEGER DEFAULT 0,
+                    caption TEXT DEFAULT '',
+                    createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+                    updatedBy TEXT DEFAULT 'system',
+                    UNIQUE(vehicleId, category),
+                    FOREIGN KEY(vehicleId) REFERENCES vehicles(id) ON DELETE CASCADE
                 );
                 CREATE TABLE IF NOT EXISTS swaps (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -2955,6 +3247,7 @@ app.get('/api/vehicles', requireAuth, async (req, res) => {
             vehicles = db.prepare('SELECT * FROM vehicles ORDER BY entryTime DESC').all().map(normalizeVehicleRecord);
         }
         vehicles = filterVehiclesByUserYards(vehicles, req.session.user.username);
+        vehicles = await attachVehicleAccidentPhotos(vehicles);
         res.json(vehicles.map(v => {
             const consistentTimes = getConsistentVehicleTimes(v);
             return {
@@ -2982,6 +3275,8 @@ app.post('/api/vehicles', requireAuth, async (req, res) => {
     const normalizedType = canonicalizeVehicleType(type);
     const normalizedBase = canonicalizeBaseLocation(base || 'Jaraguá-SP (Nacional)');
     const normalizedBaseDestino = canonicalizeBaseLocation(baseDestino || '');
+    const normalizedHasAccident = normalizeBooleanFlag(hasAccident);
+    const accidentPhotoPayloads = Array.isArray(req.body?.accidentPhotos) ? req.body.accidentPhotos : [];
     const isNewVehicle = normalizeBooleanFlag(req.body?.isNewVehicle);
     const newVehiclePlotagem = isNewVehicle && normalizeBooleanFlag(req.body?.newVehiclePlotagem);
     const newVehicleTesteDrive = isNewVehicle && normalizeBooleanFlag(req.body?.newVehicleTesteDrive);
@@ -3000,13 +3295,21 @@ app.post('/api/vehicles', requireAuth, async (req, res) => {
         let createdVehicle;
         if (isProduction) {
             const result = await pool.query(`INSERT INTO vehicles (plate, type, yard, base, baseDestino, manager, chassis, keys, notes, isNewVehicle, newVehiclePlotagem, newVehicleTesteDrive, newVehicleAdesivoCorreios, newVehicleAdesivoPrint, newVehicleMarcacaoPneus, newVehiclePlataformaCarga, newVehicleForracaoInterna, newVehicleNotes, hasNewLine, newLineName, newLineState, entregar_diversos, entregar_correios, hasAccident, documentIssue, sascarStatus, maintenanceCategory, entryTime, updatedBy) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29) RETURNING *`,
-                [plate ? plate.toUpperCase() : '', normalizedType, yard, normalizedBase, normalizedBaseDestino, manager || '', chassis || '', keys || '', notes || '', isNewVehicle, newVehiclePlotagem, newVehicleTesteDrive, newVehicleAdesivoCorreios, newVehicleAdesivoPrint, newVehicleMarcacaoPneus, newVehiclePlataformaCarga, newVehicleForracaoInterna, newVehicleNotes, hasNewLine, newLineName, newLineState, entregarDiversos ? true : false, entregarCorreios ? true : false, hasAccident ? true : false, documentIssue ? true : false, sascarStatus || 'pendente', maintenanceCategory || '', normalizedEntryTime, req.session.user.username]);
+                [plate ? plate.toUpperCase() : '', normalizedType, yard, normalizedBase, normalizedBaseDestino, manager || '', chassis || '', keys || '', notes || '', isNewVehicle, newVehiclePlotagem, newVehicleTesteDrive, newVehicleAdesivoCorreios, newVehicleAdesivoPrint, newVehicleMarcacaoPneus, newVehiclePlataformaCarga, newVehicleForracaoInterna, newVehicleNotes, hasNewLine, newLineName, newLineState, entregarDiversos ? true : false, entregarCorreios ? true : false, normalizedHasAccident ? true : false, documentIssue ? true : false, sascarStatus || 'pendente', maintenanceCategory || '', normalizedEntryTime, req.session.user.username]);
         createdVehicle = normalizeVehicleRecord(mapPostgresRow(result.rows[0]));
     } else {
             const stmt = db.prepare(`INSERT INTO vehicles (plate, type, yard, base, baseDestino, manager, chassis, keys, notes, isNewVehicle, newVehiclePlotagem, newVehicleTesteDrive, newVehicleAdesivoCorreios, newVehicleAdesivoPrint, newVehicleMarcacaoPneus, newVehiclePlataformaCarga, newVehicleForracaoInterna, newVehicleNotes, hasNewLine, newLineName, newLineState, entregar_diversos, entregar_correios, hasAccident, documentIssue, sascarStatus, maintenanceCategory, entryTime, updatedBy) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-            const result = stmt.run(plate ? plate.toUpperCase() : '', normalizedType, yard, normalizedBase, normalizedBaseDestino, manager || '', chassis || '', keys || '', notes || '', isNewVehicle ? 1 : 0, newVehiclePlotagem ? 1 : 0, newVehicleTesteDrive ? 1 : 0, newVehicleAdesivoCorreios ? 1 : 0, newVehicleAdesivoPrint ? 1 : 0, newVehicleMarcacaoPneus ? 1 : 0, newVehiclePlataformaCarga ? 1 : 0, newVehicleForracaoInterna ? 1 : 0, newVehicleNotes, hasNewLine ? 1 : 0, newLineName, newLineState, entregarDiversos ? 1 : 0, entregarCorreios ? 1 : 0, hasAccident ? 1 : 0, documentIssue ? 1 : 0, sascarStatus || 'pendente', maintenanceCategory || '', normalizedEntryTime, req.session.user.username);
+            const result = stmt.run(plate ? plate.toUpperCase() : '', normalizedType, yard, normalizedBase, normalizedBaseDestino, manager || '', chassis || '', keys || '', notes || '', isNewVehicle ? 1 : 0, newVehiclePlotagem ? 1 : 0, newVehicleTesteDrive ? 1 : 0, newVehicleAdesivoCorreios ? 1 : 0, newVehicleAdesivoPrint ? 1 : 0, newVehicleMarcacaoPneus ? 1 : 0, newVehiclePlataformaCarga ? 1 : 0, newVehicleForracaoInterna ? 1 : 0, newVehicleNotes, hasNewLine ? 1 : 0, newLineName, newLineState, entregarDiversos ? 1 : 0, entregarCorreios ? 1 : 0, normalizedHasAccident ? 1 : 0, documentIssue ? 1 : 0, sascarStatus || 'pendente', maintenanceCategory || '', normalizedEntryTime, req.session.user.username);
             createdVehicle = normalizeVehicleRecord({ ...db.prepare('SELECT * FROM vehicles WHERE id = ?').get(result.lastInsertRowid) });
         }
+        const accidentPhotos = normalizedHasAccident
+            ? await syncVehicleAccidentPhotos(createdVehicle, accidentPhotoPayloads, req.session.user.username)
+            : [];
+        createdVehicle = normalizeVehicleRecord({
+            ...createdVehicle,
+            accidentPhotos,
+            accidentPhotoCount: accidentPhotos.length
+        });
         const loanReturn = await detectLoanReturnOnEntry(createdVehicle, req.session.user.username);
         await recordAuditEvent(req, {
             entityType: 'vehicle',
@@ -3026,6 +3329,7 @@ app.put('/api/vehicles/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
     const updates = req.body;
     const canEditDates = req.session.user.role === 'admin' || req.session.user.username?.toLowerCase() === 'bandeirantes' || (req.session.user.yards || []).includes('Pátio Bandeirantes');
+    const accidentPhotoPayloads = Array.isArray(updates?.accidentPhotos) ? updates.accidentPhotos : [];
     const normalizedUpdatePlate = updates.plate !== undefined ? normalizePlateValue(updates.plate) : null;
     const normalizedUpdateChassis = updates.chassis !== undefined ? String(updates.chassis || '').trim() : null;
     if (updates.yard) {
@@ -3064,6 +3368,7 @@ app.put('/api/vehicles/:id', requireAuth, async (req, res) => {
         const nextMovedToSeminovos = shouldClearSeminovosTracking ? false : Boolean(currentVehicle.movedToSeminovos);
         const nextSeminovosMovedAt = shouldClearSeminovosTracking ? null : (currentVehicle.seminovosMovedAt || null);
         const nextSeminovosYard = shouldClearSeminovosTracking ? '' : String(currentVehicle.seminovosYard || '');
+        const nextHasAccident = updates.hasAccident !== undefined ? normalizeBooleanFlag(updates.hasAccident) : Boolean(currentVehicle.hasAccident);
         if (!nextPlate && !nextChassis) return res.status(400).json({ error: 'Placa ou Chassi obrigatórios' });
 
         if (isProduction) {
@@ -3084,14 +3389,25 @@ app.put('/api/vehicles/:id', requireAuth, async (req, res) => {
         const updatedVehicle = isProduction
             ? normalizeVehicleRecord(mapPostgresRow((await pool.query('SELECT * FROM vehicles WHERE id = $1', [id])).rows[0]))
             : normalizeVehicleRecord(db.prepare('SELECT * FROM vehicles WHERE id = ?').get(id));
+        let accidentPhotos = [];
+        if (nextHasAccident) {
+            accidentPhotos = await syncVehicleAccidentPhotos(updatedVehicle, accidentPhotoPayloads, req.session.user.username);
+        } else {
+            await deleteVehicleAccidentPhotos(updatedVehicle.id);
+        }
+        const updatedVehicleWithPhotos = normalizeVehicleRecord({
+            ...updatedVehicle,
+            accidentPhotos,
+            accidentPhotoCount: accidentPhotos.length
+        });
         await recordAuditEvent(req, {
             entityType: 'vehicle',
             entityId: id,
             action: 'update',
-            summary: `Veículo ${updatedVehicle?.plate || id} atualizado`,
-            details: updatedVehicle || { id, updates }
+            summary: `Veículo ${updatedVehicleWithPhotos?.plate || id} atualizado`,
+            details: updatedVehicleWithPhotos || { id, updates }
         });
-        res.json({ success: true, message: 'Veículo atualizado com sucesso' });
+        res.json({ success: true, message: 'Veículo atualizado com sucesso', vehicle: updatedVehicleWithPhotos });
     } catch (err) {
         console.error('❌ Erro ao atualizar:', err.message);
         res.status(500).json({ error: 'Erro ao atualizar veículo: ' + err.message });
@@ -3259,6 +3575,7 @@ app.post('/api/vehicles/:id/exit', requireAuth, async (req, res) => {
 app.delete('/api/vehicles/:id', requireAuth, requireRole(['admin']), async (req, res) => {
     const { id } = req.params;
     try {
+        await deleteVehicleAccidentPhotos(id);
         if (isProduction) {
             const result = await pool.query('DELETE FROM vehicles WHERE id = $1 RETURNING *', [id]);
             const removed = result.rows[0] ? normalizeVehicleRecord(mapPostgresRow(result.rows[0])) : null;
@@ -3682,13 +3999,14 @@ async function buildExportPayload(exportedBy = 'system') {
         swaps = db.prepare('SELECT * FROM swaps').all();
         conjuntos = db.prepare('SELECT * FROM conjuntos').all();
     }
+    const exportedVehicles = await buildVehicleExportRecords(vehicles);
     return {
-        vehicles,
+        vehicles: exportedVehicles,
         swaps,
         conjuntos,
         seminovos: await buildSeminovosExportPayload(exportedBy),
         exportedAt: new Date().toISOString(),
-        version: '6.1.0',
+        version: '6.2.0',
         exportedBy
     };
 }
@@ -3731,6 +4049,7 @@ app.post('/api/import', requireAuth, requireRole(['admin']), async (req, res) =>
 
     try {
         const backup = await createPreImportBackup(req.session.user.username);
+        const createdVehicleRefs = [];
         if (isProduction) {
             const client = await pool.connect();
             try {
@@ -3740,8 +4059,15 @@ app.post('/api/import', requireAuth, requireRole(['admin']), async (req, res) =>
                 await client.query('DELETE FROM conjuntos');
                 for (const v of importedVehicles) {
                     if (v.plate || v.chassis) {
-                        await client.query(`INSERT INTO vehicles (plate, type, yard, base, baseDestino, manager, chassis, status, maintenance, maintenanceCategory, hasAccident, documentIssue, sascarStatus, keys, notes, isNewVehicle, newVehiclePlotagem, newVehicleTesteDrive, newVehicleAdesivoCorreios, newVehicleAdesivoPrint, newVehicleMarcacaoPneus, newVehiclePlataformaCarga, newVehicleForracaoInterna, newVehicleNotes, hasNewLine, newLineName, newLineState, entregar_diversos, entregar_correios, entregue, entreguePara, movedToSeminovos, seminovosMovedAt, seminovosYard, readyTime, entryTime, exitTime, updatedBy) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38)`,
+                        const insertedVehicle = await client.query(`INSERT INTO vehicles (plate, type, yard, base, baseDestino, manager, chassis, status, maintenance, maintenanceCategory, hasAccident, documentIssue, sascarStatus, keys, notes, isNewVehicle, newVehiclePlotagem, newVehicleTesteDrive, newVehicleAdesivoCorreios, newVehicleAdesivoPrint, newVehicleMarcacaoPneus, newVehiclePlataformaCarga, newVehicleForracaoInterna, newVehicleNotes, hasNewLine, newLineName, newLineState, entregar_diversos, entregar_correios, entregue, entreguePara, movedToSeminovos, seminovosMovedAt, seminovosYard, readyTime, entryTime, exitTime, updatedBy) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38) RETURNING id, plate`,
                             [v.plate ? v.plate.toUpperCase() : '', v.type, v.yard, v.base || 'Jaraguá-SP (Nacional)', v.baseDestino || '', v.manager || '', v.chassis || '', v.status || 'Aguardando linha', v.maintenance || false, v.maintenanceCategory || '', v.hasAccident || false, v.documentIssue || false, v.sascarStatus || 'pendente', v.keys || '', v.notes || '', v.isNewVehicle || false, v.newVehiclePlotagem || false, v.newVehicleTesteDrive || false, v.newVehicleAdesivoCorreios || false, v.newVehicleAdesivoPrint || false, v.newVehicleMarcacaoPneus || false, v.newVehiclePlataformaCarga || false, v.newVehicleForracaoInterna || false, v.newVehicleNotes || '', v.hasNewLine || false, v.newLineName || '', v.newLineState || '', v.entregarDiversos || false, v.entregarCorreios || false, v.entregue || false, v.entreguePara || '', v.movedToSeminovos || false, v.seminovosMovedAt || null, v.seminovosYard || '', v.readyTime || null, v.entryTime || new Date().toISOString(), v.exitTime || null, req.session.user.username]);
+                        createdVehicleRefs.push({
+                            importedVehicle: v,
+                            createdVehicle: {
+                                id: insertedVehicle.rows[0]?.id,
+                                plate: insertedVehicle.rows[0]?.plate || v.plate || ''
+                            }
+                        });
                     }
                 }
                 if (Array.isArray(importedSwaps) && importedSwaps.length > 0) {
@@ -3779,7 +4105,14 @@ app.post('/api/import', requireAuth, requireRole(['admin']), async (req, res) =>
                 db.exec("DELETE FROM sqlite_sequence WHERE name='conjuntos'");
                 for (const v of importedVehicles) {
                     if (v.plate || v.chassis) {
-                        vehicleStmt.run(v.plate ? v.plate.toUpperCase() : '', v.type, v.yard, v.base || 'Jaraguá-SP (Nacional)', v.baseDestino || '', v.manager || '', v.chassis || '', v.status || 'Aguardando linha', v.maintenance ? 1 : 0, v.maintenanceCategory || '', v.hasAccident ? 1 : 0, v.documentIssue ? 1 : 0, v.sascarStatus || 'pendente', v.keys || '', v.notes || '', v.isNewVehicle ? 1 : 0, v.newVehiclePlotagem ? 1 : 0, v.newVehicleTesteDrive ? 1 : 0, v.newVehicleAdesivoCorreios ? 1 : 0, v.newVehicleAdesivoPrint ? 1 : 0, v.newVehicleMarcacaoPneus ? 1 : 0, v.newVehiclePlataformaCarga ? 1 : 0, v.newVehicleForracaoInterna ? 1 : 0, v.newVehicleNotes || '', v.hasNewLine ? 1 : 0, v.newLineName || '', v.newLineState || '', v.entregarDiversos ? 1 : 0, v.entregarCorreios ? 1 : 0, v.entregue ? 1 : 0, v.entreguePara || '', v.movedToSeminovos ? 1 : 0, v.seminovosMovedAt || null, v.seminovosYard || '', v.readyTime || null, v.entryTime || new Date().toISOString(), v.exitTime || null, req.session.user.username);
+                        const insertedVehicle = vehicleStmt.run(v.plate ? v.plate.toUpperCase() : '', v.type, v.yard, v.base || 'Jaraguá-SP (Nacional)', v.baseDestino || '', v.manager || '', v.chassis || '', v.status || 'Aguardando linha', v.maintenance ? 1 : 0, v.maintenanceCategory || '', v.hasAccident ? 1 : 0, v.documentIssue ? 1 : 0, v.sascarStatus || 'pendente', v.keys || '', v.notes || '', v.isNewVehicle ? 1 : 0, v.newVehiclePlotagem ? 1 : 0, v.newVehicleTesteDrive ? 1 : 0, v.newVehicleAdesivoCorreios ? 1 : 0, v.newVehicleAdesivoPrint ? 1 : 0, v.newVehicleMarcacaoPneus ? 1 : 0, v.newVehiclePlataformaCarga ? 1 : 0, v.newVehicleForracaoInterna ? 1 : 0, v.newVehicleNotes || '', v.hasNewLine ? 1 : 0, v.newLineName || '', v.newLineState || '', v.entregarDiversos ? 1 : 0, v.entregarCorreios ? 1 : 0, v.entregue ? 1 : 0, v.entreguePara || '', v.movedToSeminovos ? 1 : 0, v.seminovosMovedAt || null, v.seminovosYard || '', v.readyTime || null, v.entryTime || new Date().toISOString(), v.exitTime || null, req.session.user.username);
+                        createdVehicleRefs.push({
+                            importedVehicle: v,
+                            createdVehicle: {
+                                id: insertedVehicle.lastInsertRowid,
+                                plate: v.plate || ''
+                            }
+                        });
                     }
                 }
                 if (Array.isArray(importedSwaps) && importedSwaps.length > 0) {
@@ -3801,6 +4134,7 @@ app.post('/api/import', requireAuth, requireRole(['admin']), async (req, res) =>
         }
         const swapsCount = Array.isArray(importedSwaps) ? importedSwaps.length : 0;
         const conjuntosCount = Array.isArray(importedConjuntos) ? importedConjuntos.length : 0;
+        const accidentPhotosImported = await replaceImportedVehicleAccidentPhotos(createdVehicleRefs, req.session.user.username);
         let seminovosResult = null;
         if (shouldImportSeminovos) {
             seminovosResult = await replaceSeminovosData(importedSeminovosPayload, req.session.user.username);
@@ -3815,9 +4149,10 @@ app.post('/api/import', requireAuth, requireRole(['admin']), async (req, res) =>
             imported: importedVehicles.length,
             swapsImported: swapsCount,
             conjuntosImported: conjuntosCount,
+            accidentPhotosImported,
             seminovos: seminovosResult,
             backupFile: backup.backupFile,
-            message: `✅ Importação concluída: ${importedVehicles.length} veículo(s), ${swapsCount} troca(s), ${conjuntosCount} conjunto(s)${seminovosSummary}. Backup salvo em ${backup.backupFile}`
+            message: `✅ Importação concluída: ${importedVehicles.length} veículo(s), ${swapsCount} troca(s), ${conjuntosCount} conjunto(s), ${accidentPhotosImported} foto(s) de sinistro${seminovosSummary}. Backup salvo em ${backup.backupFile}`
         });
     } catch (err) {
         console.error('❌ Erro ao importar:', err);
