@@ -356,6 +356,137 @@ border-bottom: 0;
 min-height: 84px;
 white-space: pre-wrap;
 }
+.accident-photo-panel {
+border: 1px dashed rgba(220,53,69,0.28);
+border-radius: 16px;
+background: linear-gradient(135deg, rgba(220,53,69,0.04) 0%, rgba(255,255,255,0.96) 100%);
+padding: 16px;
+}
+.accident-photo-grid {
+display: grid;
+grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+gap: 14px;
+}
+.accident-photo-slot {
+border: 1px dashed rgba(26,58,92,0.22);
+border-radius: 16px;
+background: rgba(255,255,255,0.94);
+padding: 12px;
+transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+.accident-photo-slot.has-current-photo {
+border-color: rgba(26,58,92,0.34);
+}
+.accident-photo-slot.marked-for-removal {
+border-color: rgba(220,53,69,0.42);
+box-shadow: inset 0 0 0 1px rgba(220,53,69,0.08);
+}
+.accident-photo-slot-title {
+font-size: 0.84rem;
+font-weight: 800;
+color: var(--print-blue);
+margin-bottom: 10px;
+}
+.accident-photo-preview {
+width: 100%;
+aspect-ratio: 4 / 3;
+border-radius: 14px;
+overflow: hidden;
+background: linear-gradient(135deg, #eef5ff 0%, #f8fbff 100%);
+display: flex;
+align-items: center;
+justify-content: center;
+border: 1px solid rgba(26,58,92,0.1);
+margin-bottom: 10px;
+}
+.accident-photo-preview.empty {
+color: #64748b;
+font-size: 0.85rem;
+text-align: center;
+padding: 18px;
+}
+.accident-photo-preview img {
+width: 100%;
+height: 100%;
+object-fit: cover;
+}
+.accident-photo-actions {
+display: grid;
+gap: 8px;
+margin-bottom: 8px;
+}
+.accident-photo-action-btn {
+display: inline-flex;
+align-items: center;
+justify-content: center;
+gap: 8px;
+width: 100%;
+min-height: 40px;
+border-radius: 12px;
+border: 1px solid rgba(26,58,92,0.18);
+background: #f8fbff;
+color: var(--print-blue);
+font-weight: 700;
+cursor: pointer;
+transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+.accident-photo-action-btn:hover {
+background: #eef5ff;
+border-color: rgba(26,58,92,0.34);
+transform: translateY(-1px);
+}
+.accident-photo-file-name {
+font-size: 0.82rem;
+color: #64748b;
+min-height: 20px;
+word-break: break-word;
+}
+.vehicle-report-photo-grid {
+display: grid;
+grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+gap: 14px;
+}
+.vehicle-report-photo-card {
+display: block;
+border: 1px solid rgba(15, 23, 42, 0.08);
+border-radius: 16px;
+overflow: hidden;
+background: #fff;
+box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+text-decoration: none;
+color: inherit;
+transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.vehicle-report-photo-card:hover {
+transform: translateY(-2px);
+box-shadow: 0 14px 28px rgba(15, 23, 42, 0.12);
+}
+.vehicle-report-photo-thumb {
+aspect-ratio: 4 / 3;
+background: linear-gradient(135deg, #eef5ff 0%, #f8fbff 100%);
+overflow: hidden;
+}
+.vehicle-report-photo-thumb img {
+width: 100%;
+height: 100%;
+object-fit: cover;
+display: block;
+}
+.vehicle-report-photo-meta {
+padding: 10px 12px 12px;
+}
+.vehicle-report-photo-title {
+display: block;
+font-size: 0.84rem;
+font-weight: 700;
+color: var(--print-blue);
+}
+.vehicle-report-photo-helper {
+display: block;
+font-size: 0.76rem;
+color: #64748b;
+margin-top: 3px;
+}
 
 .plate-badge {
 font-weight: 700; font-family: monospace; font-size: 1rem;
@@ -1998,6 +2129,18 @@ Nenhum veículo com mais de 24h no pátio neste momento.
 </label>
 </div>
 </div>
+<div class="col-12 d-none" id="accidentPhotoSection">
+<div class="accident-photo-panel">
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+<div>
+<h6 class="mb-1 text-danger"><i class="bi bi-camera me-2"></i>Fotos do Sinistro</h6>
+<small class="text-muted">Escolha o campo, depois selecione <strong>Câmera</strong> ou <strong>Dispositivo</strong>. As imagens são reduzidas antes do envio.</small>
+</div>
+<span class="badge text-bg-light">Editável depois</span>
+</div>
+<div id="accidentPhotoFields" class="accident-photo-grid"></div>
+</div>
+</div>
 <div class="col-12">
 <div class="form-check">
 <input class="form-check-input" type="checkbox" id="documentIssue">
@@ -2409,6 +2552,18 @@ Nenhum veículo com mais de 24h no pátio neste momento.
 </label>
 </div>
 </div>
+<div class="col-12 d-none" id="editAccidentPhotoSection">
+<div class="accident-photo-panel">
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+<div>
+<h6 class="mb-1 text-danger"><i class="bi bi-camera me-2"></i>Fotos do Sinistro</h6>
+<small class="text-muted">Você pode adicionar, trocar ou remover qualquer foto antes de salvar a edição.</small>
+</div>
+<span class="badge text-bg-light">Sincronizado ao cadastro</span>
+</div>
+<div id="editAccidentPhotoFields" class="accident-photo-grid"></div>
+</div>
+</div>
 <div class="col-12">
 <div class="form-check">
 <input class="form-check-input" type="checkbox" id="editDocumentIssue">
@@ -2456,6 +2611,28 @@ Nenhum veículo com mais de 24h no pátio neste momento.
 </div>
 </div>
 </div>
+
+<!-- Modal: Origem da Foto do Sinistro -->
+<div class="modal fade" id="accidentPhotoSourceModal" tabindex="-1">
+<div class="modal-dialog modal-dialog-centered modal-sm">
+<div class="modal-content">
+<div class="modal-header">
+<h5 class="modal-title"><i class="bi bi-camera me-2"></i>Adicionar Foto</h5>
+<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+</div>
+<div class="modal-body">
+<p class="mb-2 fw-semibold" id="accidentPhotoSourceSlotLabel">Campo selecionado</p>
+<p class="text-muted small mb-0">Escolha como deseja preencher esta foto do sinistro.</p>
+</div>
+<div class="modal-footer d-grid gap-2">
+<button type="button" class="btn btn-danger" onclick="chooseAccidentPhotoSource('camera')"><i class="bi bi-camera-fill me-2"></i>Usar Câmera</button>
+<button type="button" class="btn btn-outline-secondary" onclick="chooseAccidentPhotoSource('device')"><i class="bi bi-phone me-2"></i>Escolher do Dispositivo</button>
+</div>
+</div>
+</div>
+</div>
+<input type="file" id="accidentPhotoCameraInput" class="d-none" accept="image/*" capture="environment">
+<input type="file" id="accidentPhotoDeviceInput" class="d-none" accept="image/*">
 
 <!-- Modal: Importar JSON -->
 <div class="modal fade" id="importModal" tabindex="-1">
@@ -2548,6 +2725,7 @@ let activeOcrStatusUpdater = null;
 let vehicleReportReturnModalId = null;
 let vehicleReportSkipReturn = false;
 let preserveEntryModalStateOnNextShow = false;
+let pendingAccidentPhotoTarget = null;
 let voiceRecognition = null;
 let voiceListening = false;
 let voiceAssistantEnabled = false;
@@ -2572,6 +2750,17 @@ const PLATE_OCR_WORKER_PATH = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/
 const PLATE_OCR_LANGUAGE = 'eng';
 const PLATE_OCR_WHITELIST = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 const PLATE_SCAN_GUIDE = Object.freeze({ width: 200, height: 60 });
+const accidentPhotoFiles = new Map();
+const ACCIDENT_PHOTO_SLOTS = Object.freeze([
+{ key: 'front', label: 'Frente' },
+{ key: 'rear', label: 'Traseira' },
+{ key: 'left', label: 'Lado esquerdo' },
+{ key: 'right', label: 'Lado direito' },
+{ key: 'interior', label: 'Cabine / interior' },
+{ key: 'damageMain', label: 'Avaria principal' },
+{ key: 'detail1', label: 'Detalhe 1' },
+{ key: 'detail2', label: 'Detalhe 2' }
+]);
 const PLATE_OCR_VARIANTS = Object.freeze([
 { label: 'Tentativa 1/4', cropScaleX: 1.25, cropScaleY: 1.35, targetWidth: 880, filter: 'grayscale(100%) contrast(220%) brightness(118%)', threshold: 150, contrastBoost: 1.15 },
 { label: 'Tentativa 2/4', cropScaleX: 1.45, cropScaleY: 1.55, targetWidth: 980, filter: 'grayscale(100%) contrast(195%) brightness(122%)', threshold: 138, contrastBoost: 1.1 },
@@ -4676,6 +4865,279 @@ if (stateField) stateField.value = '';
 }
 }
 
+function normalizeAccidentPhotoPrefix(prefix = '') {
+return prefix === 'edit' ? 'edit' : 'entry';
+}
+
+function buildAccidentPhotoFileMapKey(prefix = '', slotKey = '') {
+return `${normalizeAccidentPhotoPrefix(prefix)}::${slotKey}`;
+}
+
+function getAccidentPhotoContainer(prefix = '') {
+return document.getElementById(prefix === 'edit' ? 'editAccidentPhotoFields' : 'accidentPhotoFields');
+}
+
+function getAccidentPhotoSection(prefix = '') {
+return document.getElementById(prefix === 'edit' ? 'editAccidentPhotoSection' : 'accidentPhotoSection');
+}
+
+function getAccidentPhotoSlot(prefix = '', slotKey = '') {
+const container = getAccidentPhotoContainer(prefix);
+if (!container) return null;
+return container.querySelector(`.accident-photo-slot[data-slot-key="${slotKey}"]`);
+}
+
+function clearAccidentPhotoSelections(prefix = '') {
+const normalizedPrefix = normalizeAccidentPhotoPrefix(prefix);
+Array.from(accidentPhotoFiles.keys())
+.filter(key => key.startsWith(`${normalizedPrefix}::`))
+.forEach(key => accidentPhotoFiles.delete(key));
+}
+
+function releaseAccidentPhotoObjectUrl(slot) {
+if (!slot?.dataset?.objectUrl) return;
+URL.revokeObjectURL(slot.dataset.objectUrl);
+slot.dataset.objectUrl = '';
+}
+
+function setAccidentPhotoActionLabel(slot, hasPhoto = false) {
+const button = slot?.querySelector('[data-accident-action]');
+if (!button) return;
+button.innerHTML = `<i class="bi bi-camera-fill"></i>${hasPhoto ? 'Trocar foto' : 'Adicionar foto'}`;
+}
+
+function setAccidentPhotoFileMessage(slot, message = '') {
+const fileName = slot?.querySelector('[data-accident-file-name]');
+if (fileName) fileName.textContent = message;
+}
+
+function setAccidentPhotoPreview(slot, { src = '', alt = '', text = 'Sem foto neste campo', isObjectUrl = false } = {}) {
+const preview = slot?.querySelector('[data-accident-preview]');
+if (!preview) return;
+releaseAccidentPhotoObjectUrl(slot);
+if (src) {
+preview.classList.remove('empty');
+preview.innerHTML = `<img src="${escapeHtml(src)}" alt="${escapeHtml(alt || 'Foto do sinistro')}">`;
+if (isObjectUrl) {
+slot.dataset.objectUrl = src;
+}
+return;
+}
+preview.classList.add('empty');
+preview.textContent = text;
+}
+
+function restoreAccidentPhotoSlotState(slot) {
+if (!slot) return;
+const removeToggle = slot.querySelector('.accident-photo-remove');
+const currentSrc = slot.dataset.currentSrc || '';
+const currentName = slot.dataset.currentName || '';
+const category = slot.dataset.category || 'Foto do sinistro';
+slot.classList.toggle('has-current-photo', Boolean(currentSrc));
+slot.classList.toggle('marked-for-removal', Boolean(removeToggle?.checked));
+if (removeToggle?.checked) {
+setAccidentPhotoPreview(slot, {
+text: currentSrc ? 'Foto marcada para remoção.' : 'Seleção removida.'
+});
+setAccidentPhotoFileMessage(slot, currentSrc ? 'A foto atual será removida ao salvar.' : 'Nenhum arquivo selecionado.');
+setAccidentPhotoActionLabel(slot, Boolean(currentSrc));
+return;
+}
+if (currentSrc) {
+setAccidentPhotoPreview(slot, { src: currentSrc, alt: category });
+setAccidentPhotoFileMessage(slot, currentName ? `Foto atual: ${currentName}` : 'Foto atual cadastrada. Escolha outra para substituir.');
+setAccidentPhotoActionLabel(slot, true);
+return;
+}
+setAccidentPhotoPreview(slot, { text: 'Sem foto neste campo' });
+setAccidentPhotoFileMessage(slot, 'Nenhum arquivo selecionado.');
+setAccidentPhotoActionLabel(slot, false);
+}
+
+function renderAccidentPhotoFields(prefix = '', existingPhotos = []) {
+const container = getAccidentPhotoContainer(prefix);
+if (!container) return;
+container.querySelectorAll('.accident-photo-slot').forEach(releaseAccidentPhotoObjectUrl);
+clearAccidentPhotoSelections(prefix);
+const normalizedPrefix = normalizeAccidentPhotoPrefix(prefix);
+const photosByCategory = new Map((Array.isArray(existingPhotos) ? existingPhotos : []).map(photo => [photo.category, photo]));
+container.innerHTML = ACCIDENT_PHOTO_SLOTS.map(slot => {
+const photo = photosByCategory.get(slot.label);
+const safeId = `${normalizedPrefix}${slot.key}`;
+return `
+<div class="accident-photo-slot ${photo ? 'has-current-photo' : ''}" data-prefix="${normalizedPrefix}" data-slot-key="${escapeHtml(slot.key)}" data-category="${escapeHtml(slot.label)}" data-current-src="${escapeHtml(photo?.filePath || '')}" data-current-name="${escapeHtml(photo?.fileName || '')}" data-object-url="">
+<div class="accident-photo-slot-title">${escapeHtml(slot.label)}</div>
+<div class="accident-photo-preview ${photo ? '' : 'empty'}" data-accident-preview>
+${photo ? `<img src="${escapeHtml(photo.filePath)}" alt="${escapeHtml(slot.label)}">` : 'Sem foto neste campo'}
+</div>
+<div class="accident-photo-actions">
+<button type="button" class="accident-photo-action-btn" data-accident-action onclick="openAccidentPhotoSourcePicker('${normalizedPrefix === 'edit' ? 'edit' : ''}', '${slot.key}')">
+<i class="bi bi-camera-fill"></i>${photo ? 'Trocar foto' : 'Adicionar foto'}
+</button>
+<div class="accident-photo-file-name" data-accident-file-name>${photo?.fileName ? `Foto atual: ${escapeHtml(photo.fileName)}` : photo ? 'Foto atual cadastrada. Escolha outra para substituir.' : 'Nenhum arquivo selecionado.'}</div>
+</div>
+<div class="form-check mt-2">
+<input class="form-check-input accident-photo-remove" type="checkbox" id="accidentPhotoRemove${safeId}" onchange="handleAccidentPhotoRemoveToggle(this)">
+<label class="form-check-label small" for="accidentPhotoRemove${safeId}">${photo ? 'Remover foto atual' : 'Limpar seleção'}</label>
+</div>
+<div class="form-text">Uma foto por campo. Ideal para registrar a frente e os detalhes da avaria.</div>
+</div>
+`;
+}).join('');
+}
+
+function toggleAccidentPhotoSection(prefix = '') {
+const toggle = getWorkflowElement(prefix, 'hasAccident');
+const section = getAccidentPhotoSection(prefix);
+if (!toggle || !section) return;
+section.classList.toggle('d-none', !toggle.checked);
+}
+
+function resetAccidentPhotoFields(prefix = '') {
+const container = getAccidentPhotoContainer(prefix);
+if (container) {
+container.querySelectorAll('.accident-photo-slot').forEach(releaseAccidentPhotoObjectUrl);
+}
+clearAccidentPhotoSelections(prefix);
+renderAccidentPhotoFields(prefix, []);
+toggleAccidentPhotoSection(prefix);
+}
+
+function openAccidentPhotoSourcePicker(prefix = '', slotKey = '') {
+const slot = getAccidentPhotoSlot(prefix, slotKey);
+if (!slot) {
+showToast('Não foi possível localizar o campo da foto selecionada.', 'warning');
+return;
+}
+pendingAccidentPhotoTarget = { prefix, slotKey };
+document.getElementById('accidentPhotoSourceSlotLabel').textContent = `Campo: ${slot.dataset.category || 'Foto do sinistro'}`;
+bootstrap.Modal.getOrCreateInstance(document.getElementById('accidentPhotoSourceModal')).show();
+}
+
+function chooseAccidentPhotoSource(source) {
+if (!pendingAccidentPhotoTarget) return;
+const inputId = source === 'camera' ? 'accidentPhotoCameraInput' : 'accidentPhotoDeviceInput';
+const input = document.getElementById(inputId);
+if (!input) return;
+input.value = '';
+bootstrap.Modal.getInstance(document.getElementById('accidentPhotoSourceModal'))?.hide();
+input.click();
+}
+
+function handleAccidentPhotoSourceSelection(event) {
+const file = event.target.files?.[0];
+const target = pendingAccidentPhotoTarget;
+event.target.value = '';
+pendingAccidentPhotoTarget = null;
+if (!file || !target) return;
+const slot = getAccidentPhotoSlot(target.prefix, target.slotKey);
+if (!slot) return;
+const key = buildAccidentPhotoFileMapKey(target.prefix, target.slotKey);
+accidentPhotoFiles.set(key, file);
+const removeToggle = slot.querySelector('.accident-photo-remove');
+if (removeToggle) removeToggle.checked = false;
+slot.classList.add('has-current-photo');
+slot.classList.remove('marked-for-removal');
+setAccidentPhotoPreview(slot, {
+src: URL.createObjectURL(file),
+alt: slot.dataset.category || 'Foto do sinistro',
+isObjectUrl: true
+});
+setAccidentPhotoFileMessage(slot, `Nova foto selecionada: ${file.name}`);
+setAccidentPhotoActionLabel(slot, true);
+}
+
+function handleAccidentPhotoRemoveToggle(checkbox) {
+const slot = checkbox?.closest('.accident-photo-slot');
+if (!slot) return;
+const key = buildAccidentPhotoFileMapKey(slot.dataset.prefix === 'edit' ? 'edit' : '', slot.dataset.slotKey);
+if (checkbox.checked) {
+accidentPhotoFiles.delete(key);
+slot.classList.add('marked-for-removal');
+setAccidentPhotoPreview(slot, {
+text: slot.dataset.currentSrc ? 'Foto marcada para remoção.' : 'Seleção removida.'
+});
+setAccidentPhotoFileMessage(slot, slot.dataset.currentSrc ? 'A foto atual será removida ao salvar.' : 'Nenhum arquivo selecionado.');
+setAccidentPhotoActionLabel(slot, Boolean(slot.dataset.currentSrc));
+return;
+}
+slot.classList.remove('marked-for-removal');
+restoreAccidentPhotoSlotState(slot);
+}
+
+async function compressAccidentImage(file) {
+const image = await new Promise((resolve, reject) => {
+const reader = new FileReader();
+reader.onload = () => {
+const img = new Image();
+img.onload = () => resolve(img);
+img.onerror = reject;
+img.src = reader.result;
+};
+reader.onerror = reject;
+reader.readAsDataURL(file);
+});
+
+const canvas = document.createElement('canvas');
+const context = canvas.getContext('2d');
+const presets = [
+{ maxDimension: 1400, quality: 0.68 },
+{ maxDimension: 1280, quality: 0.6 },
+{ maxDimension: 1080, quality: 0.52 },
+{ maxDimension: 960, quality: 0.46 }
+];
+const maxBytes = 350 * 1024;
+let bestResult = '';
+
+for (const preset of presets) {
+let { width, height } = image;
+if (width > preset.maxDimension || height > preset.maxDimension) {
+const ratio = Math.min(preset.maxDimension / width, preset.maxDimension / height);
+width = Math.round(width * ratio);
+height = Math.round(height * ratio);
+}
+
+canvas.width = width;
+canvas.height = height;
+context.clearRect(0, 0, width, height);
+context.drawImage(image, 0, 0, width, height);
+
+const dataUrl = canvas.toDataURL('image/webp', preset.quality);
+bestResult = dataUrl;
+const base64Length = dataUrl.split(',')[1]?.length || 0;
+const approxBytes = Math.ceil((base64Length * 3) / 4);
+if (approxBytes <= maxBytes) {
+return dataUrl;
+}
+}
+
+return bestResult;
+}
+
+async function collectAccidentPhotoPayloads(prefix = '') {
+const container = getAccidentPhotoContainer(prefix);
+if (!container) return [];
+const slots = Array.from(container.querySelectorAll('.accident-photo-slot'));
+const payloads = [];
+for (const slot of slots) {
+const key = buildAccidentPhotoFileMapKey(prefix, slot.dataset.slotKey);
+const file = accidentPhotoFiles.get(key);
+const remove = slot.querySelector('.accident-photo-remove')?.checked;
+if (file) {
+payloads.push({
+category: slot.dataset.category,
+dataUrl: await compressAccidentImage(file)
+});
+} else if (remove && slot.dataset.currentSrc) {
+payloads.push({
+category: slot.dataset.category,
+remove: true
+});
+}
+}
+return payloads;
+}
+
 function resetVehicleWorkflowFields(prefix = '') {
 const newVehicleToggle = getWorkflowElement(prefix, 'isNewVehicle');
 const newLineToggle = getWorkflowElement(prefix, 'hasNewLine');
@@ -4698,6 +5160,7 @@ document.getElementById('hasAccident').checked = false;
 document.getElementById('vehicleHistory').classList.add('hidden');
 document.getElementById('plateAlert').classList.add('hidden');
 resetVehicleWorkflowFields();
+resetAccidentPhotoFields();
 document.getElementById('entryForm').querySelectorAll('input, select, textarea').forEach(el => el.disabled = false);
 stopCamera('entry');
 new bootstrap.Modal(document.getElementById('entryModal')).show();
@@ -5430,6 +5893,7 @@ const sascarStatus = vehicle.sascarStatus || 'pendente';
 const sascarClass = getSascarBadgeClass(sascarStatus);
 const sascarLabel = renderSascarBadge(sascarStatus);
 const checklistProgress = getNewVehicleChecklistProgress(vehicle);
+const accidentPhotos = Array.isArray(vehicle.accidentPhotos) ? vehicle.accidentPhotos : [];
 const checklistItems = [
 renderVehicleReportChecklistItem('Plotagem', Boolean(vehicle.newVehiclePlotagem)),
 renderVehicleReportChecklistItem('Teste drive', Boolean(vehicle.newVehicleTesteDrive)),
@@ -5456,6 +5920,18 @@ vehicle.hasAccident ? '<span class="badge bg-danger"><i class="bi bi-exclamation
 inConjunto ? `<span class="badge bg-primary"><i class="bi bi-link-45deg me-1"></i>${escapeHtml(getConjuntoDescription(vehicle.plate) || 'Em conjunto')}</span>` : '',
 vehicle.maintenanceCategory ? `<span class="badge bg-dark-subtle text-dark-emphasis"><i class="bi bi-tools me-1"></i>${escapeHtml(vehicle.maintenanceCategory)}</span>` : ''
 ].filter(Boolean).join(' ');
+const accidentGalleryContent = accidentPhotos.length
+? `<div class="vehicle-report-photo-grid">${accidentPhotos.map(photo => `
+<a class="vehicle-report-photo-card" href="${escapeHtml(photo.filePath || '#')}" target="_blank" rel="noopener noreferrer">
+<div class="vehicle-report-photo-thumb"><img src="${escapeHtml(photo.filePath || '')}" alt="${escapeHtml(photo.category || 'Foto do sinistro')}"></div>
+<div class="vehicle-report-photo-meta">
+<span class="vehicle-report-photo-title">${escapeHtml(photo.category || 'Foto do sinistro')}</span>
+<span class="vehicle-report-photo-helper">Toque para abrir em tamanho maior</span>
+</div>
+</a>`).join('')}</div>`
+: (vehicle.hasAccident
+? '<div class="text-muted">Este veículo está marcado com sinistro, mas ainda não possui fotos cadastradas.</div>'
+: '<div class="text-muted">Este veículo não está marcado com sinistro.</div>');
 
 return `
 <div class="vehicle-report-summary mb-3">
@@ -5530,6 +6006,18 @@ ${vehicle.isNewVehicle ? `<ul class="list-group list-group-flush vehicle-report-
 <span class="vehicle-report-meta-label">Observações do veículo novo</span>
 <div class="vehicle-report-note">${vehicle.isNewVehicle ? formatVehicleReportValue(vehicle.newVehicleNotes, 'Sem observações do veículo novo.') : '<span class="text-muted">Não se aplica a este veículo.</span>'}</div>
 </div>
+</div>
+</div>
+</div>
+</div>
+<div class="col-12">
+<div class="card vehicle-report-card h-100">
+<div class="card-header d-flex justify-content-between align-items-center gap-2">
+<span><i class="bi bi-camera me-2"></i>Fotos do Sinistro</span>
+${vehicle.hasAccident ? `<span class="badge bg-danger-subtle text-danger-emphasis">${accidentPhotos.length} foto(s)</span>` : '<span class="badge bg-light text-secondary">Não aplicável</span>'}
+</div>
+<div class="card-body">
+${accidentGalleryContent}
 </div>
 </div>
 </div>
@@ -5994,6 +6482,7 @@ const plateAlert = document.getElementById('plateAlert');
 if (!plateAlert.classList.contains('hidden')) { alert('âš ï¸ Não é possível cadastrar. Veículo já está no pátio!'); return; }
 const type = document.getElementById('type').value;
 const yard = document.getElementById('yard').value;
+const hasAccident = document.getElementById('hasAccident').checked;
 const hasNewLine = document.getElementById('hasNewLine').checked;
 const newLineName = document.getElementById('newLineName').value.trim();
 const newLineState = document.getElementById('newLineState').value.trim();
@@ -6002,6 +6491,7 @@ if (!type || !yard) { alert('âš ï¸ Preencha: Tipo e Pátio'); return; }
 if (hasNewLine && (!newLineName || !newLineState)) { alert('âš ï¸ Preencha o nome e o estado/UF da nova linha'); return; }
 unlockAppAudio();
 try {
+const accidentPhotos = hasAccident ? await collectAccidentPhotoPayloads() : [];
 const res = await fetch(`${API_URL}/vehicles`, {
 method: 'POST',
 headers: {'Content-Type': 'application/json'},
@@ -6018,7 +6508,7 @@ keys: document.getElementById('keys').value,
 notes: document.getElementById('notes').value,
 entregarDiversos: document.getElementById('entregarDiversos').checked ? 1 : 0,
 entregarCorreios: document.getElementById('entregarCorreios').checked ? 1 : 0,
-hasAccident: document.getElementById('hasAccident').checked ? 1 : 0,
+hasAccident: hasAccident ? 1 : 0,
 documentIssue: document.getElementById('documentIssue').checked ? 1 : 0,
 sascarStatus: document.getElementById('sascarStatus').value,
 maintenanceCategory: document.getElementById('maintenanceCategory').value,
@@ -6033,7 +6523,8 @@ newVehicleForracaoInterna: document.getElementById('newVehicleForracaoInterna').
 newVehicleNotes: document.getElementById('newVehicleNotes').value,
 hasNewLine: hasNewLine ? 1 : 0,
 newLineName,
-newLineState
+newLineState,
+accidentPhotos
 })
 });
 const result = await res.json().catch(() => ({}));
@@ -6048,6 +6539,7 @@ setBaseSelectValue('base', '', 'Jaraguá-SP (Nacional)');
 document.getElementById('vehicleHistory').classList.add('hidden');
 document.getElementById('plateAlert').classList.add('hidden');
 resetVehicleWorkflowFields();
+resetAccidentPhotoFields();
 if (result.loanReturn) {
 showLoanReturnAlert(result.loanReturn, { playSound: true, force: true });
 } else {
@@ -6069,22 +6561,31 @@ document.getElementById('plate').value = '';
 document.getElementById('vehicleHistory').classList.add('hidden');
 document.getElementById('plateAlert').classList.add('hidden');
 resetVehicleWorkflowFields();
+resetAccidentPhotoFields();
 document.getElementById('entryForm').querySelectorAll('input, select, textarea').forEach(el => el.disabled = false);
 stopCamera('entry');
 });
 
 document.getElementById('entryModal').addEventListener('hide.bs.modal', () => stopCamera('entry'));
 document.getElementById('scanExitModal').addEventListener('hide.bs.modal', () => stopCamera('exit'));
+document.getElementById('editVehicleModal').addEventListener('hidden.bs.modal', () => resetAccidentPhotoFields('edit'));
 document.getElementById('isNewVehicle').addEventListener('change', () => toggleNewVehicleSection());
 document.getElementById('hasNewLine').addEventListener('change', () => toggleNewLineSection());
+document.getElementById('hasAccident').addEventListener('change', () => toggleAccidentPhotoSection());
 document.getElementById('type').addEventListener('change', () => updateForracaoInternaVisibility());
 document.getElementById('editIsNewVehicle').addEventListener('change', () => toggleNewVehicleSection('edit'));
 document.getElementById('editHasNewLine').addEventListener('change', () => toggleNewLineSection('edit'));
+document.getElementById('editHasAccident').addEventListener('change', () => toggleAccidentPhotoSection('edit'));
 document.getElementById('editType').addEventListener('change', () => updateForracaoInternaVisibility('edit'));
+document.getElementById('accidentPhotoCameraInput').addEventListener('change', handleAccidentPhotoSourceSelection);
+document.getElementById('accidentPhotoDeviceInput').addEventListener('change', handleAccidentPhotoSourceSelection);
+renderAccidentPhotoFields();
+renderAccidentPhotoFields('edit');
 
 async function openEditVehicle(id) {
 const v = allVehicles.find(x => x.id === id);
 if (!v) return;
+resetAccidentPhotoFields('edit');
 document.getElementById('editVehicleId').value = v.id;
 document.getElementById('editPlate').value = v.plate;
 document.getElementById('editType').value = v.type;
@@ -6102,6 +6603,7 @@ document.getElementById('editEntregarCorreios').checked = v.entregarCorreios == 
 document.getElementById('editEntregue').checked = v.entregue || false;
 document.getElementById('editEntreguePara').value = v.entreguePara || 'correios';
 document.getElementById('editHasAccident').checked = v.hasAccident == 1 || v.hasAccident === true;
+renderAccidentPhotoFields('edit', v.accidentPhotos || []);
 document.getElementById('editDocumentIssue').checked = v.documentIssue == 1 || v.documentIssue === true;
 document.getElementById('editSascarStatus').value = v.sascarStatus || 'pendente';
 document.getElementById('editMaintenanceCategory').value = v.maintenanceCategory || '';
@@ -6119,6 +6621,7 @@ document.getElementById('editNewLineName').value = v.newLineName || '';
 document.getElementById('editNewLineState').value = v.newLineState || '';
 toggleNewVehicleSection('edit');
 toggleNewLineSection('edit');
+toggleAccidentPhotoSection('edit');
 updateForracaoInternaVisibility('edit');
 
 if (v.entryTime) {
@@ -6205,6 +6708,7 @@ new bootstrap.Modal(document.getElementById('editVehicleModal')).show();
 
 async function saveVehicleEdit() {
 const id = document.getElementById('editVehicleId').value;
+const hasAccident = document.getElementById('editHasAccident').checked;
 const updates = {
 plate: document.getElementById('editPlate').value.toUpperCase(),
 type: document.getElementById('editType').value,
@@ -6221,7 +6725,7 @@ entregarDiversos: document.getElementById('editEntregarDiversos').checked ? 1 : 
 entregarCorreios: document.getElementById('editEntregarCorreios').checked ? 1 : 0,
 entregue: document.getElementById('editEntregue').checked ? 1 : 0,
 entreguePara: document.getElementById('editEntreguePara').value,
-hasAccident: document.getElementById('editHasAccident').checked ? 1 : 0,
+hasAccident: hasAccident ? 1 : 0,
 documentIssue: document.getElementById('editDocumentIssue').checked ? 1 : 0,
 sascarStatus: document.getElementById('editSascarStatus').value,
 maintenanceCategory: document.getElementById('editMaintenanceCategory').value,
@@ -6260,6 +6764,7 @@ updates.exitTime = serializeDateTimeInputValue(exitTime);
 
 console.log('Salvando edição:', updates);
 try {
+updates.accidentPhotos = hasAccident ? await collectAccidentPhotoPayloads('edit') : [];
 const res = await fetch(`${API_URL}/vehicles/${id}`, {
 method: 'PUT',
 headers: {'Content-Type': 'application/json'},
@@ -6268,6 +6773,7 @@ body: JSON.stringify(updates)
 const result = await res.json().catch(() => ({ error: 'Resposta inválida do servidor' }));
 console.log('Resposta do servidor:', result);
 if (res.ok && result.success) {
+resetAccidentPhotoFields('edit');
 bootstrap.Modal.getInstance(document.getElementById('editVehicleModal')).hide();
 loadStats(); loadVehicles();
 showToast('Veículo atualizado!', 'success');
@@ -6821,10 +7327,13 @@ return;
 const swapsCount = swapsImportados.length;
 const conjuntosCount = conjuntosImportados.length;
 const backupInfo = result.backupFile ? `<br>💾 Backup automático criado: <code>${result.backupFile}</code>` : '';
+const accidentPhotosSummary = Number(result?.accidentPhotosImported || 0) > 0
+? `<br>📸 Fotos de sinistro: ${result.accidentPhotosImported || 0} imagem(ns) restaurada(s).`
+: '';
 const seminovosSummary = result?.seminovos
 ? `<br>🚛 Seminovos: ${result.seminovos.vehiclesImported || 0} veículo(s), ${result.seminovos.ordersImported || 0} ordem(ns) e ${result.seminovos.photosImported || 0} foto(s).`
 : '';
-document.getElementById('importPreview').innerHTML = `<div class="alert alert-success mt-3">âœ… <strong>Importação concluída!</strong><br>ðŸ“¥ ${result.imported} veículo(s), ${swapsCount} troca(s)/empréstimo(s) e ${conjuntosCount} conjunto(s) carregado(s)${seminovosSummary}${backupInfo}</div>`;
+document.getElementById('importPreview').innerHTML = `<div class="alert alert-success mt-3">âœ… <strong>Importação concluída!</strong><br>ðŸ“¥ ${result.imported} veículo(s), ${swapsCount} troca(s)/empréstimo(s) e ${conjuntosCount} conjunto(s) carregado(s)${accidentPhotosSummary}${seminovosSummary}${backupInfo}</div>`;
 setTimeout(async () => {
 await loadConjuntos();
 await loadStats();
