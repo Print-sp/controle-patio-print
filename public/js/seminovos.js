@@ -92,6 +92,90 @@ function renderClickablePlate(plate, vehicleId) {
   return `<button type="button" class="plate-trigger-btn" onclick="viewSeminovosVehicleDetails('${String(vehicleId)}')" title="Abrir ficha do veículo" aria-label="Abrir ficha do veículo ${escapeHtml(String(plate || ''))}">${renderPlate(plate)}</button>`;
 }
 
+function buildSeminovosImageTriggerAttributes({ src = '', title = 'Foto do veículo', meta = 'Toque para ampliar.' } = {}) {
+  if (!src) return '';
+  const safeTitle = String(title || 'Foto do veículo');
+  return `data-seminovos-image-trigger="true" data-image-src="${escapeHtml(src)}" data-image-title="${escapeHtml(safeTitle)}" data-image-meta="${escapeHtml(meta)}" role="button" tabindex="0" aria-label="${escapeHtml(`Abrir ${safeTitle} em tela cheia`)}"`;
+}
+
+function getSeminovosImageViewerElements() {
+  return {
+    modal: document.getElementById('seminovosImageViewerModal'),
+    image: document.getElementById('seminovosImageViewerImage'),
+    title: document.getElementById('seminovosImageViewerTitle'),
+    meta: document.getElementById('seminovosImageViewerMeta')
+  };
+}
+
+function clearSeminovosImageTrigger(element) {
+  if (!element) return;
+  delete element.dataset.seminovosImageTrigger;
+  delete element.dataset.imageSrc;
+  delete element.dataset.imageTitle;
+  delete element.dataset.imageMeta;
+  element.removeAttribute('role');
+  element.removeAttribute('tabindex');
+  element.removeAttribute('aria-label');
+  element.classList.remove('can-view-fullscreen');
+}
+
+function setSeminovosImageTrigger(element, { src = '', title = 'Foto do veículo', meta = 'Toque para ampliar.' } = {}) {
+  if (!element || !src) {
+    clearSeminovosImageTrigger(element);
+    return;
+  }
+
+  element.dataset.seminovosImageTrigger = 'true';
+  element.dataset.imageSrc = src;
+  element.dataset.imageTitle = title || 'Foto do veículo';
+  element.dataset.imageMeta = meta || 'Toque para ampliar.';
+  element.setAttribute('role', 'button');
+  element.setAttribute('tabindex', '0');
+  element.setAttribute('aria-label', `Abrir ${title || 'foto do veículo'} em tela cheia`);
+  element.classList.add('can-view-fullscreen');
+}
+
+function openSeminovosImageViewer({ src = '', title = 'Foto do veículo', meta = 'Toque fora da imagem para fechar.' } = {}) {
+  if (!src) return;
+  const viewer = getSeminovosImageViewerElements();
+  if (!viewer.modal || !viewer.image) return;
+
+  viewer.image.src = src;
+  viewer.image.alt = title || 'Foto do veículo';
+  if (viewer.title) viewer.title.textContent = title || 'Foto do veículo';
+  if (viewer.meta) viewer.meta.textContent = meta || 'Toque fora da imagem para fechar.';
+
+  bootstrap.Modal.getOrCreateInstance(viewer.modal).show();
+}
+
+function handleSeminovosImageTriggerClick(event) {
+  const trigger = event.target.closest('[data-seminovos-image-trigger="true"]');
+  if (!trigger) return;
+  event.preventDefault();
+  openSeminovosImageViewer({
+    src: trigger.dataset.imageSrc,
+    title: trigger.dataset.imageTitle,
+    meta: trigger.dataset.imageMeta
+  });
+}
+
+function handleSeminovosImageTriggerKeydown(event) {
+  const trigger = event.target.closest('[data-seminovos-image-trigger="true"]');
+  if (!trigger || !['Enter', ' '].includes(event.key)) return;
+  event.preventDefault();
+  openSeminovosImageViewer({
+    src: trigger.dataset.imageSrc,
+    title: trigger.dataset.imageTitle,
+    meta: trigger.dataset.imageMeta
+  });
+}
+
+function releaseVehiclePhotoObjectUrl(slot) {
+  if (!slot?.dataset.previewObjectUrl) return;
+  URL.revokeObjectURL(slot.dataset.previewObjectUrl);
+  delete slot.dataset.previewObjectUrl;
+}
+
 function getVehicleStatusClass(status) {
   const normalized = String(status || '').toLowerCase();
   if (normalized.includes('document')) return 'doc';
@@ -809,15 +893,25 @@ function applyCommercialStatusFilter(status) {
 function renderVehiclePhotoFields(existingPhotos = []) {
   const photosByCategory = new Map(existingPhotos.map(photo => [photo.category, photo]));
   const container = document.getElementById('seminovosVehiclePhotoFields');
+  if (!container) return;
+
+  container.querySelectorAll('.photo-slot').forEach(releaseVehiclePhotoObjectUrl);
   container.innerHTML = SEMINOVOS_PHOTO_CATEGORIES.map(category => {
     const photo = photosByCategory.get(category);
     const safeId = category.replace(/[^a-zA-Z0-9]/g, '');
     const inputId = `seminovosPhotoInput${safeId}`;
+    const previewAttributes = photo?.filePath
+      ? buildSeminovosImageTriggerAttributes({
+          src: photo.filePath,
+          title: `${category} - ${photo.fileName || 'Foto do veículo'}`,
+          meta: 'Foto cadastrada. Toque para ampliar.'
+        })
+      : '';
     return `
       <div class="photo-slot ${photo ? 'has-current-photo' : ''}" data-category="${escapeHtml(category)}">
         <div class="photo-slot-title">${escapeHtml(category)}</div>
-        <div class="photo-preview ${photo ? '' : 'empty'}" data-preview="${escapeHtml(category)}">
-          ${photo ? `<img src="${escapeHtml(photo.filePath)}" alt="${escapeHtml(category)}">` : '<span>Sem foto nesta categoria</span>'}
+        <div class="photo-preview ${photo ? 'can-view-fullscreen' : 'empty'}" data-preview="${escapeHtml(category)}" ${previewAttributes}>
+          ${photo ? `<img src="${escapeHtml(photo.filePath)}" alt="${escapeHtml(category)}"><span class="photo-preview-zoom-hint"><i class="bi bi-arrows-fullscreen"></i>Toque para ampliar</span>` : '<span>Sem foto nesta categoria</span>'}
         </div>
         <div class="photo-actions">
           <input type="file" class="seminovos-photo-input" id="${inputId}" accept="image/*">
@@ -851,9 +945,17 @@ function handlePhotoInputChange(event) {
   if (!file) return;
   removeToggle.checked = false;
   slot.classList.add('has-current-photo');
+  releaseVehiclePhotoObjectUrl(slot);
   const objectUrl = URL.createObjectURL(file);
+  slot.dataset.previewObjectUrl = objectUrl;
   preview.classList.remove('empty');
-  preview.innerHTML = `<img src="${objectUrl}" alt="Pré-visualização">`;
+  preview.classList.add('can-view-fullscreen');
+  preview.innerHTML = `<img src="${escapeHtml(objectUrl)}" alt="Pré-visualização de ${escapeHtml(slot.dataset.category || 'foto do veículo')}"><span class="photo-preview-zoom-hint"><i class="bi bi-arrows-fullscreen"></i>Toque para ampliar</span>`;
+  setSeminovosImageTrigger(preview, {
+    src: objectUrl,
+    title: `${slot.dataset.category || 'Foto do veículo'} - pré-visualização`,
+    meta: 'Imagem local selecionada. Toque para ampliar antes de salvar.'
+  });
   if (fileName) {
     fileName.textContent = `Nova foto selecionada: ${file.name}`;
   }
@@ -1235,7 +1337,14 @@ function viewSeminovosVehicleDetails(id) {
           <div class="col-md-4">
             <div class="surface-card h-100">
               <div class="mb-2 fw-semibold">${escapeHtml(photo.category)}</div>
-              <img src="${escapeHtml(photo.filePath)}" alt="${escapeHtml(photo.category)}" class="img-fluid rounded border">
+              <button type="button" class="seminovos-photo-trigger" ${buildSeminovosImageTriggerAttributes({
+                src: photo.filePath,
+                title: `${photo.category} - ${vehicle.plate}`,
+                meta: `${formatDateTimeBR(photo.createdAt || photo.updatedAt)} • Toque para ampliar`
+              })}>
+                <img src="${escapeHtml(photo.filePath)}" alt="${escapeHtml(photo.category)}" class="img-fluid rounded border seminovos-detail-photo">
+                <span class="seminovos-photo-trigger-label"><i class="bi bi-arrows-fullscreen"></i>Ver em tela cheia</span>
+              </button>
               <small class="text-muted d-block mt-2">${formatDateTimeBR(photo.createdAt || photo.updatedAt)}</small>
             </div>
           </div>
@@ -1443,11 +1552,22 @@ function bindSeminovosEvents() {
   document.getElementById('btnSeminovosLogout')?.addEventListener('click', logoutSeminovos);
   document.getElementById('seminovosVehicleForm')?.addEventListener('submit', saveSeminovosVehicle);
   document.getElementById('seminovosOrderForm')?.addEventListener('submit', saveSeminovosOrder);
+  document.addEventListener('click', handleSeminovosImageTriggerClick);
+  document.addEventListener('keydown', handleSeminovosImageTriggerKeydown);
   document.getElementById('seminovosOrderVehicleId')?.addEventListener('change', (event) => {
     const vehicle = getVehicleById(event.target.value);
     if (vehicle) {
       document.getElementById('seminovosOrderOdometer').value = vehicle.odometer || 0;
     }
+  });
+  document.getElementById('seminovosImageViewerModal')?.addEventListener('hidden.bs.modal', () => {
+    const viewer = getSeminovosImageViewerElements();
+    if (viewer.image) {
+      viewer.image.removeAttribute('src');
+      viewer.image.alt = 'Foto ampliada do veículo';
+    }
+    if (viewer.title) viewer.title.textContent = 'Foto do veículo';
+    if (viewer.meta) viewer.meta.textContent = 'Toque fora da imagem para fechar.';
   });
   ensureSeminovosDetailsEditButton();
 
