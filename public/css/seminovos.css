@@ -497,6 +497,11 @@ body {
   margin-bottom: 10px;
 }
 
+.photo-preview.can-view-fullscreen {
+  cursor: zoom-in;
+  position: relative;
+}
+
 .photo-preview.empty {
   color: var(--seminovos-muted);
   font-size: 0.85rem;
@@ -508,6 +513,22 @@ body {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.photo-preview-zoom-hint {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.72);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
 }
 
 .photo-actions {
@@ -678,6 +699,89 @@ body {
   background: linear-gradient(135deg, #274f7b 0%, #1b3657 100%) !important;
   border-color: #1b3657 !important;
   color: #fff !important;
+}
+
+.seminovos-photo-trigger {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: zoom-in;
+}
+
+.seminovos-photo-trigger-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  color: var(--seminovos-primary-dark);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.seminovos-detail-photo {
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+.seminovos-image-modal .modal-content {
+  background: #08111f;
+  color: #fff;
+  border-radius: 24px;
+  overflow: hidden;
+}
+
+.seminovos-image-modal .modal-header {
+  background: linear-gradient(135deg, rgba(26, 58, 92, 0.92) 0%, rgba(10, 20, 36, 0.98) 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.seminovos-image-modal .modal-body {
+  padding: 0;
+  background: radial-gradient(circle at top, rgba(44, 82, 130, 0.18), transparent 32%), #040a13;
+  overflow: hidden;
+}
+
+.seminovos-image-viewer-stage {
+  min-height: min(82vh, 820px);
+  padding: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.seminovos-image-viewer-stage img {
+  width: auto;
+  max-width: 100%;
+  max-height: min(78vh, 780px);
+  border-radius: 18px;
+  object-fit: contain;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+}
+
+@media (max-width: 767.98px) {
+  .photo-preview-zoom-hint {
+    left: 10px;
+    right: 10px;
+    justify-content: center;
+  }
+
+  .seminovos-detail-photo {
+    max-height: 180px;
+  }
+
+  .seminovos-image-viewer-stage {
+    min-height: 100vh;
+    padding: 14px;
+  }
+
+  .seminovos-image-viewer-stage img {
+    max-height: calc(100vh - 110px);
+    border-radius: 14px;
+  }
 }
 
 .form-label {
