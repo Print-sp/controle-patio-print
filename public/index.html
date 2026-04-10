@@ -1930,7 +1930,7 @@ Nenhum veículo com mais de 24h no pátio neste momento.
 <div id="historyContent"></div>
 </div>
 </div>
-<div class="col-lg-4 col-md-6">
+<div class="col-md-6">
 <label class="form-label">Tipo *</label>
 <select class="form-select form-select-lg" id="type" required>
 <option value="">Selecione...</option>
@@ -1944,11 +1944,7 @@ Nenhum veículo com mais de 24h no pátio neste momento.
 <option value="Veículo Diretoria">Diretoria</option>
 </select>
 </div>
-<div class="col-lg-4 col-md-6">
-<label class="form-label">Marca / Modelo</label>
-<input type="text" class="form-control form-control-lg" id="brandModel" placeholder="Auto preenchimento pela placa" readonly>
-</div>
-<div class="col-lg-4 col-md-6">
+<div class="col-md-6">
 <label class="form-label">Pátio *</label>
 <select class="form-select form-select-lg" id="yard" required>
 <option value="">Selecione...</option>
@@ -5747,15 +5743,8 @@ applyOperationYardLockState();
 
 function resetEntryAutoFill() {
 document.getElementById('type').value = '';
-document.getElementById('brandModel').value = '';
 document.getElementById('keys').value = '';
 setBaseSelectValue('base', '', 'Jaraguá-SP (Nacional)');
-}
-
-function resolveEntryBrandModel(lookup) {
-const catalogRecord = lookup?.catalogRecord || null;
-const brandModel = [catalogRecord?.brand, catalogRecord?.model].filter(Boolean).join(' ').trim();
-return brandModel;
 }
 
 function applyEntryLookupAutofill(lookup) {
@@ -5763,7 +5752,6 @@ const latestRecord = lookup?.latestRecord || null;
 const catalogRecord = lookup?.catalogRecord || null;
 const resolvedType = latestRecord?.type || catalogRecord?.type || '';
 document.getElementById('type').value = resolvedType;
-document.getElementById('brandModel').value = resolveEntryBrandModel(lookup);
 document.getElementById('keys').value = latestRecord?.keys || '';
 setBaseSelectValue('base', latestRecord?.base || '', 'JaraguÃ¡-SP (Nacional)');
 }
@@ -5802,7 +5790,6 @@ const conflictDescription = isOtherYardConflict
 : `Pátio atual: ${escapeHtml(conflict.yard || '—')}.`;
 if (latestRecord || catalogRecord) {
 document.getElementById('type').value = resolvedType;
-document.getElementById('brandModel').value = resolveEntryBrandModel(lookup);
 setBaseSelectValue('base', latestRecord?.base || '', 'Jaraguá-SP (Nacional)');
 document.getElementById('keys').value = latestRecord?.keys || '';
 } else {
@@ -5826,12 +5813,10 @@ setEntryFormInteractiveState(false);
 
 if (lookup?.latestRecord) {
 document.getElementById('type').value = lookup.latestRecord.type || '';
-document.getElementById('brandModel').value = resolveEntryBrandModel(lookup);
 setBaseSelectValue('base', lookup.latestRecord.base, 'Jaraguá-SP (Nacional)');
 document.getElementById('keys').value = lookup.latestRecord.keys || '';
 } else if (catalogRecord) {
 document.getElementById('type').value = resolvedType;
-document.getElementById('brandModel').value = resolveEntryBrandModel(lookup);
 document.getElementById('keys').value = '';
 setBaseSelectValue('base', '', 'Jaraguá-SP (Nacional)');
 } else {
@@ -5842,7 +5827,7 @@ const sections = [];
 if (lookup?.latestRecord) {
 sections.push(`<div class="history-item info"><strong>Veículo conhecido</strong><br><small>Dados preenchidos automaticamente: Tipo ${escapeHtml(lookup.latestRecord.type || '—')} • Base ${escapeHtml(lookup.latestRecord.base || '—')}</small></div>`);
 } else if (catalogRecord) {
-sections.push(`<div class="history-item info"><strong>Cadastro mestre encontrado</strong><br><small>Tipo ${escapeHtml(catalogRecord.type || '—')}</small></div>`);
+sections.push(`<div class="history-item info"><strong>Cadastro mestre encontrado</strong><br><small>Tipo ${escapeHtml(catalogRecord.type || '—')}${catalogRecord.brand || catalogRecord.model ? ` • ${escapeHtml([catalogRecord.brand, catalogRecord.model].filter(Boolean).join(' '))}` : ''}</small></div>`);
 }
 if (lookup?.conjunto) {
 sections.push(buildConjuntoLookupHtml(lookup.conjunto));
@@ -6838,7 +6823,6 @@ currentEntryLookup = null;
 document.getElementById('plate').value = '';
 document.getElementById('vehicleHistory').classList.add('hidden');
 document.getElementById('plateAlert').classList.add('hidden');
-resetEntryAutoFill();
 resetVehicleWorkflowFields();
 resetAccidentPhotoFields();
 setEntryFormInteractiveState(false);
