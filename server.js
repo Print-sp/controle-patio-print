@@ -1086,6 +1086,128 @@ function serializeVehicleCatalogForClient(record) {
     };
 }
 
+function loadBundledVehicleCatalogRecords() {
+    const bundledDbPath = path.join(__dirname, 'database', 'patio.db');
+    if (!fs.existsSync(bundledDbPath)) return [];
+
+    const Database = require('better-sqlite3');
+    const bundledDb = new Database(bundledDbPath, { readonly: true, fileMustExist: true });
+    try {
+        const hasCatalogTable = bundledDb.prepare(`
+            SELECT name
+            FROM sqlite_master
+            WHERE type = 'table' AND name = 'vehicle_catalog'
+        `).get();
+
+        if (!hasCatalogTable) return [];
+
+        return bundledDb
+            .prepare('SELECT * FROM vehicle_catalog ORDER BY updatedAt DESC, plate ASC')
+            .all()
+            .map(mapVehicleCatalogRow)
+            .map(normalizeVehicleCatalogRecord)
+            .filter(record => record?.normalizedPlate);
+    } finally {
+        bundledDb.close();
+    }
+}
+
+async function syncProductionVehicleCatalogFromBundledSqlite() {
+    if (!isProduction) return { synced: false, sourceCount: 0, targetCount: 0 };
+
+    const bundledCatalog = loadBundledVehicleCatalogRecords();
+    if (bundledCatalog.length === 0) {
+        console.log('ℹ️ Catálogo mestre: nenhum dado encontrado em database/patio.db para sincronizar no PostgreSQL');
+        return { synced: false, sourceCount: 0, targetCount: 0 };
+    }
+
+    const upsertQuery = `
+        INSERT INTO vehicle_catalog (
+            sourceId, plate, normalizedPlate, auxPlate, normalizedAuxPlate, linkedPlate, normalizedLinkedPlate,
+            renavam, chassis, normalizedChassis, brand, model, manufactureYear, modelYear, color, axleConfig,
+            type, operationalStatus, primaryStatus, insurance, supportPoint, unit, operation, odometer, updatedAt
+        ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7,
+            $8, $9, $10, $11, $12, $13, $14, $15, $16,
+            $17, $18, $19, $20, $21, $22, $23, $24, $25
+        )
+        ON CONFLICT (normalizedPlate) DO UPDATE SET
+            sourceId = EXCLUDED.sourceId,
+            plate = EXCLUDED.plate,
+            auxPlate = EXCLUDED.auxPlate,
+            normalizedAuxPlate = EXCLUDED.normalizedAuxPlate,
+            linkedPlate = EXCLUDED.linkedPlate,
+            normalizedLinkedPlate = EXCLUDED.normalizedLinkedPlate,
+            renavam = EXCLUDED.renavam,
+            chassis = EXCLUDED.chassis,
+            normalizedChassis = EXCLUDED.normalizedChassis,
+            brand = EXCLUDED.brand,
+            model = EXCLUDED.model,
+            manufactureYear = EXCLUDED.manufactureYear,
+            modelYear = EXCLUDED.modelYear,
+            color = EXCLUDED.color,
+            axleConfig = EXCLUDED.axleConfig,
+            type = EXCLUDED.type,
+            operationalStatus = EXCLUDED.operationalStatus,
+            primaryStatus = EXCLUDED.primaryStatus,
+            insurance = EXCLUDED.insurance,
+            supportPoint = EXCLUDED.supportPoint,
+            unit = EXCLUDED.unit,
+            operation = EXCLUDED.operation,
+            odometer = EXCLUDED.odometer,
+            updatedAt = EXCLUDED.updatedAt
+    `;
+
+    await pool.query('BEGIN');
+    try {
+        for (const record of bundledCatalog) {
+            await pool.query(upsertQuery, [
+                record.sourceId || '',
+                record.plate || '',
+                record.normalizedPlate || '',
+                record.auxPlate || '',
+                record.normalizedAuxPlate || '',
+                record.linkedPlate || '',
+                record.normalizedLinkedPlate || '',
+                record.renavam || '',
+                record.chassis || '',
+                record.normalizedChassis || '',
+                record.brand || '',
+                record.model || '',
+                record.manufactureYear || '',
+                record.modelYear || '',
+                record.color || '',
+                record.axleConfig || '',
+                record.type || '',
+                record.operationalStatus || '',
+                record.primaryStatus || '',
+                record.insurance || '',
+                record.supportPoint || '',
+                record.unit || '',
+                record.operation || '',
+                record.odometer || '',
+                record.updatedAt || new Date().toISOString()
+            ]);
+        }
+
+        await pool.query(
+            'DELETE FROM vehicle_catalog WHERE NOT (normalizedPlate = ANY($1::text[]))',
+            [bundledCatalog.map(record => record.normalizedPlate)]
+        );
+
+        await pool.query('COMMIT');
+
+        const countResult = await pool.query('SELECT COUNT(*)::int AS count FROM vehicle_catalog');
+        const targetCount = Number(countResult.rows[0]?.count || 0);
+        console.log(`📚 Catálogo mestre sincronizado com database/patio.db: ${bundledCatalog.length} registro(s) processado(s), ${targetCount} ativo(s) no PostgreSQL`);
+        return { synced: true, sourceCount: bundledCatalog.length, targetCount };
+    } catch (error) {
+        await pool.query('ROLLBACK');
+        console.error('❌ Erro ao sincronizar catálogo mestre a partir de database/patio.db:', error.message);
+        return { synced: false, sourceCount: bundledCatalog.length, targetCount: 0, error: error.message };
+    }
+}
+
 async function loadAllVehiclesNormalized() {
     if (isProduction) {
         const result = await pool.query('SELECT * FROM vehicles ORDER BY entryTime DESC');
@@ -2003,6 +2125,7 @@ async function initDatabase() {
                 }
             }
 
+            await syncProductionVehicleCatalogFromBundledSqlite();
             await repairVehicleTimelineConsistency();
             console.log('✅ PostgreSQL inicializado');
         } catch (err) { console.error('❌ Erro PostgreSQL:', err.message); }
