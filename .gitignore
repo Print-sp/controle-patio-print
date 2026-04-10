@@ -30,3 +30,6 @@ Thumbs.db
 dist/
 build/
 public/dist/
+
+# Snapshots de seguranÃ§a gerados localmente
+backups/snapshots/

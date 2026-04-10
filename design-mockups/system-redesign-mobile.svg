@@ -1,0 +1,88 @@
+<svg width="900" height="1600" viewBox="0 0 900 1600" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="mobileBg" x1="120" y1="40" x2="790" y2="1540" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#EEF4FB"/>
+      <stop offset="1" stop-color="#E5EDF7"/>
+    </linearGradient>
+    <linearGradient id="phone" x1="0" y1="0" x2="0" y2="1500" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#153455"/>
+      <stop offset="1" stop-color="#0F233A"/>
+    </linearGradient>
+    <filter id="mobileShadow" x="-40" y="-40" width="980" height="1680" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="20" stdDeviation="28" flood-color="#10253D" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+
+  <rect width="900" height="1600" fill="url(#mobileBg)"/>
+  <circle cx="112" cy="220" r="120" fill="#DCE8F6"/>
+  <circle cx="804" cy="1420" r="160" fill="#DCE8F6"/>
+
+  <g filter="url(#mobileShadow)">
+    <rect x="180" y="60" width="540" height="1480" rx="48" fill="url(#phone)"/>
+  </g>
+  <rect x="204" y="86" width="492" height="1428" rx="38" fill="#F5F8FC"/>
+  <rect x="386" y="102" width="128" height="18" rx="9" fill="#D4DFEC"/>
+
+  <rect x="204" y="86" width="492" height="176" rx="38" fill="#173658"/>
+  <text x="242" y="144" fill="white" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="700">PRINT</text>
+  <text x="242" y="180" fill="#C9D9E9" font-family="Segoe UI, Arial, sans-serif" font-size="16">Operacao mobile simplificada</text>
+  <rect x="242" y="206" width="172" height="34" rx="17" fill="#F5FAFF" fill-opacity="0.12"/>
+  <text x="276" y="228" fill="white" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="600">turno da manha</text>
+  <circle cx="630" cy="154" r="20" fill="#FF7542"/>
+
+  <rect x="232" y="286" width="436" height="116" rx="26" fill="white"/>
+  <text x="260" y="326" fill="#173658" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="700">Resumo do patio</text>
+  <text x="260" y="356" fill="#70859E" font-family="Segoe UI, Arial, sans-serif" font-size="15">Cards maiores e menos informacao por bloco.</text>
+  <rect x="260" y="374" width="92" height="10" rx="5" fill="#D9E4F0"/>
+  <rect x="260" y="374" width="58" height="10" rx="5" fill="#FF7542"/>
+
+  <rect x="232" y="426" width="208" height="116" rx="24" fill="#173658"/>
+  <text x="260" y="466" fill="#BFD3E6" font-family="Segoe UI, Arial, sans-serif" font-size="14">Liberados</text>
+  <text x="260" y="516" fill="white" font-family="Segoe UI, Arial, sans-serif" font-size="42" font-weight="700">24</text>
+
+  <rect x="460" y="426" width="208" height="116" rx="24" fill="#EAF3FF"/>
+  <text x="488" y="466" fill="#456487" font-family="Segoe UI, Arial, sans-serif" font-size="14">Funilaria</text>
+  <text x="488" y="516" fill="#173658" font-family="Segoe UI, Arial, sans-serif" font-size="42" font-weight="700">03</text>
+
+  <rect x="232" y="562" width="208" height="116" rx="24" fill="#F1EBFD"/>
+  <text x="260" y="602" fill="#6B4A98" font-family="Segoe UI, Arial, sans-serif" font-size="14">Sascar</text>
+  <text x="260" y="652" fill="#173658" font-family="Segoe UI, Arial, sans-serif" font-size="42" font-weight="700">07</text>
+
+  <rect x="460" y="562" width="208" height="116" rx="24" fill="#FFF1E9"/>
+  <text x="488" y="602" fill="#A45C37" font-family="Segoe UI, Arial, sans-serif" font-size="14">Alta prioridade</text>
+  <text x="488" y="652" fill="#173658" font-family="Segoe UI, Arial, sans-serif" font-size="42" font-weight="700">11</text>
+
+  <rect x="232" y="708" width="436" height="74" rx="24" fill="white"/>
+  <text x="268" y="754" fill="#7A8DA3" font-family="Segoe UI, Arial, sans-serif" font-size="16">Buscar placa ou filtrar por status</text>
+
+  <rect x="232" y="806" width="436" height="118" rx="28" fill="white"/>
+  <text x="264" y="846" fill="#173658" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="700">Veiculo em foco</text>
+  <rect x="264" y="868" width="120" height="34" rx="12" fill="#F3F7FC"/>
+  <text x="288" y="891" fill="#173658" font-family="Consolas, monospace" font-size="19" font-weight="700">FTR-2841</text>
+  <rect x="516" y="864" width="120" height="36" rx="18" fill="#DDEBFF"/>
+  <text x="542" y="888" fill="#1D4F8F" font-family="Segoe UI, Arial, sans-serif" font-size="15" font-weight="600">Funilaria</text>
+  <text x="264" y="916" fill="#6B8198" font-family="Segoe UI, Arial, sans-serif" font-size="15">Patio Jaragua  .  2h 14m na fila</text>
+
+  <rect x="232" y="948" width="436" height="136" rx="28" fill="#173658"/>
+  <text x="264" y="988" fill="#D7E6F4" font-family="Segoe UI, Arial, sans-serif" font-size="14" letter-spacing="1.2">ACAO RAPIDA</text>
+  <text x="264" y="1028" fill="white" font-family="Segoe UI, Arial, sans-serif" font-size="26" font-weight="700">Mudar status sem abrir modal pesado</text>
+  <rect x="264" y="1044" width="164" height="34" rx="17" fill="#F5FAFF" fill-opacity="0.12"/>
+  <text x="300" y="1066" fill="white" font-family="Segoe UI, Arial, sans-serif" font-size="14">Em manutencao</text>
+  <rect x="444" y="1044" width="132" height="34" rx="17" fill="#FF7542"/>
+  <text x="510" y="1066" text-anchor="middle" fill="white" font-family="Segoe UI, Arial, sans-serif" font-size="14" font-weight="600">Liberar</text>
+
+  <rect x="232" y="1108" width="436" height="166" rx="28" fill="white"/>
+  <text x="264" y="1148" fill="#173658" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700">Fila resumida</text>
+  <rect x="264" y="1172" width="372" height="34" rx="17" fill="#F8FBFE"/>
+  <text x="286" y="1194" fill="#173658" font-family="Segoe UI, Arial, sans-serif" font-size="14">PLA-9842   .   Funilaria   .   2h 14m</text>
+  <rect x="264" y="1218" width="372" height="34" rx="17" fill="#F8FBFE"/>
+  <text x="286" y="1240" fill="#173658" font-family="Segoe UI, Arial, sans-serif" font-size="14">RTA-1170   .   Aguardando linha   .   37m</text>
+  <rect x="264" y="1264" width="372" height="34" rx="17" fill="#F8FBFE"/>
+  <text x="286" y="1286" fill="#173658" font-family="Segoe UI, Arial, sans-serif" font-size="14">MNN-9204   .   Em manutencao   .   4h 02m</text>
+
+  <rect x="232" y="1302" width="436" height="164" rx="28" fill="#FFF6F2"/>
+  <text x="264" y="1342" fill="#A15C3A" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700">Alertas visiveis</text>
+  <text x="264" y="1382" fill="#5F7490" font-family="Segoe UI, Arial, sans-serif" font-size="15">3 parados acima de 4h</text>
+  <text x="264" y="1412" fill="#5F7490" font-family="Segoe UI, Arial, sans-serif" font-size="15">2 aguardando decisao da manutencao</text>
+  <text x="264" y="1442" fill="#5F7490" font-family="Segoe UI, Arial, sans-serif" font-size="15">1 pendencia documental</text>
+</svg>

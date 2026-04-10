@@ -1,0 +1,5 @@
+2026/03/29-17:06:11.856 663c Creating DB C:\Users\Pixel Midia 3D\controle-patio-print\docs\manual\profiles\08-dashboard-retry\Default\EdgeCoupons/coupons_data.db since it was missing.
+2026/03/29-17:06:11.886 663c Reusing MANIFEST C:\Users\Pixel Midia 3D\controle-patio-print\docs\manual\profiles\08-dashboard-retry\Default\EdgeCoupons/coupons_data.db/MANIFEST-000001
+2026/03/29-17:06:12.363 3568 Level-0 table #5: started
+2026/03/29-17:06:12.373 3568 Level-0 table #5: 681972 bytes OK
+2026/03/29-17:06:12.409 3568 Delete type=0 #3

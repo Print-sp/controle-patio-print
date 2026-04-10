@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manual do Sistema de Controle de Pátio</title>
+<style>
+@page {
+    size: A4 landscape;
+    margin: 10mm;
+}
+* {
+    box-sizing: border-box;
+}
+body {
+    margin: 0;
+    font-family: "Segoe UI", Arial, sans-serif;
+    color: #13233a;
+    background: #edf2f7;
+}
+.page {
+    width: 100%;
+    min-height: calc(100vh - 20mm);
+    page-break-after: always;
+    background: #fff;
+    border-radius: 28px;
+    padding: 28px 32px;
+    box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08);
+}
+.page:last-child {
+    page-break-after: auto;
+}
+.cover {
+    background:
+        radial-gradient(circle at top left, rgba(33, 94, 158, 0.18), transparent 28%),
+        linear-gradient(135deg, #173a64 0%, #214f83 52%, #295f99 100%);
+    color: #fff;
+}
+.cover-grid {
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: 28px;
+    height: 100%;
+    align-items: center;
+}
+.cover h1 {
+    margin: 0 0 12px;
+    font-size: 2.6rem;
+    line-height: 1.05;
+}
+.cover p {
+    font-size: 1.08rem;
+    line-height: 1.6;
+    margin: 0 0 14px;
+    opacity: 0.96;
+}
+.cover-card,
+.info-card,
+.tip-card {
+    border-radius: 24px;
+    padding: 22px 24px;
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.18);
+    backdrop-filter: blur(10px);
+}
+.cover-card h2,
+.info-card h2,
+.section-header h2 {
+    margin: 0 0 12px;
+    font-size: 1.2rem;
+}
+.cover-list,
+.legend-list,
+.tip-list {
+    margin: 0;
+    padding-left: 18px;
+    line-height: 1.6;
+}
+.meta {
+    display: inline-flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+}
+.pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 999px;
+    font-size: 0.9rem;
+    background: rgba(255,255,255,0.14);
+    border: 1px solid rgba(255,255,255,0.18);
+}
+.section-header {
+    margin-bottom: 18px;
+}
+.section-header .eyebrow {
+    display: inline-block;
+    margin-bottom: 8px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #3a6ea4;
+}
+.section-header p {
+    margin: 0;
+    color: #4d6077;
+    line-height: 1.5;
+}
+.content-grid {
+    display: grid;
+    grid-template-columns: 1.45fr 0.85fr;
+    gap: 24px;
+    align-items: start;
+}
+.content-grid.compact {
+    grid-template-columns: 1.2fr 0.8fr;
+}
+.visual-frame {
+    position: relative;
+    border-radius: 24px;
+    overflow: hidden;
+    border: 1px solid #d7e3f1;
+    box-shadow: 0 18px 42px rgba(15, 23, 42, 0.12);
+}
+.visual-frame img {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+.marker {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    border-radius: 999px;
+    background: #ff7a00;
+    color: #fff;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 10px 24px rgba(255, 122, 0, 0.34);
+    border: 2px solid rgba(255,255,255,0.95);
+}
+.legend-card,
+.info-card {
+    background: #f8fbff;
+    border: 1px solid #dce8f5;
+    border-radius: 24px;
+    padding: 20px 22px;
+}
+.legend-card h3,
+.tip-card h3,
+.info-card h3 {
+    margin: 0 0 12px;
+    font-size: 1.05rem;
+}
+.legend-list {
+    padding-left: 20px;
+}
+.legend-list li,
+.tip-list li {
+    margin-bottom: 10px;
+}
+.two-up {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+}
+.mini-shot {
+    border-radius: 20px;
+    overflow: hidden;
+    border: 1px solid #d7e3f1;
+    background: #fff;
+}
+.mini-shot img {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+.mini-shot figcaption {
+    padding: 12px 14px 14px;
+    font-size: 0.92rem;
+    line-height: 1.45;
+    color: #42556c;
+}
+.tip-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin-top: 18px;
+}
+.tip-card {
+    background: #f7fbff;
+    border: 1px solid #dce8f5;
+    color: #16304f;
+}
+.footer-note {
+    margin-top: 18px;
+    font-size: 0.84rem;
+    color: #6c7c8f;
+}
+</style>
+</head>
+<body>
+
+<section class="page cover">
+    <div class="cover-grid">
+        <div>
+            <div class="pill">Manual operacional ilustrado</div>
+            <h1>Sistema de Controle de Pátio</h1>
+            <p>Este manual foi montado a partir da versão atual do sistema local, com imagens reais das telas e explicações objetivas do que cada área faz.</p>
+            <div class="meta">
+                <span class="pill">Versão 5.4.0</span>
+                <span class="pill">Gerado em 29/03/2026</span>
+                <span class="pill">Ambiente interno Print</span>
+            </div>
+        </div>
+        <div class="cover-card">
+            <h2>O que você vai encontrar</h2>
+            <ol class="cover-list">
+                <li>Acesso ao sistema e orientação da tela inicial.</li>
+                <li>Atalhos principais para entrada, saída, troca e consulta.</li>
+                <li>Uso do cadastro de veículo e do fluxo de troca/empréstimo.</li>
+                <li>Mapa de comandos de voz com foco operacional.</li>
+                <li>Módulos auxiliares: Ocorrências, Cadastros Mestres e Auditoria.</li>
+            </ol>
+            <div class="footer-note">Objetivo: acelerar treinamento, consulta rápida e padronização da operação.</div>
+        </div>
+    </div>
+</section>
+
+<section class="page">
+    <div class="section-header">
+        <div class="eyebrow">1. Acesso</div>
+        <h2>Tela de login</h2>
+        <p>O acesso é controlado por usuário e senha. A autenticação define permissões, pátios liberados e recursos administrativos disponíveis.</p>
+    </div>
+    <div class="content-grid compact">
+        <div class="visual-frame">
+            <img src="assets/01-login.png" alt="Tela de login do sistema">
+            <span class="marker" style="top: 50%; left: 43%;">1</span>
+            <span class="marker" style="top: 57%; left: 43%;">2</span>
+            <span class="marker" style="top: 65%; left: 50%;">3</span>
+            <span class="marker" style="top: 58%; left: 62%;">4</span>
+        </div>
+        <aside class="legend-card">
+            <h3>Legenda da tela</h3>
+            <ol class="legend-list">
+                <li><strong>Usuário:</strong> campo para informar o login liberado no sistema.</li>
+                <li><strong>Senha:</strong> campo de autenticação do operador, gestor ou administrador.</li>
+                <li><strong>Entrar:</strong> confirma o acesso e carrega o ambiente conforme a permissão do usuário.</li>
+                <li><strong>Mostrar/Ocultar senha:</strong> facilita a conferência antes de autenticar.</li>
+            </ol>
+            <h3>Uso recomendado</h3>
+            <ul class="tip-list">
+                <li>Use sempre o usuário correto do pátio ou do perfil administrativo.</li>
+                <li>Se o acesso falhar, confira maiúsculas, minúsculas e o teclado antes de tentar novamente.</li>
+            </ul>
+        </aside>
+    </div>
+</section>
+
+<section class="page">
+    <div class="section-header">
+        <div class="eyebrow">2. Visão Geral</div>
+        <h2>Painel inicial do pátio</h2>
+        <p>Esta é a tela de acompanhamento em tempo real. Ela reúne alertas críticos, indicadores operacionais e totais consolidados do pátio.</p>
+    </div>
+    <div class="content-grid">
+        <div class="visual-frame">
+            <img src="assets/02-main-top.png" alt="Painel inicial do sistema">
+            <span class="marker" style="top: 4%; left: 14%;">1</span>
+            <span class="marker" style="top: 24%; left: 11%;">2</span>
+            <span class="marker" style="top: 57%; left: 25%;">3</span>
+            <span class="marker" style="top: 78%; left: 24%;">4</span>
+        </div>
+        <aside class="legend-card">
+            <h3>O que observar</h3>
+            <ol class="legend-list">
+                <li><strong>Cabeçalho:</strong> mostra o nome do sistema, data/hora, usuário logado e atalhos superiores.</li>
+                <li><strong>Alerta de veículos há mais de 24h:</strong> destaca a fila que exige atenção imediata.</li>
+                <li><strong>Cards luminosos:</strong> mostram grupos críticos como pronto para embarque, funilaria, Sascar e documentação.</li>
+                <li><strong>Indicadores principais:</strong> totais de cavalos, carretas, manutenção, liberados, sinistro e ativos.</li>
+            </ol>
+            <h3>Leitura prática</h3>
+            <ul class="tip-list">
+                <li>Comece sempre pelo alerta de 24h e pelos cards luminosos.</li>
+                <li>Use os indicadores para ter uma visão rápida do volume atual do pátio.</li>
+            </ul>
+        </aside>
+    </div>
+</section>
+
+<section class="page">
+    <div class="section-header">
+        <div class="eyebrow">3. Operação</div>
+        <h2>Atalhos e ações rápidas</h2>
+        <p>Na parte operacional da home ficam os cards mais usados do dia a dia, concentrando entrada, saída, exportações e acesso aos módulos auxiliares.</p>
+    </div>
+    <div class="content-grid">
+        <div class="visual-frame">
+            <img src="assets/03-main-actions.png" alt="Cards de ações rápidas do sistema">
+            <span class="marker" style="top: 82%; left: 14%;">1</span>
+            <span class="marker" style="top: 82%; left: 40%;">2</span>
+            <span class="marker" style="top: 82%; left: 66%;">3</span>
+            <span class="marker" style="top: 94%; left: 66%;">4</span>
+            <span class="marker" style="top: 94%; left: 88%;">5</span>
+        </div>
+        <aside class="legend-card">
+            <h3>Legenda dos atalhos</h3>
+            <ol class="legend-list">
+                <li><strong>Nova Entrada:</strong> abre o cadastro para registrar veículo no pátio.</li>
+                <li><strong>Escanear Saída:</strong> inicia a tela de busca/liberação de veículo.</li>
+                <li><strong>Exportar PDF:</strong> gera relatórios visuais para impressão ou compartilhamento.</li>
+                <li><strong>Ocorrências:</strong> acessa o módulo de registro e consulta de ocorrências.</li>
+                <li><strong>Cadastros:</strong> abre as bases e listas auxiliares usadas nos formulários.</li>
+            </ol>
+            <h3>Dica operacional</h3>
+            <ul class="tip-list">
+                <li>Use estes cards como porta de entrada do trabalho diário. Eles reduzem navegação e aceleram o fluxo.</li>
+            </ul>
+        </aside>
+    </div>
+</section>
+
+<section class="page">
+    <div class="section-header">
+        <div class="eyebrow">4. Cadastro</div>
+        <h2>Registro de entrada de veículo</h2>
+        <p>O modal de entrada concentra identificação do veículo, localização, informações operacionais e status iniciais.</p>
+    </div>
+    <div class="content-grid">
+        <div class="visual-frame">
+            <img src="assets/04-cadastro-veiculo-long.png" alt="Modal de cadastro de veículo">
+            <span class="marker" style="top: 6%; left: 19%;">1</span>
+            <span class="marker" style="top: 25%; left: 25%;">2</span>
+            <span class="marker" style="top: 18%; left: 61%;">3</span>
+            <span class="marker" style="top: 38%; left: 71%;">4</span>
+            <span class="marker" style="top: 62%; left: 71%;">5</span>
+        </div>
+        <aside class="legend-card">
+            <h3>Como preencher</h3>
+            <ol class="legend-list">
+                <li><strong>Título do modal:</strong> confirma que você está registrando uma nova entrada.</li>
+                <li><strong>Leitura de placa:</strong> permite usar a área de escaneamento/câmera para acelerar a identificação.</li>
+                <li><strong>Placa, tipo e pátio:</strong> dados mínimos para localizar e classificar o veículo.</li>
+                <li><strong>Bases e dados de apoio:</strong> origem, destino, gestor, chassi e responsáveis ajudam no rastreio.</li>
+                <li><strong>Status e checklists:</strong> Sascar, manutenção, veículo novo, nova linha e sinalizadores críticos.</li>
+            </ol>
+            <h3>Boas práticas</h3>
+            <ul class="tip-list">
+                <li>Preencha base de origem e base de destino sempre que a operação exigir rastreabilidade.</li>
+                <li>Use os sinalizadores de sinistro e documentação apenas quando a pendência existir de fato.</li>
+            </ul>
+        </aside>
+    </div>
+</section>
+
+<section class="page">
+    <div class="section-header">
+        <div class="eyebrow">5. Troca / Empréstimo</div>
+        <h2>Registro de troca ou empréstimo</h2>
+        <p>Este fluxo documenta substituições operacionais, registra placas de entrada e saída e pode marcar entrega quando necessário.</p>
+    </div>
+    <div class="content-grid compact">
+        <div class="visual-frame">
+            <img src="assets/05-troca.png" alt="Modal de troca e empréstimo">
+            <span class="marker" style="top: 6%; left: 43%;">1</span>
+            <span class="marker" style="top: 20%; left: 47%;">2</span>
+            <span class="marker" style="top: 43%; left: 47%;">3</span>
+            <span class="marker" style="top: 62%; left: 47%;">4</span>
+            <span class="marker" style="top: 86%; left: 55%;">5</span>
+        </div>
+        <aside class="legend-card">
+            <h3>Fluxo da tela</h3>
+            <ol class="legend-list">
+                <li><strong>Tipo:</strong> define se o registro é troca ou empréstimo.</li>
+                <li><strong>Data/Hora:</strong> marca o momento operacional da movimentação.</li>
+                <li><strong>Placas:</strong> identifica o veículo que entra e o que sai.</li>
+                <li><strong>Bases e entrega:</strong> informa origem, destino e se a saída deve marcar entrega.</li>
+                <li><strong>Registrar:</strong> salva a movimentação e atualiza o histórico da operação.</li>
+            </ol>
+            <h3>Quando usar</h3>
+            <ul class="tip-list">
+                <li>Use para substituição de veículo em linha, empréstimo entre operações e retorno controlado.</li>
+            </ul>
+        </aside>
+    </div>
+</section>
+
+<section class="page">
+    <div class="section-header">
+        <div class="eyebrow">6. Voz</div>
+        <h2>Mapa de comandos de voz</h2>
+        <p>O sistema possui uma camada de navegação por voz. Ela foi pensada para abrir telas, aplicar filtros e apoiar a operação sem exigir digitação o tempo todo.</p>
+    </div>
+    <div class="content-grid">
+        <div class="visual-frame">
+            <img src="assets/09-comandos-voz.png" alt="Mapa de comandos de voz">
+            <span class="marker" style="top: 11%; left: 46%;">1</span>
+            <span class="marker" style="top: 35%; left: 22%;">2</span>
+            <span class="marker" style="top: 35%; left: 49%;">3</span>
+            <span class="marker" style="top: 35%; left: 76%;">4</span>
+        </div>
+        <aside class="legend-card">
+            <h3>Como ler o mapa</h3>
+            <ol class="legend-list">
+                <li><strong>Faixa superior:</strong> explica como ativar o microfone e falar comandos curtos.</li>
+                <li><strong>Abrir telas:</strong> reúne frases para cadastro, saída, dashboard, conjunto e módulos.</li>
+                <li><strong>Exportação:</strong> mostra comandos para PDF, Excel, JSON e atualização dos dados.</li>
+                <li><strong>Busca e filtros:</strong> ajuda a localizar placa, aplicar pátio/status e usar os cards luminosos por voz.</li>
+            </ol>
+            <h3>Dica</h3>
+            <ul class="tip-list">
+                <li>Priorize frases objetivas como <em>cadastrar veículo</em>, <em>buscar placa ABC1234</em> ou <em>mostrar veículos em manutenção</em>.</li>
+            </ul>
+        </aside>
+    </div>
+</section>
+
+<section class="page">
+    <div class="section-header">
+        <div class="eyebrow">7. Módulo auxiliar</div>
+        <h2>Ocorrências</h2>
+        <p>O módulo de ocorrências registra eventos administrativos e operacionais vinculados a viagem, placa, base, motivo e observações.</p>
+    </div>
+    <div class="content-grid">
+        <div class="visual-frame">
+            <img src="assets/10-ocorrencias.png" alt="Tela de ocorrências">
+            <span class="marker" style="top: 26%; left: 14%;">1</span>
+            <span class="marker" style="top: 28%; left: 69%;">2</span>
+            <span class="marker" style="top: 39%; left: 70%;">3</span>
+        </div>
+        <aside class="legend-card">
+            <h3>Função de cada área</h3>
+            <ol class="legend-list">
+                <li><strong>Novo registro:</strong> formulário para viagem, data, base, placa, motivo, subcategoria e observações.</li>
+                <li><strong>Filtros e busca:</strong> refinam período, base, motivo e texto livre para consulta rápida.</li>
+                <li><strong>Tabela de ocorrências:</strong> exibe os registros salvos e serve como área de consulta/edição.</li>
+            </ol>
+            <h3>Uso recomendado</h3>
+            <ul class="tip-list">
+                <li>Padronize motivo e subcategoria para facilitar relatórios posteriores.</li>
+            </ul>
+        </aside>
+    </div>
+</section>
+
+<section class="page">
+    <div class="section-header">
+        <div class="eyebrow">8. Administração</div>
+        <h2>Cadastros Mestres</h2>
+        <p>Essa tela centraliza bases e listas auxiliares usadas nos formulários do sistema principal e no módulo de ocorrências.</p>
+    </div>
+    <div class="content-grid">
+        <div class="visual-frame">
+            <img src="assets/11-cadastros.png" alt="Tela de cadastros mestres">
+            <span class="marker" style="top: 11%; left: 49%;">1</span>
+            <span class="marker" style="top: 32%; left: 18%;">2</span>
+            <span class="marker" style="top: 33%; left: 67%;">3</span>
+        </div>
+        <aside class="legend-card">
+            <h3>O que fazer aqui</h3>
+            <ol class="legend-list">
+                <li><strong>Cabeçalho do módulo:</strong> mostra o total de itens cadastrados e acesso rápido à auditoria.</li>
+                <li><strong>Novo item:</strong> permite escolher o cadastro e adicionar um novo valor de forma centralizada.</li>
+                <li><strong>Catálogo atual:</strong> apresenta todas as listas disponíveis para consulta e conferência.</li>
+            </ol>
+            <h3>Quando usar</h3>
+            <ul class="tip-list">
+                <li>Use esta tela para manter bases, linhas, motivos e demais listas sempre alinhadas com a operação.</li>
+            </ul>
+        </aside>
+    </div>
+</section>
+
+<section class="page">
+    <div class="section-header">
+        <div class="eyebrow">9. Rastreabilidade</div>
+        <h2>Auditoria</h2>
+        <p>A auditoria registra quem alterou, quando alterou e qual entidade foi impactada, permitindo consulta rápida de movimentos recentes.</p>
+    </div>
+    <div class="content-grid">
+        <div class="visual-frame">
+            <img src="assets/12-auditoria.png" alt="Tela de auditoria">
+            <span class="marker" style="top: 25%; left: 48%;">1</span>
+            <span class="marker" style="top: 50%; left: 25%;">2</span>
+            <span class="marker" style="top: 50%; left: 76%;">3</span>
+        </div>
+        <aside class="legend-card">
+            <h3>Leitura da auditoria</h3>
+            <ol class="legend-list">
+                <li><strong>Filtros:</strong> permitem buscar por usuário, entidade e ação.</li>
+                <li><strong>Linhas do histórico:</strong> mostram data/hora, responsável, entidade, ação e resumo do evento.</li>
+                <li><strong>Detalhes:</strong> o botão abre a visão completa do registro alterado.</li>
+            </ol>
+            <h3>Uso recomendado</h3>
+            <ul class="tip-list">
+                <li>Use a auditoria para conferência de alterações, suporte interno e rastreabilidade administrativa.</li>
+            </ul>
+        </aside>
+    </div>
+</section>
+
+<section class="page">
+    <div class="section-header">
+        <div class="eyebrow">10. Fechamento</div>
+        <h2>Resumo operacional</h2>
+        <p>Para o uso diário, o sistema pode ser visto em três blocos: monitoramento da home, execução das ações principais e apoio por módulos auxiliares.</p>
+    </div>
+    <div class="tip-grid">
+        <div class="tip-card">
+            <h3>Fluxo rápido sugerido</h3>
+            <ol class="legend-list">
+                <li>Entrar no sistema e conferir alerta de veículos acima de 24h.</li>
+                <li>Usar os cards luminosos e indicadores para priorizar a operação.</li>
+                <li>Abrir <strong>Nova Entrada</strong>, <strong>Escanear Saída</strong> ou <strong>Troca</strong> conforme a necessidade.</li>
+                <li>Registrar ocorrências sempre que houver evento relevante de viagem ou veículo.</li>
+                <li>Consultar auditoria quando precisar validar quem alterou algum dado.</li>
+            </ol>
+        </div>
+        <div class="tip-card">
+            <h3>Boas práticas</h3>
+            <ul class="tip-list">
+                <li>Preencha base, pátio e status com cuidado para manter a rastreabilidade.</li>
+                <li>Use o comando de voz para abrir telas e aplicar filtros com mais agilidade.</li>
+                <li>Mantenha os Cadastros Mestres atualizados para evitar divergência nos formulários.</li>
+                <li>Revise a Auditoria em mudanças críticas ou dúvidas operacionais.</li>
+            </ul>
+        </div>
+    </div>
+    <div class="footer-note">Manual elaborado a partir do ambiente local em 29 de março de 2026. Se novas telas ou fluxos forem adicionados, vale atualizar este documento para manter o treinamento alinhado com a operação.</div>
+</section>
+
+</body>
+</html>

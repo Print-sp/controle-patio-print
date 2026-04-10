@@ -5,7 +5,12 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "catalog:import": "node scripts/import-vehicle-catalog-xls.js",
+    "backup:inspect": "node scripts/inspect-backups.js",
+    "backup:list": "node scripts/list-safety-snapshots.js",
+    "backup:snapshot": "node scripts/create-safety-snapshot.js",
+    "backup:restore": "node scripts/restore-safety-snapshot.js"
   },
   "keywords": [
     "controle-patio",

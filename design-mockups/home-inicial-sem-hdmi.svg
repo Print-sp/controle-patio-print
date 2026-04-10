@@ -1,0 +1,197 @@
+<svg width="1440" height="1024" viewBox="0 0 1440 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="180" y1="0" x2="1320" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F7FAFF"/>
+      <stop offset="1" stop-color="#EAF1FB"/>
+    </linearGradient>
+    <linearGradient id="hero" x1="240" y1="64" x2="1216" y2="312" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#244E7D"/>
+      <stop offset="1" stop-color="#2E5F92"/>
+    </linearGradient>
+    <linearGradient id="cardNavy" x1="0" y1="0" x2="240" y2="168" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1E4269"/>
+      <stop offset="1" stop-color="#295784"/>
+    </linearGradient>
+    <linearGradient id="cardGreen" x1="0" y1="0" x2="240" y2="168" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1B8C77"/>
+      <stop offset="1" stop-color="#35C38A"/>
+    </linearGradient>
+    <linearGradient id="cardRose" x1="0" y1="0" x2="240" y2="168" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F497C4"/>
+      <stop offset="1" stop-color="#E85E86"/>
+    </linearGradient>
+    <linearGradient id="cardCyan" x1="0" y1="0" x2="240" y2="168" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#43A5FF"/>
+      <stop offset="1" stop-color="#39D8FF"/>
+    </linearGradient>
+    <linearGradient id="cardPurple" x1="0" y1="0" x2="240" y2="168" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#667EEA"/>
+      <stop offset="1" stop-color="#7B4FB0"/>
+    </linearGradient>
+    <linearGradient id="cardOrange" x1="0" y1="0" x2="240" y2="168" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#A75A1A"/>
+      <stop offset="1" stop-color="#F58A2C"/>
+    </linearGradient>
+    <linearGradient id="cardTeal" x1="0" y1="0" x2="240" y2="168" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F766E"/>
+      <stop offset="1" stop-color="#14B8A6"/>
+    </linearGradient>
+    <linearGradient id="cardAudit" x1="0" y1="0" x2="240" y2="168" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6A2941"/>
+      <stop offset="1" stop-color="#C24C72"/>
+    </linearGradient>
+    <filter id="shadow" x="0" y="0" width="1440" height="1024" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="18" stdDeviation="24" flood-color="#1F3D63" flood-opacity="0.12"/>
+    </filter>
+  </defs>
+
+  <rect width="1440" height="1024" fill="url(#bg)"/>
+  <circle cx="1318" cy="112" r="96" fill="#DCE8F7"/>
+  <circle cx="88" cy="878" r="108" fill="#DDE8F8"/>
+  <circle cx="1218" cy="772" r="160" fill="#EDF3FC"/>
+
+  <rect x="0" y="0" width="1440" height="84" fill="#23496F"/>
+  <text x="64" y="50" fill="white" font-size="30" font-weight="800" font-family="Segoe UI, Arial, sans-serif">PRINT</text>
+  <rect x="64" y="58" width="84" height="5" rx="2.5" fill="#FF7A45"/>
+  <text x="184" y="47" fill="#D6E3F5" font-size="18" font-weight="500" font-family="Segoe UI, Arial, sans-serif">Controle de patio</text>
+  <rect x="1140" y="22" width="236" height="38" rx="19" fill="rgba(255,255,255,0.12)"/>
+  <text x="1192" y="46" fill="#F5F8FD" font-size="17" font-weight="700" font-family="Segoe UI, Arial, sans-serif">Tela inicial simplificada</text>
+
+  <g filter="url(#shadow)">
+    <rect x="40" y="112" width="1360" height="138" rx="30" fill="white"/>
+  </g>
+  <text x="84" y="152" fill="#1E4269" font-size="20" font-weight="700" font-family="Segoe UI, Arial, sans-serif">Home principal</text>
+  <text x="84" y="196" fill="#1E4269" font-size="28" font-weight="800" font-family="Segoe UI, Arial, sans-serif">Fluxo principal mais limpo, sem atalhos de HDMI na capa</text>
+  <text x="84" y="226" fill="#7187A4" font-size="18" font-weight="500" font-family="Segoe UI, Arial, sans-serif">As acoes operacionais ficam em destaque e o painel externo continua disponivel fora da home.</text>
+  <rect x="84" y="262" width="206" height="36" rx="18" fill="#EEF4FB"/>
+  <text x="112" y="286" fill="#466B93" font-size="16" font-weight="700" font-family="Segoe UI, Arial, sans-serif">Foco total no patio</text>
+
+  <g filter="url(#shadow)">
+    <rect x="1152" y="124" width="190" height="110" rx="22" fill="#EEF4FB"/>
+  </g>
+  <text x="1180" y="156" fill="#6A84A6" font-size="16" font-weight="700" font-family="Segoe UI, Arial, sans-serif">Hoje</text>
+  <text x="1180" y="200" fill="#23496F" font-size="52" font-weight="800" font-family="Segoe UI, Arial, sans-serif">128</text>
+  <text x="1182" y="226" fill="#6A84A6" font-size="18" font-weight="600" font-family="Segoe UI, Arial, sans-serif">veiculos ativos</text>
+
+  <g filter="url(#shadow)">
+    <rect x="40" y="286" width="1028" height="352" rx="30" fill="white"/>
+    <rect x="1094" y="286" width="306" height="352" rx="30" fill="white"/>
+  </g>
+
+  <text x="84" y="330" fill="#6E84A0" font-size="18" font-weight="700" font-family="Segoe UI, Arial, sans-serif">Acoes principais</text>
+  <text x="84" y="362" fill="#1E4269" font-size="34" font-weight="800" font-family="Segoe UI, Arial, sans-serif">Tudo que voce usa no dia a dia, sem ruido visual</text>
+
+  <g transform="translate(84 392)">
+    <rect width="220" height="92" rx="24" fill="url(#cardNavy)"/>
+    <circle cx="38" cy="46" r="18" fill="rgba(255,255,255,0.16)"/>
+    <text x="34" y="53" fill="white" font-size="20" font-weight="800" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif">+</text>
+    <text x="68" y="43" fill="white" font-size="22" font-weight="800" font-family="Segoe UI, Arial, sans-serif">Nova Entrada</text>
+    <text x="68" y="67" fill="#D6E4F6" font-size="15" font-weight="600" font-family="Segoe UI, Arial, sans-serif">Cadastrar veiculo</text>
+  </g>
+
+  <g transform="translate(324 392)">
+    <rect width="220" height="92" rx="24" fill="url(#cardGreen)"/>
+    <circle cx="38" cy="46" r="18" fill="rgba(255,255,255,0.18)"/>
+    <rect x="29" y="37" width="18" height="18" rx="4" stroke="white" stroke-width="2"/>
+    <text x="68" y="43" fill="white" font-size="22" font-weight="800" font-family="Segoe UI, Arial, sans-serif">Escanear Saida</text>
+    <text x="68" y="67" fill="#E9FFF2" font-size="15" font-weight="600" font-family="Segoe UI, Arial, sans-serif">Liberar veiculo</text>
+  </g>
+
+  <g transform="translate(564 392)">
+    <rect width="220" height="92" rx="24" fill="url(#cardRose)"/>
+    <circle cx="38" cy="46" r="18" fill="rgba(255,255,255,0.18)"/>
+    <text x="38" y="53" fill="white" font-size="16" font-weight="800" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif">PDF</text>
+    <text x="68" y="43" fill="white" font-size="22" font-weight="800" font-family="Segoe UI, Arial, sans-serif">Exportar PDF</text>
+    <text x="68" y="67" fill="#FFEAF2" font-size="15" font-weight="600" font-family="Segoe UI, Arial, sans-serif">Imprimir e visualizar</text>
+  </g>
+
+  <g transform="translate(804 392)">
+    <rect width="220" height="92" rx="24" fill="url(#cardCyan)"/>
+    <circle cx="38" cy="46" r="18" fill="rgba(255,255,255,0.18)"/>
+    <text x="38" y="53" fill="white" font-size="15" font-weight="800" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif">XLS</text>
+    <text x="68" y="43" fill="white" font-size="22" font-weight="800" font-family="Segoe UI, Arial, sans-serif">Exportar Excel</text>
+    <text x="68" y="67" fill="#E9FCFF" font-size="15" font-weight="600" font-family="Segoe UI, Arial, sans-serif">Compartilhar relatorio</text>
+  </g>
+
+  <g transform="translate(84 504)">
+    <rect width="220" height="92" rx="24" fill="url(#cardPurple)"/>
+    <circle cx="38" cy="46" r="18" fill="rgba(255,255,255,0.18)"/>
+    <text x="38" y="53" fill="white" font-size="20" font-weight="800" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif">#</text>
+    <text x="68" y="43" fill="white" font-size="22" font-weight="800" font-family="Segoe UI, Arial, sans-serif">Montar Conjunto</text>
+    <text x="68" y="67" fill="#E7E3FF" font-size="15" font-weight="600" font-family="Segoe UI, Arial, sans-serif">Cavalo + carreta</text>
+  </g>
+
+  <g transform="translate(324 504)">
+    <rect width="220" height="92" rx="24" fill="url(#cardOrange)"/>
+    <circle cx="38" cy="46" r="18" fill="rgba(255,255,255,0.18)"/>
+    <text x="38" y="53" fill="white" font-size="18" font-weight="800" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif">!</text>
+    <text x="68" y="43" fill="white" font-size="22" font-weight="800" font-family="Segoe UI, Arial, sans-serif">Ocorrencias</text>
+    <text x="68" y="67" fill="#FFF0E3" font-size="15" font-weight="600" font-family="Segoe UI, Arial, sans-serif">Modulo separado</text>
+  </g>
+
+  <g transform="translate(564 504)">
+    <rect width="220" height="92" rx="24" fill="url(#cardTeal)"/>
+    <circle cx="38" cy="46" r="18" fill="rgba(255,255,255,0.18)"/>
+    <text x="38" y="53" fill="white" font-size="18" font-weight="800" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif">=</text>
+    <text x="68" y="43" fill="white" font-size="22" font-weight="800" font-family="Segoe UI, Arial, sans-serif">Cadastros</text>
+    <text x="68" y="67" fill="#E7FFFC" font-size="15" font-weight="600" font-family="Segoe UI, Arial, sans-serif">Mestres do sistema</text>
+  </g>
+
+  <g transform="translate(804 504)">
+    <rect width="220" height="92" rx="24" fill="url(#cardAudit)"/>
+    <circle cx="38" cy="46" r="18" fill="rgba(255,255,255,0.18)"/>
+    <text x="38" y="53" fill="white" font-size="18" font-weight="800" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif">@</text>
+    <text x="68" y="43" fill="white" font-size="22" font-weight="800" font-family="Segoe UI, Arial, sans-serif">Auditoria</text>
+    <text x="68" y="67" fill="#FFEAF0" font-size="15" font-weight="600" font-family="Segoe UI, Arial, sans-serif">Historico de alteracoes</text>
+  </g>
+
+  <text x="1122" y="330" fill="#6E84A0" font-size="18" font-weight="700" font-family="Segoe UI, Arial, sans-serif">O que muda</text>
+  <text x="1122" y="368" fill="#1E4269" font-size="30" font-weight="800" font-family="Segoe UI, Arial, sans-serif">Home sem o modulo</text>
+  <text x="1122" y="400" fill="#1E4269" font-size="30" font-weight="800" font-family="Segoe UI, Arial, sans-serif">de HDMI em destaque</text>
+
+  <rect x="1122" y="430" width="250" height="88" rx="24" fill="#FFF2EB"/>
+  <text x="1148" y="460" fill="#B56E45" font-size="15" font-weight="800" font-family="Segoe UI, Arial, sans-serif">ANTES POLUIA A CAPA</text>
+  <text x="1148" y="496" fill="#1E4269" font-size="42" font-weight="800" font-family="Segoe UI, Arial, sans-serif">-1</text>
+  <text x="1226" y="495" fill="#6E84A0" font-size="18" font-weight="600" font-family="Segoe UI, Arial, sans-serif">atalho de distração</text>
+
+  <rect x="1122" y="534" width="250" height="74" rx="22" fill="#F0F6FF"/>
+  <text x="1148" y="565" fill="#53739A" font-size="16" font-weight="700" font-family="Segoe UI, Arial, sans-serif">Painel externo mantido</text>
+  <text x="1148" y="589" fill="#7B8FA9" font-size="14" font-weight="600" font-family="Segoe UI, Arial, sans-serif">Acesso discreto por URL ou menu tecnico</text>
+
+  <g filter="url(#shadow)">
+    <rect x="40" y="668" width="1360" height="286" rx="30" fill="white"/>
+  </g>
+  <text x="84" y="714" fill="#6E84A0" font-size="18" font-weight="700" font-family="Segoe UI, Arial, sans-serif">Visao operacional</text>
+  <text x="84" y="748" fill="#1E4269" font-size="32" font-weight="800" font-family="Segoe UI, Arial, sans-serif">A tabela continua como area principal da operacao</text>
+
+  <rect x="84" y="782" width="196" height="44" rx="22" fill="#23496F"/>
+  <text x="120" y="810" fill="white" font-size="17" font-weight="700" font-family="Segoe UI, Arial, sans-serif">Todos os patios</text>
+  <rect x="296" y="782" width="138" height="44" rx="22" fill="#EEF4FB"/>
+  <text x="336" y="810" fill="#54759A" font-size="17" font-weight="700" font-family="Segoe UI, Arial, sans-serif">Jaragua</text>
+  <rect x="450" y="782" width="174" height="44" rx="22" fill="#EEF4FB"/>
+  <text x="494" y="810" fill="#54759A" font-size="17" font-weight="700" font-family="Segoe UI, Arial, sans-serif">Bandeirantes</text>
+  <rect x="640" y="782" width="134" height="44" rx="22" fill="#EEF4FB"/>
+  <text x="682" y="810" fill="#54759A" font-size="17" font-weight="700" font-family="Segoe UI, Arial, sans-serif">Cajamar</text>
+  <rect x="1012" y="782" width="300" height="44" rx="22" fill="#F7FAFF" stroke="#D9E4F3"/>
+  <text x="1048" y="810" fill="#93A5BC" font-size="16" font-weight="600" font-family="Segoe UI, Arial, sans-serif">Buscar placa, tipo ou base</text>
+
+  <rect x="84" y="850" width="1228" height="60" rx="22" fill="#F4F8FD"/>
+  <text x="116" y="888" fill="#7287A4" font-size="15" font-weight="700" font-family="Segoe UI, Arial, sans-serif">PLACA</text>
+  <text x="306" y="888" fill="#7287A4" font-size="15" font-weight="700" font-family="Segoe UI, Arial, sans-serif">TIPO</text>
+  <text x="514" y="888" fill="#7287A4" font-size="15" font-weight="700" font-family="Segoe UI, Arial, sans-serif">PATIO</text>
+  <text x="732" y="888" fill="#7287A4" font-size="15" font-weight="700" font-family="Segoe UI, Arial, sans-serif">STATUS</text>
+  <text x="928" y="888" fill="#7287A4" font-size="15" font-weight="700" font-family="Segoe UI, Arial, sans-serif">TEMPO</text>
+  <text x="1100" y="888" fill="#7287A4" font-size="15" font-weight="700" font-family="Segoe UI, Arial, sans-serif">ACAO</text>
+
+  <rect x="84" y="924" width="1228" height="1" fill="#E2EBF6"/>
+  <text x="128" y="946" fill="#1E4269" font-size="22" font-weight="800" font-family="Segoe UI, Arial, sans-serif">FTR-2841</text>
+  <text x="306" y="946" fill="#466B93" font-size="21" font-weight="600" font-family="Segoe UI, Arial, sans-serif">Cavalo mecanico</text>
+  <text x="514" y="946" fill="#466B93" font-size="21" font-weight="600" font-family="Segoe UI, Arial, sans-serif">Patio Jaragua</text>
+  <rect x="732" y="917" width="146" height="38" rx="19" fill="#DDEBFF"/>
+  <text x="774" y="942" fill="#446D9E" font-size="17" font-weight="700" font-family="Segoe UI, Arial, sans-serif">Funilaria</text>
+  <text x="928" y="946" fill="#466B93" font-size="21" font-weight="600" font-family="Segoe UI, Arial, sans-serif">2h 14m</text>
+  <rect x="1088" y="914" width="58" height="42" rx="16" fill="#23496F"/>
+  <text x="1114" y="942" fill="white" font-size="26" font-weight="700" font-family="Segoe UI, Arial, sans-serif">+</text>
+
+  <text x="84" y="994" fill="#8AA0BA" font-size="14" font-weight="600" font-family="Segoe UI, Arial, sans-serif">Mockup conceitual da tela inicial apos remover o destaque do modulo HDMI da home.</text>
+</svg>
