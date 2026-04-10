@@ -302,9 +302,11 @@ async function findVehicleCatalogTypeByPlate(plate = '') {
 
     if (isProduction) {
         const result = await pool.query(
-            `SELECT id, plate, type, updatedAt, createdAt
+            `SELECT *
              FROM vehicle_catalog
              WHERE normalizedPlate = ANY($1::text[])
+                OR normalizedAuxPlate = ANY($1::text[])
+                OR normalizedLinkedPlate = ANY($1::text[])
              ORDER BY updatedAt DESC NULLS LAST, plate ASC
              LIMIT 1`,
             [aliases]
@@ -316,12 +318,14 @@ async function findVehicleCatalogTypeByPlate(plate = '') {
 
     const placeholders = aliases.map(() => '?').join(', ');
     const row = db.prepare(
-        `SELECT id, plate, type, updatedAt, createdAt
+        `SELECT *
          FROM vehicle_catalog
          WHERE normalizedPlate IN (${placeholders})
+            OR normalizedAuxPlate IN (${placeholders})
+            OR normalizedLinkedPlate IN (${placeholders})
          ORDER BY updatedAt DESC, plate ASC
          LIMIT 1`
-    ).get(...aliases);
+    ).get(...aliases, ...aliases, ...aliases);
 
     return normalizeVehicleCatalogRecord(mapVehicleCatalogRow(row));
 }
@@ -1081,7 +1085,23 @@ function serializeVehicleCatalogForClient(record) {
     return {
         id: record.id,
         plate: record.plate || '',
+        auxPlate: record.auxPlate || '',
+        linkedPlate: record.linkedPlate || '',
+        chassis: record.chassis || '',
+        brand: record.brand || '',
+        model: record.model || '',
+        manufactureYear: record.manufactureYear || '',
+        modelYear: record.modelYear || '',
+        color: record.color || '',
+        axleConfig: record.axleConfig || '',
         type: record.type || '',
+        operationalStatus: record.operationalStatus || '',
+        primaryStatus: record.primaryStatus || '',
+        insurance: record.insurance || '',
+        supportPoint: record.supportPoint || '',
+        unit: record.unit || '',
+        operation: record.operation || '',
+        odometer: record.odometer || '',
         updatedAt: record.updatedAt || record.createdAt || null
     };
 }
