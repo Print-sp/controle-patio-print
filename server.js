@@ -301,19 +301,25 @@ async function findVehicleCatalogTypeByPlate(plate = '') {
     if (!aliases.length) return null;
 
     if (isProduction) {
-        const result = await pool.query(
-            `SELECT *
-             FROM vehicle_catalog
-             WHERE normalizedPlate = ANY($1::text[])
-                OR normalizedAuxPlate = ANY($1::text[])
-                OR normalizedLinkedPlate = ANY($1::text[])
-             ORDER BY updatedAt DESC NULLS LAST, plate ASC
-             LIMIT 1`,
-            [aliases]
-        );
-        return result.rows
-            .map(mapVehicleCatalogRow)
-            .map(normalizeVehicleCatalogRecord)[0] || null;
+        try {
+            const result = await pool.query(
+                `SELECT *
+                 FROM vehicle_catalog
+                 WHERE normalizedPlate = ANY($1::text[])
+                    OR normalizedAuxPlate = ANY($1::text[])
+                    OR normalizedLinkedPlate = ANY($1::text[])
+                 ORDER BY updatedAt DESC NULLS LAST, plate ASC
+                 LIMIT 1`,
+                [aliases]
+            );
+            const databaseMatch = result.rows
+                .map(mapVehicleCatalogRow)
+                .map(normalizeVehicleCatalogRecord)[0] || null;
+            return databaseMatch || findBundledVehicleCatalogRecordByPlate(plate);
+        } catch (error) {
+            console.error('⚠️ Falha ao consultar vehicle_catalog no PostgreSQL, usando fallback local:', error.message);
+            return findBundledVehicleCatalogRecordByPlate(plate);
+        }
     }
 
     const placeholders = aliases.map(() => '?').join(', ');
@@ -1130,6 +1136,37 @@ function loadBundledVehicleCatalogRecords() {
     } finally {
         bundledDb.close();
     }
+}
+
+function getLocalVehicleCatalogCount() {
+    if (isProduction || !db) return 0;
+
+    try {
+        const hasCatalogTable = db.prepare(`
+            SELECT name
+            FROM sqlite_master
+            WHERE type = 'table' AND name = 'vehicle_catalog'
+        `).get();
+
+        if (!hasCatalogTable) return 0;
+        return Number(db.prepare('SELECT COUNT(*) AS count FROM vehicle_catalog').get()?.count || 0);
+    } catch (error) {
+        console.error('⚠️ Não foi possível contar o catálogo local de veículos:', error.message);
+        return 0;
+    }
+}
+
+function findBundledVehicleCatalogRecordByPlate(plate = '') {
+    const aliases = buildPlateAliases(plate);
+    if (!aliases.length) return null;
+
+    return loadBundledVehicleCatalogRecords().find(record =>
+        aliases.some(alias =>
+            record.normalizedPlate === alias
+            || record.normalizedAuxPlate === alias
+            || record.normalizedLinkedPlate === alias
+        )
+    ) || null;
 }
 
 async function syncProductionVehicleCatalogFromBundledSqlite() {
@@ -2464,6 +2501,11 @@ async function initDatabase() {
 
             await repairVehicleTimelineConsistency();
             console.log('✅ SQLite inicializado');
+            const localCatalogCount = getLocalVehicleCatalogCount();
+            console.log(`📚 Catálogo local SQLite: ${localCatalogCount} placas prontas para auto preenchimento`);
+            if (localCatalogCount === 0) {
+                console.warn('⚠️ O arquivo database/patio.db está sem registros em vehicle_catalog. O auto preenchimento por placa não vai funcionar até esse catálogo ser atualizado.');
+            }
         } catch (err) { console.error('❌ Erro SQLite:', err.message); }
     }
 }
