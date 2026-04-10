@@ -10,6 +10,7 @@ const rateLimit = require('express-rate-limit');
 const bcrypt = require('bcryptjs');
 const path = require('path');
 const fs = require('fs');
+const { createSafetySnapshot } = require('./lib/safety-snapshot');
 
 const isProduction = process.env.NODE_ENV === 'production' && process.env.DATABASE_URL;
 
@@ -118,6 +119,39 @@ function mapConjuntoRow(row) {
     };
 }
 
+function mapVehicleCatalogRow(row) {
+    if (!row) return null;
+    return {
+        id: row.id,
+        sourceId: row.sourceid || row.sourceId || '',
+        plate: row.plate || '',
+        normalizedPlate: row.normalizedplate || row.normalizedPlate || '',
+        auxPlate: row.auxplate || row.auxPlate || '',
+        normalizedAuxPlate: row.normalizedauxplate || row.normalizedAuxPlate || '',
+        linkedPlate: row.linkedplate || row.linkedPlate || '',
+        normalizedLinkedPlate: row.normalizedlinkedplate || row.normalizedLinkedPlate || '',
+        renavam: row.renavam || '',
+        chassis: row.chassis || '',
+        normalizedChassis: row.normalizedchassis || row.normalizedChassis || '',
+        brand: row.brand || '',
+        model: row.model || '',
+        manufactureYear: row.manufactureyear || row.manufactureYear || '',
+        modelYear: row.modelyear || row.modelYear || '',
+        color: row.color || '',
+        axleConfig: row.axleconfig || row.axleConfig || '',
+        type: row.type || '',
+        operationalStatus: row.operationalstatus || row.operationalStatus || '',
+        primaryStatus: row.primarystatus || row.primaryStatus || '',
+        insurance: row.insurance || '',
+        supportPoint: row.supportpoint || row.supportPoint || '',
+        unit: row.unit || '',
+        operation: row.operation || '',
+        odometer: row.odometer || '',
+        createdAt: row.createdat || row.createdAt || null,
+        updatedAt: row.updatedat || row.updatedAt || null
+    };
+}
+
 function pickFirstDefined(obj, keys, fallback = undefined) {
     if (!obj || typeof obj !== 'object') return fallback;
     for (const key of keys) {
@@ -144,7 +178,8 @@ function canonicalText(value) {
 
 function canonicalizeVehicleType(type) {
     const normalized = canonicalText(type);
-    if (normalized.includes('cavalo mec')) return 'Cavalo Mecânico';
+    if (normalized.includes('cavalo mec')) return 'Cavalo';
+    if (normalized.includes('cavalo')) return 'Cavalo';
     if (normalized.includes('carreta')) return 'Carreta';
     if (normalized.includes('van')) return 'Van';
     if (normalized.includes('vuc') || normalized.includes('3 4') || normalized.includes('tres quartos')) return 'VUC / 3/4';
@@ -168,8 +203,131 @@ function canonicalizeVehicleStatus(status) {
     return String(status || 'Aguardando linha').trim() || 'Aguardando linha';
 }
 
+const OLD_TO_MERCOSUL_LETTER_MAP = Object.freeze({
+    '0': 'A',
+    '1': 'B',
+    '2': 'C',
+    '3': 'D',
+    '4': 'E',
+    '5': 'F',
+    '6': 'G',
+    '7': 'H',
+    '8': 'I',
+    '9': 'J'
+});
+
+const MERCOSUL_TO_OLD_DIGIT_MAP = Object.freeze({
+    A: '0',
+    B: '1',
+    C: '2',
+    D: '3',
+    E: '4',
+    F: '5',
+    G: '6',
+    H: '7',
+    I: '8',
+    J: '9'
+});
+
 function normalizePlateValue(value) {
     return String(value || '').trim().toUpperCase();
+}
+
+function normalizePlateForComparison(value) {
+    return String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '')
+        .trim();
+}
+
+function buildPlateAliases(value) {
+    const normalized = normalizePlateForComparison(value);
+    if (!normalized) return [];
+
+    const aliases = new Set([normalized]);
+    if (/^[A-Z]{3}\d{4}$/.test(normalized)) {
+        const chars = normalized.split('');
+        chars[4] = OLD_TO_MERCOSUL_LETTER_MAP[chars[4]] || chars[4];
+        aliases.add(chars.join(''));
+    } else if (/^[A-Z]{3}\d[A-Z]\d{2}$/.test(normalized)) {
+        const chars = normalized.split('');
+        chars[4] = MERCOSUL_TO_OLD_DIGIT_MAP[chars[4]] || chars[4];
+        aliases.add(chars.join(''));
+    }
+    return Array.from(aliases);
+}
+
+function platesMatch(left, right) {
+    if (!left || !right) return false;
+    const rightAliases = new Set(buildPlateAliases(right));
+    return buildPlateAliases(left).some(alias => rightAliases.has(alias));
+}
+
+function normalizeChassisForComparison(value) {
+    return String(value || '').trim().toUpperCase();
+}
+
+function vehicleMatchesLookup(vehicle, { plate = '', chassis = '' } = {}) {
+    if (!vehicle) return false;
+    const hasPlate = Boolean(plate);
+    const hasChassis = Boolean(chassis);
+    if (!hasPlate && !hasChassis) return false;
+
+    const plateMatch = hasPlate && platesMatch(vehicle.plate, plate);
+    const normalizedVehicleChassis = normalizeChassisForComparison(vehicle.chassis);
+    const normalizedLookupChassis = normalizeChassisForComparison(chassis);
+    const chassisMatch = hasChassis && normalizedVehicleChassis && normalizedVehicleChassis === normalizedLookupChassis;
+    return plateMatch || chassisMatch;
+}
+
+function catalogMatchesLookup(record, { plate = '', chassis = '' } = {}) {
+    if (!record) return false;
+    const hasPlate = Boolean(plate);
+    const hasChassis = Boolean(chassis);
+    if (!hasPlate && !hasChassis) return false;
+
+    const plateCandidates = [record.plate, record.auxPlate, record.linkedPlate].filter(Boolean);
+    const plateMatch = hasPlate && plateCandidates.some(candidate => platesMatch(candidate, plate));
+    const normalizedRecordChassis = normalizeChassisForComparison(record.normalizedChassis || record.chassis);
+    const normalizedLookupChassis = normalizeChassisForComparison(chassis);
+    const chassisMatch = hasChassis && normalizedRecordChassis && normalizedRecordChassis === normalizedLookupChassis;
+    return plateMatch || chassisMatch;
+}
+
+async function findVehicleCatalogTypeByPlate(plate = '') {
+    const aliases = buildPlateAliases(plate);
+    if (!aliases.length) return null;
+
+    if (isProduction) {
+        const result = await pool.query(
+            `SELECT id, plate, type, updatedAt, createdAt
+             FROM vehicle_catalog
+             WHERE normalizedPlate = ANY($1::text[])
+             ORDER BY updatedAt DESC NULLS LAST, plate ASC
+             LIMIT 1`,
+            [aliases]
+        );
+        return result.rows
+            .map(mapVehicleCatalogRow)
+            .map(normalizeVehicleCatalogRecord)[0] || null;
+    }
+
+    const placeholders = aliases.map(() => '?').join(', ');
+    const row = db.prepare(
+        `SELECT id, plate, type, updatedAt, createdAt
+         FROM vehicle_catalog
+         WHERE normalizedPlate IN (${placeholders})
+         ORDER BY updatedAt DESC, plate ASC
+         LIMIT 1`
+    ).get(...aliases);
+
+    return normalizeVehicleCatalogRecord(mapVehicleCatalogRow(row));
+}
+
+function conjuntoMatchesPlate(conjunto, plate) {
+    return Boolean(plate) && (platesMatch(conjunto?.cavaloPlate, plate) || platesMatch(conjunto?.carretaPlate, plate));
 }
 
 function normalizeBooleanFlag(value) {
@@ -864,6 +1022,128 @@ function getConsistentVehicleTimes(vehicle) {
     };
 }
 
+function isVehicleActiveRecord(vehicle) {
+    return canonicalizeVehicleStatus(vehicle?.status) !== 'Liberado';
+}
+
+function getVehicleSortTimestamp(vehicle) {
+    const rawTimestamp = vehicle?.entryTime || vehicle?.entrytime || vehicle?.createdAt || vehicle?.createdat || 0;
+    const timestamp = new Date(rawTimestamp).getTime();
+    return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function sortVehiclesByNewest(left, right) {
+    return getVehicleSortTimestamp(right) - getVehicleSortTimestamp(left);
+}
+
+function serializeVehicleForClient(vehicle, user) {
+    const consistentTimes = getConsistentVehicleTimes(vehicle);
+    return {
+        ...vehicle,
+        ...consistentTimes,
+        entryDate: formatDateBR(consistentTimes.entryTime),
+        exitDate: consistentTimes.exitTime ? formatDateBR(consistentTimes.exitTime) : null,
+        timeInYard: calculateTimeInYard(consistentTimes.entryTime, consistentTimes.exitTime),
+        timeReady: consistentTimes.readyTime ? calculateTimeInYard(consistentTimes.readyTime, null) : null,
+        canChangeLiberado: canChangeLiberadoStatus(user)
+    };
+}
+
+function normalizeVehicleCatalogRecord(record) {
+    if (!record) return null;
+    return {
+        ...record,
+        plate: normalizePlateValue(record.plate),
+        normalizedPlate: normalizePlateForComparison(record.normalizedPlate || record.plate),
+        auxPlate: normalizePlateValue(record.auxPlate),
+        normalizedAuxPlate: normalizePlateForComparison(record.normalizedAuxPlate || record.auxPlate),
+        linkedPlate: normalizePlateValue(record.linkedPlate),
+        normalizedLinkedPlate: normalizePlateForComparison(record.normalizedLinkedPlate || record.linkedPlate),
+        normalizedChassis: normalizeChassisForComparison(record.normalizedChassis || record.chassis),
+        chassis: String(record.chassis || '').trim().toUpperCase(),
+        brand: String(record.brand || '').trim(),
+        model: String(record.model || '').trim(),
+        color: String(record.color || '').trim(),
+        axleConfig: String(record.axleConfig || '').trim(),
+        type: canonicalizeVehicleType(record.type),
+        operationalStatus: String(record.operationalStatus || '').trim(),
+        primaryStatus: String(record.primaryStatus || '').trim(),
+        insurance: String(record.insurance || '').trim(),
+        supportPoint: String(record.supportPoint || '').trim(),
+        unit: String(record.unit || '').trim(),
+        operation: String(record.operation || '').trim(),
+        odometer: String(record.odometer || '').trim()
+    };
+}
+
+function serializeVehicleCatalogForClient(record) {
+    if (!record) return null;
+    return {
+        id: record.id,
+        plate: record.plate || '',
+        type: record.type || '',
+        updatedAt: record.updatedAt || record.createdAt || null
+    };
+}
+
+async function loadAllVehiclesNormalized() {
+    if (isProduction) {
+        const result = await pool.query('SELECT * FROM vehicles ORDER BY entryTime DESC');
+        return result.rows.map(mapPostgresRow).map(normalizeVehicleRecord);
+    }
+    return db.prepare('SELECT * FROM vehicles ORDER BY entryTime DESC').all().map(normalizeVehicleRecord);
+}
+
+async function loadAllVehicleCatalogRecords() {
+    if (isProduction) {
+        const result = await pool.query('SELECT * FROM vehicle_catalog ORDER BY updatedAt DESC, plate ASC');
+        return result.rows.map(mapVehicleCatalogRow).map(normalizeVehicleCatalogRecord);
+    }
+    return db.prepare('SELECT * FROM vehicle_catalog ORDER BY updatedAt DESC, plate ASC').all().map(mapVehicleCatalogRow).map(normalizeVehicleCatalogRecord);
+}
+
+async function loadAllConjuntos() {
+    if (isProduction) {
+        const result = await pool.query('SELECT * FROM conjuntos ORDER BY date DESC');
+        return result.rows.map(mapConjuntoRow);
+    }
+    return db.prepare('SELECT * FROM conjuntos ORDER BY date DESC').all().map(mapConjuntoRow);
+}
+
+function buildVehicleConflictPayload(vehicle, user, { targetYard = '' } = {}) {
+    if (!vehicle) return null;
+    const visibleToUser = userHasAccessToYard(user, vehicle.yard);
+    const sameTargetYard = Boolean(targetYard) && vehicle.yard === targetYard;
+    const serialized = serializeVehicleForClient(vehicle, user);
+    return {
+        id: vehicle.id,
+        plate: serialized.plate || '',
+        type: serialized.type || '',
+        yard: visibleToUser || user?.role === 'admin' ? serialized.yard : 'Outro pátio',
+        status: serialized.status || '',
+        entryDate: visibleToUser || user?.role === 'admin' ? serialized.entryDate : null,
+        timeInYard: visibleToUser || user?.role === 'admin' ? serialized.timeInYard : null,
+        scope: sameTargetYard ? 'same-yard' : (visibleToUser ? 'allowed-yard' : 'other-yard'),
+        sameTargetYard,
+        canOverride: Boolean(user?.role === 'admin' && sameTargetYard)
+    };
+}
+
+async function getVehicleByIdWithAccess(user, id) {
+    const vehicle = isProduction
+        ? mapPostgresRow((await pool.query('SELECT * FROM vehicles WHERE id = $1', [id])).rows[0])
+        : db.prepare('SELECT * FROM vehicles WHERE id = ?').get(id);
+
+    if (!vehicle) return { vehicle: null, error: 'not_found' };
+
+    const normalizedVehicle = normalizeVehicleRecord(vehicle);
+    if (!userHasAccessToYard(user, normalizedVehicle.yard)) {
+        return { vehicle: null, error: 'forbidden' };
+    }
+
+    return { vehicle: normalizedVehicle, error: null };
+}
+
 async function repairVehicleTimelineConsistency() {
     if (isProduction) {
         const result = await pool.query(`
@@ -1130,6 +1410,43 @@ function getUserAllowedYards(username) {
     return userYardPermissions[username.toLowerCase()] || [];
 }
 
+function normalizeAllowedYards(value) {
+    if (Array.isArray(value)) {
+        return value.map(item => String(item || '').trim()).filter(Boolean);
+    }
+    if (typeof value === 'string') {
+        try {
+            const parsed = JSON.parse(value);
+            if (Array.isArray(parsed)) {
+                return parsed.map(item => String(item || '').trim()).filter(Boolean);
+            }
+        } catch (error) {
+            return value.split(',').map(item => item.trim()).filter(Boolean);
+        }
+    }
+    return [];
+}
+
+function getAllowedYardsForUser(userOrUsername) {
+    if (userOrUsername && typeof userOrUsername === 'object') {
+        const explicitYards = normalizeAllowedYards(userOrUsername.yards);
+        if (explicitYards.length > 0) return explicitYards;
+        return getUserAllowedYards(String(userOrUsername.username || '').toLowerCase());
+    }
+    return getUserAllowedYards(String(userOrUsername || '').toLowerCase());
+}
+
+function getDefaultYardForUser(userOrUsername) {
+    const allowedYards = getAllowedYardsForUser(userOrUsername);
+    return allowedYards.length === 1 ? allowedYards[0] : '';
+}
+
+function userHasAccessToYard(userOrUsername, yard) {
+    const allowedYards = getAllowedYardsForUser(userOrUsername);
+    if (allowedYards.length === 0) return true;
+    return allowedYards.includes(String(yard || '').trim());
+}
+
 function canonicalizeOccurrenceBranch(branch) {
     const canonical = canonicalizeBaseLocation(branch);
     const normalized = canonicalText(canonical);
@@ -1187,23 +1504,19 @@ async function getOccurrenceBranchOptions() {
 }
 
 function filterVehiclesByUserYards(vehicles, username) {
-    const allowedYards = getUserAllowedYards(username);
+    const allowedYards = getAllowedYardsForUser(username);
     if (allowedYards.length === 0) return vehicles;
     return vehicles.filter(v => allowedYards.includes(v.yard));
 }
 
 function filterConjuntosByUserYards(conjuntos, username) {
-    const allowedYards = getUserAllowedYards(username);
+    const allowedYards = getAllowedYardsForUser(username);
     if (allowedYards.length === 0) return conjuntos;
     return conjuntos.filter(c => !c.yard || allowedYards.includes(c.yard));
 }
 
 function canChangeLiberadoStatus(user) {
-    return user.role === 'admin' || 
-           user.username?.toLowerCase() === 'bandeirantes' || 
-           user.username?.toLowerCase() === 'jaragua' ||
-           (user.yards || []).includes('Pátio Bandeirantes') ||
-           (user.yards || []).includes('Pátio Jaraguá');
+    return user?.role === 'admin';
 }
 
 const occurrenceSeed = {
@@ -1448,6 +1761,35 @@ async function initDatabase() {
                     notes TEXT DEFAULT '',
                     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updatedBy TEXT DEFAULT 'system'
+                );
+                CREATE TABLE IF NOT EXISTS vehicle_catalog (
+                    id SERIAL PRIMARY KEY,
+                    sourceId TEXT DEFAULT '',
+                    plate TEXT NOT NULL,
+                    normalizedPlate TEXT UNIQUE NOT NULL,
+                    auxPlate TEXT DEFAULT '',
+                    normalizedAuxPlate TEXT DEFAULT '',
+                    linkedPlate TEXT DEFAULT '',
+                    normalizedLinkedPlate TEXT DEFAULT '',
+                    renavam TEXT DEFAULT '',
+                    chassis TEXT DEFAULT '',
+                    normalizedChassis TEXT DEFAULT '',
+                    brand TEXT DEFAULT '',
+                    model TEXT DEFAULT '',
+                    manufactureYear TEXT DEFAULT '',
+                    modelYear TEXT DEFAULT '',
+                    color TEXT DEFAULT '',
+                    axleConfig TEXT DEFAULT '',
+                    type TEXT DEFAULT '',
+                    operationalStatus TEXT DEFAULT '',
+                    primaryStatus TEXT DEFAULT '',
+                    insurance TEXT DEFAULT '',
+                    supportPoint TEXT DEFAULT '',
+                    unit TEXT DEFAULT '',
+                    operation TEXT DEFAULT '',
+                    odometer TEXT DEFAULT '',
+                    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
                 CREATE TABLE IF NOT EXISTS users (
                     id SERIAL PRIMARY KEY,
@@ -1736,6 +2078,35 @@ async function initDatabase() {
                     notes TEXT DEFAULT '',
                     createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
                     updatedBy TEXT DEFAULT 'system'
+                );
+                CREATE TABLE IF NOT EXISTS vehicle_catalog (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    sourceId TEXT DEFAULT '',
+                    plate TEXT NOT NULL,
+                    normalizedPlate TEXT UNIQUE NOT NULL,
+                    auxPlate TEXT DEFAULT '',
+                    normalizedAuxPlate TEXT DEFAULT '',
+                    linkedPlate TEXT DEFAULT '',
+                    normalizedLinkedPlate TEXT DEFAULT '',
+                    renavam TEXT DEFAULT '',
+                    chassis TEXT DEFAULT '',
+                    normalizedChassis TEXT DEFAULT '',
+                    brand TEXT DEFAULT '',
+                    model TEXT DEFAULT '',
+                    manufactureYear TEXT DEFAULT '',
+                    modelYear TEXT DEFAULT '',
+                    color TEXT DEFAULT '',
+                    axleConfig TEXT DEFAULT '',
+                    type TEXT DEFAULT '',
+                    operationalStatus TEXT DEFAULT '',
+                    primaryStatus TEXT DEFAULT '',
+                    insurance TEXT DEFAULT '',
+                    supportPoint TEXT DEFAULT '',
+                    unit TEXT DEFAULT '',
+                    operation TEXT DEFAULT '',
+                    odometer TEXT DEFAULT '',
+                    createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+                    updatedAt TEXT DEFAULT CURRENT_TIMESTAMP
                 );
                 CREATE TABLE IF NOT EXISTS users (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -2099,27 +2470,10 @@ function clearSeminovosTrackingColumns() {
 async function findLatestActiveVehicleByPlate(plate) {
     const normalizedPlate = normalizePlateValue(plate);
     if (!normalizedPlate) return null;
-
-    if (isProduction) {
-        const result = await pool.query(
-            `SELECT * FROM vehicles
-             WHERE UPPER(plate) = UPPER($1)
-               AND status <> 'Liberado'
-             ORDER BY COALESCE(entryTime, createdAt) DESC, id DESC
-             LIMIT 1`,
-            [normalizedPlate]
-        );
-        return result.rows[0] ? normalizeVehicleRecord(mapPostgresRow(result.rows[0])) : null;
-    }
-
-    const vehicle = db.prepare(
-        `SELECT * FROM vehicles
-         WHERE UPPER(plate) = UPPER(?)
-           AND status <> 'Liberado'
-         ORDER BY COALESCE(entryTime, createdAt) DESC, id DESC
-         LIMIT 1`
-    ).get(normalizedPlate);
-    return vehicle ? normalizeVehicleRecord(vehicle) : null;
+    const vehicles = await loadAllVehiclesNormalized();
+    return vehicles
+        .filter(vehicle => isVehicleActiveRecord(vehicle) && vehicleMatchesLookup(vehicle, { plate: normalizedPlate }))
+        .sort(sortVehiclesByNewest)[0] || null;
 }
 
 async function markVehicleAsSentToSeminovos(req, { plate, seminovosYard = '' } = {}) {
@@ -2196,9 +2550,15 @@ app.post('/api/auth/login', async (req, res) => {
         if (!user) return res.status(401).json({ error: 'Usuário ou senha inválidos' });
         const passwordValid = bcrypt.compareSync(password, user.passwordHash);
         if (!passwordValid) return res.status(401).json({ error: 'Usuário ou senha inválidos' });
-        const allowedYards = getUserAllowedYards(user.username);
+        const allowedYards = getAllowedYardsForUser(user);
         req.session.user = { id: user.id, username: user.username, role: user.role, yards: allowedYards };
-        res.json({ success: true, user: { username: user.username, role: user.role, yards: allowedYards }, message: `Bem-vindo, ${user.username}!` });
+        res.json({
+            success: true,
+            user: { username: user.username, role: user.role, yards: allowedYards },
+            permissions: getPermissions(user.role),
+            canChangeLiberado: canChangeLiberadoStatus({ ...user, yards: allowedYards }),
+            message: `Bem-vindo, ${user.username}!`
+        });
     } catch (error) {
         console.error('❌ Erro no login:', error.message);
         res.status(500).json({ error: 'Erro interno no servidor' });
@@ -2521,8 +2881,8 @@ function getPermissions(role) {
     return {
         admin: { canDelete: true, canImport: true, canExport: true, canCreate: true, canEdit: true, canExit: true, canManage: true, canUndoLiberado: true },
         seminovos: { canDelete: false, canImport: true, canExport: true, canCreate: true, canEdit: true, canExit: false, canManage: false, canUndoLiberado: false },
-        bandeirantes: { canDelete: false, canImport: false, canExport: true, canCreate: true, canEdit: true, canExit: true, canManage: false, canUndoLiberado: true },
-        jaragua: { canDelete: false, canImport: false, canExport: true, canCreate: true, canEdit: true, canExit: true, canManage: false, canUndoLiberado: true },
+        bandeirantes: { canDelete: false, canImport: false, canExport: true, canCreate: true, canEdit: true, canExit: true, canManage: false, canUndoLiberado: false },
+        jaragua: { canDelete: false, canImport: false, canExport: true, canCreate: true, canEdit: true, canExit: true, canManage: false, canUndoLiberado: false },
         cajamar: { canDelete: false, canImport: false, canExport: true, canCreate: true, canEdit: true, canExit: true, canManage: false, canUndoLiberado: false },
         operator: { canDelete: false, canImport: false, canExport: true, canCreate: true, canEdit: true, canExit: true, canManage: false, canUndoLiberado: false }
     }[role] || { canDelete: false, canImport: false, canExport: true, canCreate: true, canEdit: true, canExit: true, canManage: false, canUndoLiberado: false };
@@ -3239,43 +3599,85 @@ app.post('/api/seminovos/import', requireSeminovosAccess, async (req, res) => {
 
 app.get('/api/vehicles', requireAuth, async (req, res) => {
     try {
-        let vehicles;
-        if (isProduction) {
-            const result = await pool.query('SELECT * FROM vehicles ORDER BY entryTime DESC');
-            vehicles = result.rows.map(mapPostgresRow).map(normalizeVehicleRecord);
-        } else {
-            vehicles = db.prepare('SELECT * FROM vehicles ORDER BY entryTime DESC').all().map(normalizeVehicleRecord);
-        }
-        vehicles = filterVehiclesByUserYards(vehicles, req.session.user.username);
+        let vehicles = await loadAllVehiclesNormalized();
+        vehicles = filterVehiclesByUserYards(vehicles, req.session.user);
         vehicles = await attachVehicleAccidentPhotos(vehicles);
-        res.json(vehicles.map(v => {
-            const consistentTimes = getConsistentVehicleTimes(v);
-            return {
-                ...v,
-                ...consistentTimes,
-                entryDate: formatDateBR(consistentTimes.entryTime),
-                exitDate: consistentTimes.exitTime ? formatDateBR(consistentTimes.exitTime) : null,
-                timeInYard: calculateTimeInYard(consistentTimes.entryTime, consistentTimes.exitTime),
-                timeReady: consistentTimes.readyTime ? calculateTimeInYard(consistentTimes.readyTime, null) : null,
-                canChangeLiberado: canChangeLiberadoStatus(req.session.user)
-            };
-        }));
+        res.json(vehicles.map(v => serializeVehicleForClient(v, req.session.user)));
     } catch (err) {
         console.error('Erro ao listar veículos:', err);
         res.status(500).json({ error: 'Erro ao buscar veículos' });
     }
 });
 
+app.get('/api/portaria/lookup', requireAuth, async (req, res) => {
+    const plate = normalizePlateValue(req.query?.plate);
+    const chassis = String(req.query?.chassis || '').trim();
+    if (!plate && !chassis) {
+        return res.status(400).json({ error: 'Placa ou chassi obrigatórios' });
+    }
+
+    try {
+        const [allVehicles, allConjuntos, catalogRecord] = await Promise.all([
+            loadAllVehiclesNormalized(),
+            loadAllConjuntos(),
+            plate ? findVehicleCatalogTypeByPlate(plate) : Promise.resolve(null)
+        ]);
+
+        const visibleVehicles = filterVehiclesByUserYards(allVehicles, req.session.user).sort(sortVehiclesByNewest);
+        const visibleConjuntos = filterConjuntosByUserYards(allConjuntos, req.session.user);
+        const matchingVehicles = visibleVehicles.filter(vehicle => vehicleMatchesLookup(vehicle, { plate, chassis }));
+        const activeRecord = matchingVehicles.find(isVehicleActiveRecord) || null;
+        const latestRecord = matchingVehicles[0] || null;
+        const conflictRecord = allVehicles
+            .filter(vehicle => isVehicleActiveRecord(vehicle) && vehicleMatchesLookup(vehicle, { plate, chassis }))
+            .sort(sortVehiclesByNewest)[0] || null;
+        const matchingConjunto = visibleConjuntos.find(conjunto => conjuntoMatchesPlate(conjunto, plate)) || null;
+        const matchRole = matchingConjunto
+            ? (platesMatch(matchingConjunto.cavaloPlate, plate) ? 'cavalo' : (platesMatch(matchingConjunto.carretaPlate, plate) ? 'carreta' : ''))
+            : '';
+        const counterpartPlate = matchingConjunto
+            ? (matchRole === 'cavalo' ? matchingConjunto.carretaPlate : (matchRole === 'carreta' ? matchingConjunto.cavaloPlate : ''))
+            : '';
+
+        res.json({
+            requestedPlate: plate || '',
+            requestedChassis: chassis || '',
+            defaultYard: getDefaultYardForUser(req.session.user),
+            latestRecord: latestRecord ? serializeVehicleForClient(latestRecord, req.session.user) : null,
+            catalogRecord: catalogRecord ? serializeVehicleCatalogForClient(catalogRecord) : null,
+            activeRecord: activeRecord ? serializeVehicleForClient(activeRecord, req.session.user) : null,
+            history: matchingVehicles.slice(0, 5).map(vehicle => serializeVehicleForClient(vehicle, req.session.user)),
+            conflict: conflictRecord ? buildVehicleConflictPayload(conflictRecord, req.session.user, { targetYard: getDefaultYardForUser(req.session.user) }) : null,
+            conjunto: matchingConjunto ? {
+                ...matchingConjunto,
+                role: matchRole,
+                counterpartPlate
+            } : null,
+            canOverrideConflict: req.session.user?.role === 'admin'
+        });
+    } catch (error) {
+        console.error('Erro ao buscar lookup de portaria:', error);
+        res.status(500).json({ error: 'Erro ao consultar placa' });
+    }
+});
+
 app.post('/api/vehicles', requireAuth, async (req, res) => {
     const { plate, type, yard, base, baseDestino, manager, chassis, keys, notes, entryDate, entregarDiversos, entregarCorreios, hasAccident, documentIssue, sascarStatus, maintenanceCategory } = req.body;
-    const allowedYards = getUserAllowedYards(req.session.user.username);
-    if (allowedYards.length > 0 && !allowedYards.includes(yard)) return res.status(403).json({ error: 'Você não tem permissão para este pátio' });
+    const allowedYards = getAllowedYardsForUser(req.session.user);
+    const defaultUserYard = getDefaultYardForUser(req.session.user);
+    const resolvedYard = defaultUserYard && req.session.user.role !== 'admin'
+        ? defaultUserYard
+        : String(yard || '').trim();
+    if (allowedYards.length > 0 && !allowedYards.includes(resolvedYard)) return res.status(403).json({ error: 'Você não tem permissão para este pátio' });
     if (!plate && !chassis) return res.status(400).json({ error: 'Placa ou Chassi obrigatórios' });
-    if (!type || !yard) return res.status(400).json({ error: 'Tipo e pátio obrigatórios' });
+    if (!type || !resolvedYard) return res.status(400).json({ error: 'Tipo e pátio obrigatórios' });
+    const normalizedPlate = normalizePlateValue(plate);
+    const normalizedChassis = normalizeChassisForComparison(chassis);
     const normalizedType = canonicalizeVehicleType(type);
     const normalizedBase = canonicalizeBaseLocation(base || 'Jaraguá-SP (Nacional)');
     const normalizedBaseDestino = canonicalizeBaseLocation(baseDestino || '');
     const normalizedHasAccident = normalizeBooleanFlag(hasAccident);
+    const forceConflictResolution = normalizeBooleanFlag(req.body?.forceConflictResolution);
     const accidentPhotoPayloads = Array.isArray(req.body?.accidentPhotos) ? req.body.accidentPhotos : [];
     const isNewVehicle = normalizeBooleanFlag(req.body?.isNewVehicle);
     const newVehiclePlotagem = isNewVehicle && normalizeBooleanFlag(req.body?.newVehiclePlotagem);
@@ -3292,14 +3694,95 @@ app.post('/api/vehicles', requireAuth, async (req, res) => {
     const normalizedEntryTime = normalizeRequestTimestamp(entryDate, new Date().toISOString());
     if (hasNewLine && (!newLineName || !newLineState)) return res.status(400).json({ error: 'Preencha o nome e o estado/UF da nova linha' });
     try {
+        const activeConflict = (await loadAllVehiclesNormalized())
+            .filter(vehicle => isVehicleActiveRecord(vehicle) && vehicleMatchesLookup(vehicle, { plate: normalizedPlate, chassis: normalizedChassis }))
+            .sort(sortVehiclesByNewest)[0] || null;
+        const conflictPayload = activeConflict
+            ? buildVehicleConflictPayload(activeConflict, req.session.user, { targetYard: resolvedYard })
+            : null;
+
+        if (activeConflict && !(forceConflictResolution && conflictPayload?.canOverride)) {
+            const sameTargetYard = conflictPayload?.scope === 'same-yard';
+            return res.status(409).json({
+                error: sameTargetYard
+                    ? 'Este veículo já consta como ativo neste pátio.'
+                    : 'Este veículo consta como ativo no sistema. Solicite regularização ao ADM.',
+                code: 'ACTIVE_CONFLICT',
+                conflict: conflictPayload,
+                canOverrideConflict: Boolean(conflictPayload?.canOverride)
+            });
+        }
+
+        if (activeConflict && forceConflictResolution && conflictPayload?.canOverride) {
+            const clearedTracking = clearSeminovosTrackingColumns();
+            const resolutionNote = `[Regularização automática] Saída ajustada pelo ADM em ${formatDateBR(normalizedEntryTime)} antes de uma nova entrada.`;
+            const updatedPreviousNotes = String(activeConflict.notes || '').trim()
+                ? `${String(activeConflict.notes || '').trim()}\n${resolutionNote}`
+                : resolutionNote;
+
+            if (isProduction) {
+                await pool.query(
+                    `UPDATE vehicles
+                     SET status = 'Liberado',
+                         exitTime = $1,
+                         readyTime = $1,
+                         movedToSeminovos = $2,
+                         seminovosMovedAt = $3,
+                         seminovosYard = $4,
+                         notes = $5,
+                         updatedAt = CURRENT_TIMESTAMP,
+                         updatedBy = $6
+                     WHERE id = $7`,
+                    [normalizedEntryTime, clearedTracking.movedToSeminovos, clearedTracking.seminovosMovedAt, clearedTracking.seminovosYard, updatedPreviousNotes, req.session.user.username, activeConflict.id]
+                );
+            } else {
+                db.prepare(
+                    `UPDATE vehicles
+                     SET status = 'Liberado',
+                         exitTime = ?,
+                         readyTime = ?,
+                         movedToSeminovos = ?,
+                         seminovosMovedAt = ?,
+                         seminovosYard = ?,
+                         notes = ?,
+                         updatedAt = ?,
+                         updatedBy = ?
+                     WHERE id = ?`
+                ).run(
+                    normalizedEntryTime,
+                    normalizedEntryTime,
+                    clearedTracking.movedToSeminovos ? 1 : 0,
+                    clearedTracking.seminovosMovedAt,
+                    clearedTracking.seminovosYard,
+                    updatedPreviousNotes,
+                    new Date().toISOString(),
+                    req.session.user.username,
+                    activeConflict.id
+                );
+            }
+
+            await recordAuditEvent(req, {
+                entityType: 'vehicle',
+                entityId: activeConflict.id,
+                action: 'auto-regularize-exit',
+                summary: `Saída anterior regularizada automaticamente para ${activeConflict.plate || activeConflict.id}`,
+                details: {
+                    previousVehicleId: activeConflict.id,
+                    previousPlate: activeConflict.plate,
+                    targetYard: resolvedYard,
+                    resolvedAt: normalizedEntryTime
+                }
+            });
+        }
+
         let createdVehicle;
         if (isProduction) {
             const result = await pool.query(`INSERT INTO vehicles (plate, type, yard, base, baseDestino, manager, chassis, keys, notes, isNewVehicle, newVehiclePlotagem, newVehicleTesteDrive, newVehicleAdesivoCorreios, newVehicleAdesivoPrint, newVehicleMarcacaoPneus, newVehiclePlataformaCarga, newVehicleForracaoInterna, newVehicleNotes, hasNewLine, newLineName, newLineState, entregar_diversos, entregar_correios, hasAccident, documentIssue, sascarStatus, maintenanceCategory, entryTime, updatedBy) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29) RETURNING *`,
-                [plate ? plate.toUpperCase() : '', normalizedType, yard, normalizedBase, normalizedBaseDestino, manager || '', chassis || '', keys || '', notes || '', isNewVehicle, newVehiclePlotagem, newVehicleTesteDrive, newVehicleAdesivoCorreios, newVehicleAdesivoPrint, newVehicleMarcacaoPneus, newVehiclePlataformaCarga, newVehicleForracaoInterna, newVehicleNotes, hasNewLine, newLineName, newLineState, entregarDiversos ? true : false, entregarCorreios ? true : false, normalizedHasAccident ? true : false, documentIssue ? true : false, sascarStatus || 'pendente', maintenanceCategory || '', normalizedEntryTime, req.session.user.username]);
+                [normalizedPlate || '', normalizedType, resolvedYard, normalizedBase, normalizedBaseDestino, manager || '', chassis || '', keys || '', notes || '', isNewVehicle, newVehiclePlotagem, newVehicleTesteDrive, newVehicleAdesivoCorreios, newVehicleAdesivoPrint, newVehicleMarcacaoPneus, newVehiclePlataformaCarga, newVehicleForracaoInterna, newVehicleNotes, hasNewLine, newLineName, newLineState, entregarDiversos ? true : false, entregarCorreios ? true : false, normalizedHasAccident ? true : false, documentIssue ? true : false, sascarStatus || 'pendente', maintenanceCategory || '', normalizedEntryTime, req.session.user.username]);
         createdVehicle = normalizeVehicleRecord(mapPostgresRow(result.rows[0]));
     } else {
             const stmt = db.prepare(`INSERT INTO vehicles (plate, type, yard, base, baseDestino, manager, chassis, keys, notes, isNewVehicle, newVehiclePlotagem, newVehicleTesteDrive, newVehicleAdesivoCorreios, newVehicleAdesivoPrint, newVehicleMarcacaoPneus, newVehiclePlataformaCarga, newVehicleForracaoInterna, newVehicleNotes, hasNewLine, newLineName, newLineState, entregar_diversos, entregar_correios, hasAccident, documentIssue, sascarStatus, maintenanceCategory, entryTime, updatedBy) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-            const result = stmt.run(plate ? plate.toUpperCase() : '', normalizedType, yard, normalizedBase, normalizedBaseDestino, manager || '', chassis || '', keys || '', notes || '', isNewVehicle ? 1 : 0, newVehiclePlotagem ? 1 : 0, newVehicleTesteDrive ? 1 : 0, newVehicleAdesivoCorreios ? 1 : 0, newVehicleAdesivoPrint ? 1 : 0, newVehicleMarcacaoPneus ? 1 : 0, newVehiclePlataformaCarga ? 1 : 0, newVehicleForracaoInterna ? 1 : 0, newVehicleNotes, hasNewLine ? 1 : 0, newLineName, newLineState, entregarDiversos ? 1 : 0, entregarCorreios ? 1 : 0, normalizedHasAccident ? 1 : 0, documentIssue ? 1 : 0, sascarStatus || 'pendente', maintenanceCategory || '', normalizedEntryTime, req.session.user.username);
+            const result = stmt.run(normalizedPlate || '', normalizedType, resolvedYard, normalizedBase, normalizedBaseDestino, manager || '', chassis || '', keys || '', notes || '', isNewVehicle ? 1 : 0, newVehiclePlotagem ? 1 : 0, newVehicleTesteDrive ? 1 : 0, newVehicleAdesivoCorreios ? 1 : 0, newVehicleAdesivoPrint ? 1 : 0, newVehicleMarcacaoPneus ? 1 : 0, newVehiclePlataformaCarga ? 1 : 0, newVehicleForracaoInterna ? 1 : 0, newVehicleNotes, hasNewLine ? 1 : 0, newLineName, newLineState, entregarDiversos ? 1 : 0, entregarCorreios ? 1 : 0, normalizedHasAccident ? 1 : 0, documentIssue ? 1 : 0, sascarStatus || 'pendente', maintenanceCategory || '', normalizedEntryTime, req.session.user.username);
             createdVehicle = normalizeVehicleRecord({ ...db.prepare('SELECT * FROM vehicles WHERE id = ?').get(result.lastInsertRowid) });
         }
         const accidentPhotos = normalizedHasAccident
@@ -3328,12 +3811,12 @@ app.post('/api/vehicles', requireAuth, async (req, res) => {
 app.put('/api/vehicles/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
     const updates = req.body;
-    const canEditDates = req.session.user.role === 'admin' || req.session.user.username?.toLowerCase() === 'bandeirantes' || (req.session.user.yards || []).includes('Pátio Bandeirantes');
+    const canEditDates = req.session.user.role === 'admin';
     const accidentPhotoPayloads = Array.isArray(updates?.accidentPhotos) ? updates.accidentPhotos : [];
     const normalizedUpdatePlate = updates.plate !== undefined ? normalizePlateValue(updates.plate) : null;
     const normalizedUpdateChassis = updates.chassis !== undefined ? String(updates.chassis || '').trim() : null;
     if (updates.yard) {
-        const allowedYards = getUserAllowedYards(req.session.user.username);
+        const allowedYards = getAllowedYardsForUser(req.session.user);
         if (allowedYards.length > 0 && !allowedYards.includes(updates.yard)) return res.status(403).json({ error: 'Você não tem permissão para este pátio' });
     }
     const normalizedUpdateType = updates.type ? canonicalizeVehicleType(updates.type) : null;
@@ -3358,10 +3841,9 @@ app.put('/api/vehicles/:id', requireAuth, async (req, res) => {
     const normalizedUpdateExitTime = canEditDates ? normalizeRequestTimestamp(updates.exitTime, null) : null;
     if (hasNewLine && (!newLineName || !newLineState)) return res.status(400).json({ error: 'Preencha o nome e o estado/UF da nova linha' });
     try {
-        const currentVehicle = isProduction
-            ? mapPostgresRow((await pool.query('SELECT * FROM vehicles WHERE id = $1', [id])).rows[0])
-            : db.prepare('SELECT * FROM vehicles WHERE id = ?').get(id);
-        if (!currentVehicle) return res.status(404).json({ error: 'Veículo não encontrado' });
+        const { vehicle: currentVehicle, error: vehicleAccessError } = await getVehicleByIdWithAccess(req.session.user, id);
+        if (vehicleAccessError === 'not_found') return res.status(404).json({ error: 'Veículo não encontrado' });
+        if (vehicleAccessError === 'forbidden') return res.status(403).json({ error: 'Você não tem permissão para este veículo' });
 
         const nextPlate = normalizedUpdatePlate !== null ? normalizedUpdatePlate : normalizePlateValue(currentVehicle.plate);
         const nextChassis = normalizedUpdateChassis !== null ? normalizedUpdateChassis : String(currentVehicle.chassis || '').trim();
@@ -3421,6 +3903,9 @@ app.put('/api/vehicles/:id/entregue', requireAuth, async (req, res) => {
         return res.status(400).json({ error: 'Tipo de entrega inválido' });
     }
     try {
+        const { error: vehicleAccessError } = await getVehicleByIdWithAccess(req.session.user, id);
+        if (vehicleAccessError === 'not_found') return res.status(404).json({ error: 'Veículo não encontrado' });
+        if (vehicleAccessError === 'forbidden') return res.status(403).json({ error: 'Você não tem permissão para este veículo' });
         if (isProduction) {
             await pool.query(`UPDATE vehicles SET entregue = true, entreguePara = $1, updatedAt = CURRENT_TIMESTAMP WHERE id = $2`, [entreguePara, id]);
         } else {
@@ -3443,10 +3928,13 @@ app.put('/api/vehicles/:id/undo-liberado', requireAuth, async (req, res) => {
     const { id } = req.params;
     const { newStatus } = req.body;
     const canChangeLiberado = canChangeLiberadoStatus(req.session.user);
-    if (!canChangeLiberado) return res.status(403).json({ error: 'Apenas admin, Bandeirantes e Jaraguá podem desfazer liberação' });
+    if (!canChangeLiberado) return res.status(403).json({ error: 'Apenas administradores podem desfazer liberação' });
     const validStatuses = ['Aguardando linha', 'Aguardando abastecimento', 'Aguardando manutenção', 'Em manutenção', 'Funilaria', 'Borracharia'];
     if (!validStatuses.includes(newStatus)) return res.status(400).json({ error: 'Status inválido' });
     try {
+        const { error: vehicleAccessError } = await getVehicleByIdWithAccess(req.session.user, id);
+        if (vehicleAccessError === 'not_found') return res.status(404).json({ error: 'Veículo não encontrado' });
+        if (vehicleAccessError === 'forbidden') return res.status(403).json({ error: 'Você não tem permissão para este veículo' });
         const clearedTracking = clearSeminovosTrackingColumns();
         if (isProduction) {
             await pool.query(
@@ -3495,6 +3983,9 @@ app.put('/api/vehicles/:id/status', requireAuth, async (req, res) => {
     const validStatuses = ['Aguardando linha', 'Aguardando abastecimento', 'Aguardando manutenção', 'Em manutenção', 'Funilaria', 'Borracharia', 'Liberado', 'Sinistro'];
     if (!validStatuses.includes(status)) return res.status(400).json({ error: 'Status inválido' });
     try {
+        const { error: vehicleAccessError } = await getVehicleByIdWithAccess(req.session.user, id);
+        if (vehicleAccessError === 'not_found') return res.status(404).json({ error: 'Veículo não encontrado' });
+        if (vehicleAccessError === 'forbidden') return res.status(403).json({ error: 'Você não tem permissão para este veículo' });
         const maintenanceFlag = status === 'Em manutenção' || status === 'Funilaria' || status === 'Borracharia';
         const clearedTracking = clearSeminovosTrackingColumns();
         if (isProduction) {
@@ -3535,6 +4026,9 @@ app.put('/api/vehicles/:id/status', requireAuth, async (req, res) => {
 app.post('/api/vehicles/:id/exit', requireAuth, async (req, res) => {
     const { id } = req.params;
     try {
+        const { error: vehicleAccessError } = await getVehicleByIdWithAccess(req.session.user, id);
+        if (vehicleAccessError === 'not_found') return res.status(404).json({ error: 'Veículo não encontrado' });
+        if (vehicleAccessError === 'forbidden') return res.status(403).json({ error: 'Você não tem permissão para este veículo' });
         const exitedAt = new Date().toISOString();
         const clearedTracking = clearSeminovosTrackingColumns();
         if (isProduction) {
@@ -3575,6 +4069,9 @@ app.post('/api/vehicles/:id/exit', requireAuth, async (req, res) => {
 app.delete('/api/vehicles/:id', requireAuth, requireRole(['admin']), async (req, res) => {
     const { id } = req.params;
     try {
+        const { error: vehicleAccessError } = await getVehicleByIdWithAccess(req.session.user, id);
+        if (vehicleAccessError === 'not_found') return res.status(404).json({ error: 'Veículo não encontrado' });
+        if (vehicleAccessError === 'forbidden') return res.status(403).json({ error: 'Você não tem permissão para este veículo' });
         await deleteVehicleAccidentPhotos(id);
         if (isProduction) {
             const result = await pool.query('DELETE FROM vehicles WHERE id = $1 RETURNING *', [id]);
@@ -3760,7 +4257,7 @@ app.get('/api/conjuntos', requireAuth, async (req, res) => {
         } else {
             conjuntos = db.prepare('SELECT * FROM conjuntos ORDER BY date DESC LIMIT 200').all();
         }
-        conjuntos = filterConjuntosByUserYards(conjuntos, req.session.user.username);
+        conjuntos = filterConjuntosByUserYards(conjuntos, req.session.user);
         res.json(conjuntos.map(c => ({ ...c, dateFormatted: formatDateBR(c.date) })));
     } catch (err) {
         console.error('Erro ao buscar conjuntos:', err);
@@ -3770,19 +4267,22 @@ app.get('/api/conjuntos', requireAuth, async (req, res) => {
 
 app.post('/api/conjuntos', requireAuth, async (req, res) => {
     const { date, cavaloPlate, carretaPlate, yard, base, baseDestino, leaderName, notes } = req.body;
-    const allowedYards = getUserAllowedYards(req.session.user.username);
-    if (allowedYards.length > 0 && yard && !allowedYards.includes(yard)) return res.status(403).json({ error: 'Você não tem permissão para este pátio' });
+    const allowedYards = getAllowedYardsForUser(req.session.user);
+    const resolvedYard = getDefaultYardForUser(req.session.user) && req.session.user.role !== 'admin'
+        ? getDefaultYardForUser(req.session.user)
+        : String(yard || '').trim();
+    if (allowedYards.length > 0 && resolvedYard && !allowedYards.includes(resolvedYard)) return res.status(403).json({ error: 'Você não tem permissão para este pátio' });
     if (!cavaloPlate || !carretaPlate) return res.status(400).json({ error: 'Cavalo e carreta são obrigatórios' });
     const normalizedConjuntoDate = normalizeRequestTimestamp(date, new Date().toISOString());
     try {
         let createdConjunto = null;
         if (isProduction) {
             const result = await pool.query(`INSERT INTO conjuntos (date, cavaloPlate, carretaPlate, yard, base, baseDestino, leaderName, notes, updatedBy) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
-                [normalizedConjuntoDate, cavaloPlate.toUpperCase(), carretaPlate.toUpperCase(), yard || '', base || '', baseDestino || '', leaderName || '', notes || '', req.session.user.username]);
+                [normalizedConjuntoDate, cavaloPlate.toUpperCase(), carretaPlate.toUpperCase(), resolvedYard || '', base || '', baseDestino || '', leaderName || '', notes || '', req.session.user.username]);
             createdConjunto = mapConjuntoRow(result.rows[0]);
         } else {
             const result = db.prepare(`INSERT INTO conjuntos (date, cavaloPlate, carretaPlate, yard, base, baseDestino, leaderName, notes, updatedBy) VALUES (?,?,?,?,?,?,?,?,?)`)
-                .run(normalizedConjuntoDate, cavaloPlate.toUpperCase(), carretaPlate.toUpperCase(), yard || '', base || '', baseDestino || '', leaderName || '', notes || '', req.session.user.username);
+                .run(normalizedConjuntoDate, cavaloPlate.toUpperCase(), carretaPlate.toUpperCase(), resolvedYard || '', base || '', baseDestino || '', leaderName || '', notes || '', req.session.user.username);
             createdConjunto = mapConjuntoRow(db.prepare('SELECT * FROM conjuntos WHERE id = ?').get(result.lastInsertRowid));
         }
         await recordAuditEvent(req, {
@@ -3790,7 +4290,7 @@ app.post('/api/conjuntos', requireAuth, async (req, res) => {
             entityId: createdConjunto?.id || '',
             action: 'create',
             summary: `Conjunto ${cavaloPlate.toUpperCase()} + ${carretaPlate.toUpperCase()} criado`,
-            details: createdConjunto || { cavaloPlate, carretaPlate, yard, base, baseDestino, leaderName, notes }
+            details: createdConjunto || { cavaloPlate, carretaPlate, yard: resolvedYard, base, baseDestino, leaderName, notes }
         });
         res.json({ success: true });
     } catch (err) {
@@ -3802,7 +4302,7 @@ app.post('/api/conjuntos', requireAuth, async (req, res) => {
 app.put('/api/conjuntos/:id', requireAuth, async (req, res) => {
     const { id } = req.params;
     const { date, cavaloPlate, carretaPlate, yard, base, baseDestino, leaderName, notes } = req.body;
-    const allowedYards = getUserAllowedYards(req.session.user.username);
+    const allowedYards = getAllowedYardsForUser(req.session.user);
     if (allowedYards.length > 0 && yard && !allowedYards.includes(yard)) return res.status(403).json({ error: 'Você não tem permissão para este pátio' });
     const normalizedConjuntoDate = normalizeRequestTimestamp(date, null);
     try {
@@ -3875,7 +4375,7 @@ app.get('/api/management/dashboard', requireAuth, async (req, res) => {
         } else {
             allVehicles = db.prepare('SELECT * FROM vehicles').all().map(normalizeVehicleRecord);
         }
-        const vehicles = filterVehiclesByUserYards(allVehicles, req.session.user.username);
+        const vehicles = filterVehiclesByUserYards(allVehicles, req.session.user);
         const now = new Date();
         const readyVehicles = vehicles.filter(v => v.status === 'Liberado');
         const sascarPendente = vehicles.filter(v => v.sascarStatus === 'pendente').length;
@@ -3937,8 +4437,8 @@ app.get('/api/stats', requireAuth, async (req, res) => {
             allVehicles = db.prepare('SELECT * FROM vehicles').all().map(normalizeVehicleRecord);
             allConjuntos = db.prepare('SELECT * FROM conjuntos').all();
         }
-        const vehicles = filterVehiclesByUserYards(allVehicles, req.session.user.username);
-        const conjuntos = filterConjuntosByUserYards(allConjuntos, req.session.user.username);
+        const vehicles = filterVehiclesByUserYards(allVehicles, req.session.user);
+        const conjuntos = filterConjuntosByUserYards(allConjuntos, req.session.user);
         const active = vehicles.filter(v => v.status !== 'Liberado');
         const liberated = vehicles.filter(v => v.status === 'Liberado');
         const entreguesDiversos = vehicles.filter(v => v.entregarDiversos).length;
@@ -3952,7 +4452,7 @@ app.get('/api/stats', requireAuth, async (req, res) => {
         const documentationIssues = vehicles.filter(v => v.documentIssue).length;
         const maintenanceOrAccident = vehicles.filter(v => v.status === 'Em manutenção' || v.status === 'Funilaria' || v.status === 'Borracharia' || v.maintenance || v.hasAccident).length;
         res.json({
-            cavalosMecanicos: active.filter(v => v.type === 'Cavalo Mecânico').length,
+            cavalosMecanicos: active.filter(v => v.type === 'Cavalo').length,
             carretas: active.filter(v => v.type === 'Carreta').length,
             conjuntosMontados: conjuntos.length,
             emManutencao: active.filter(v => v.status === 'Em manutenção').length,
@@ -4023,6 +4523,15 @@ async function createPreImportBackup(exportedBy = 'system') {
     return { backupFile, backupPath };
 }
 
+async function createPreImportSafetyBundle(exportedBy = 'system') {
+    const backup = await createPreImportBackup(exportedBy);
+    const snapshot = createSafetySnapshot({
+        workspaceRoot: __dirname,
+        label: 'pre-import'
+    });
+    return { backup, snapshot };
+}
+
 app.post('/api/import', requireAuth, requireRole(['admin']), async (req, res) => {
     const importedVehiclesRaw = Array.isArray(req.body?.vehicles) ? req.body.vehicles : [];
     const importedSwapsRaw = resolveImportedSwaps(req.body);
@@ -4048,7 +4557,8 @@ app.post('/api/import', requireAuth, requireRole(['admin']), async (req, res) =>
     }
 
     try {
-        const backup = await createPreImportBackup(req.session.user.username);
+        const safetyBundle = await createPreImportSafetyBundle(req.session.user.username);
+        const { backup, snapshot } = safetyBundle;
         const createdVehicleRefs = [];
         if (isProduction) {
             const client = await pool.connect();
@@ -4152,7 +4662,10 @@ app.post('/api/import', requireAuth, requireRole(['admin']), async (req, res) =>
             accidentPhotosImported,
             seminovos: seminovosResult,
             backupFile: backup.backupFile,
-            message: `✅ Importação concluída: ${importedVehicles.length} veículo(s), ${swapsCount} troca(s), ${conjuntosCount} conjunto(s), ${accidentPhotosImported} foto(s) de sinistro${seminovosSummary}. Backup salvo em ${backup.backupFile}`
+            backupPath: backup.backupPath,
+            snapshotName: snapshot.snapshotName,
+            snapshotPath: snapshot.snapshotPath,
+            message: `✅ Importação concluída: ${importedVehicles.length} veículo(s), ${swapsCount} troca(s), ${conjuntosCount} conjunto(s), ${accidentPhotosImported} foto(s) de sinistro${seminovosSummary}. Backup salvo em ${backup.backupFile} e snapshot completo salvo em ${snapshot.snapshotName}`
         });
     } catch (err) {
         console.error('❌ Erro ao importar:', err);
