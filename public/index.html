@@ -1403,7 +1403,7 @@ placeholder="Senha" required autocomplete="current-password">
 <button class="btn btn-light btn-sm" id="btnSeminovosModule" onclick="openSeminovosModule()" title="Módulo Seminovos">
 <i class="bi bi-truck-front"></i>
 </button>
-<button class="btn btn-light btn-sm" onclick="openManagementDashboard()" title="Modo Gerência"><i class="bi bi-speedometer2"></i></button>
+<button class="btn btn-light btn-sm" id="btnManagementDashboard" onclick="openManagementDashboard()" title="Modo Gerência"><i class="bi bi-speedometer2"></i></button>
 <button class="btn btn-light btn-sm" onclick="logout()" title="Sair"><i class="bi bi-box-arrow-right"></i></button>
 </div>
 </div>
@@ -1411,6 +1411,7 @@ placeholder="Senha" required autocomplete="current-password">
 </header>
 
 <div class="container-fluid px-3 py-3">
+<div id="portariaModeBanner" class="alert alert-info border-0 shadow-sm d-none mb-4"></div>
 <div id="managementDashboard" class="management-dashboard hidden">
 <h3 class="mb-4"><i class="bi bi-speedometer2 me-2"></i>Modo Gerência - Visão Geral</h3>
 <div class="row g-4 mb-4">
@@ -1521,11 +1522,6 @@ placeholder="Senha" required autocomplete="current-password">
 </div>
 </div>
 <div class="col-6 col-md-3">
-<div class="quick-action-card" style="background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 100%);" onclick="openHdmiPanel()">
-<i class="bi bi-tv"></i><div><strong>Painel HDMI</strong></div><small>Veículos prontos</small>
-</div>
-</div>
-<div class="col-6 col-md-3">
 <div class="quick-action-card" style="background: linear-gradient(135deg, #92400e 0%, #f97316 100%);" onclick="openOccurrencesModule()">
 <i class="bi bi-journal-text"></i><div><strong>Ocorrências</strong></div><small>Módulo separado</small>
 </div>
@@ -1555,8 +1551,6 @@ placeholder="Senha" required autocomplete="current-password">
 <button class="btn btn-outline-warning" onclick="openOccurrencesModule()"><i class="bi bi-journal-text"></i> Ocorrências</button>
 <button class="btn btn-outline-info" id="btnCadastros" onclick="openBasesModule()"><i class="bi bi-sliders2"></i> Cadastros</button>
 <button class="btn btn-outline-danger" id="btnAudit" onclick="openAuditModule()"><i class="bi bi-clipboard-data"></i> Auditoria</button>
-<button class="btn btn-outline-dark" onclick="openHdmiPanel()"><i class="bi bi-tv"></i> Abrir Painel HDMI</button>
-<button class="btn btn-outline-secondary" onclick="closeHdmiPanel()"><i class="bi bi-x-square"></i> Encerrar Painel</button>
 <button class="btn btn-outline-info" id="btnImportJSON" data-bs-toggle="modal" data-bs-target="#importModal" style="display: inline-flex !important;"><i class="bi bi-file-earmark-arrow-up"></i> Importar JSON</button>
 <div class="vr mx-2"></div>
 <button class="btn btn-outline-warning" onclick="refreshData()"><i class="bi bi-arrow-clockwise"></i> Atualizar</button>
@@ -1763,9 +1757,10 @@ Nenhum veículo com mais de 24h no pátio neste momento.
 <option value="Pátio Superior">Pátio Superior</option>
 <option value="Pátio Cajamar">Pátio Cajamar</option>
 </select>
+<small id="conjuntoYardHint" class="text-muted d-block mt-2"></small>
 </div>
 <div class="col-md-6">
-<label class="form-label">Placa do Cavalo Mecânico *</label>
+<label class="form-label">Placa do Cavalo *</label>
 <input type="text" class="form-control" id="conjuntoCavaloPlate" required style="text-transform:uppercase;">
 </div>
 <div class="col-md-6">
@@ -1940,7 +1935,7 @@ Nenhum veículo com mais de 24h no pátio neste momento.
 <select class="form-select form-select-lg" id="type" required>
 <option value="">Selecione...</option>
 <option value="Carreta">Carreta</option>
-<option value="Cavalo Mecânico">Cavalo Mecânico</option>
+<option value="Cavalo">Cavalo</option>
 <option value="Van">Van</option>
 <option value="VUC / 3/4">VUC / 3/4</option>
 <option value="Caminhão Truck">Caminhão Truck</option>
@@ -1958,6 +1953,7 @@ Nenhum veículo com mais de 24h no pátio neste momento.
 <option value="Pátio Superior">â¬†ï¸ Superior</option>
 <option value="Pátio Cajamar">Cajamar</option>
 </select>
+<small id="yardLockHint" class="text-muted d-block mt-2"></small>
 </div>
 <div class="col-md-6">
 <label class="form-label">Data/Hora de Entrada</label>
@@ -2331,7 +2327,7 @@ Nenhum veículo com mais de 24h no pátio neste momento.
 <label class="form-label">Tipo</label>
 <select class="form-select" id="editType">
 <option value="Carreta">Carreta</option>
-<option value="Cavalo Mecânico">Cavalo Mecânico</option>
+<option value="Cavalo">Cavalo</option>
 <option value="Van">Van</option>
 <option value="VUC / 3/4">VUC / 3/4</option>
 <option value="Caminhão Truck">Caminhão Truck</option>
@@ -2350,14 +2346,14 @@ Nenhum veículo com mais de 24h no pátio neste momento.
 </select>
 </div>
 <div class="col-md-6">
-<label class="form-label">Data de Entrada <span id="dateEditBadge" class="badge bg-warning text-dark ms-1">Admin/Bandeirantes</span></label>
+<label class="form-label">Data de Entrada <span id="dateEditBadge" class="badge bg-warning text-dark ms-1">Admin</span></label>
 <input type="datetime-local" class="form-control" id="editEntryTime">
-<small class="text-muted" id="dateEditHelp">Apenas admin e Bandeirantes podem alterar</small>
+<small class="text-muted" id="dateEditHelp">Apenas administradores podem alterar</small>
 </div>
 <div class="col-md-6">
-<label class="form-label">Data de Saída <span id="exitDateBadge" class="badge bg-warning text-dark ms-1">Admin/Bandeirantes</span></label>
+<label class="form-label">Data de Saída <span id="exitDateBadge" class="badge bg-warning text-dark ms-1">Admin</span></label>
 <input type="datetime-local" class="form-control" id="editExitTime">
-<small class="text-muted" id="exitDateHelp">Apenas admin e Bandeirantes podem alterar</small>
+<small class="text-muted" id="exitDateHelp">Apenas administradores podem alterar</small>
 </div>
 <div class="col-md-6">
 <label class="form-label">Status</label>
@@ -2725,6 +2721,9 @@ let activeOcrStatusUpdater = null;
 let vehicleReportReturnModalId = null;
 let vehicleReportSkipReturn = false;
 let preserveEntryModalStateOnNextShow = false;
+let currentEntryLookup = null;
+let entryLookupTimer = null;
+let exitLookupTimer = null;
 let pendingAccidentPhotoTarget = null;
 let voiceRecognition = null;
 let voiceListening = false;
@@ -2891,6 +2890,111 @@ return String(value || '')
 .toUpperCase()
 .replace(/[^A-Z0-9]/g, '')
 .trim();
+}
+
+function getPlateAliasesForComparison(value) {
+const normalized = normalizePlateForComparison(value);
+if (!normalized) return [];
+const aliases = new Set([normalized]);
+const oldToMercosul = { '0': 'A', '1': 'B', '2': 'C', '3': 'D', '4': 'E', '5': 'F', '6': 'G', '7': 'H', '8': 'I', '9': 'J' };
+const mercosulToOld = { A: '0', B: '1', C: '2', D: '3', E: '4', F: '5', G: '6', H: '7', I: '8', J: '9' };
+if (/^[A-Z]{3}\d{4}$/.test(normalized)) {
+const chars = normalized.split('');
+chars[4] = oldToMercosul[chars[4]] || chars[4];
+aliases.add(chars.join(''));
+} else if (/^[A-Z]{3}\d[A-Z]\d{2}$/.test(normalized)) {
+const chars = normalized.split('');
+chars[4] = mercosulToOld[chars[4]] || chars[4];
+aliases.add(chars.join(''));
+}
+return Array.from(aliases);
+}
+
+function platesMatchForComparison(left, right) {
+if (!left || !right) return false;
+const rightAliases = new Set(getPlateAliasesForComparison(right));
+return getPlateAliasesForComparison(left).some(alias => rightAliases.has(alias));
+}
+
+function isAdminUser() {
+return currentUser?.role === 'admin';
+}
+
+function isPortariaMode() {
+return Boolean(currentUser) && !isAdminUser() && currentUser?.role !== 'seminovos';
+}
+
+function getFixedOperationYard() {
+return !isAdminUser() && userYards.length === 1 ? userYards[0] : '';
+}
+
+function getRoleDisplayLabel() {
+if (currentUser?.role === 'admin') return 'Administrador';
+if (currentUser?.role === 'seminovos') return 'Seminovos';
+return isPortariaMode() ? 'Portaria' : 'Operador';
+}
+
+function updatePortariaModeUI() {
+const banner = document.getElementById('portariaModeBanner');
+const managementBtn = document.getElementById('btnManagementDashboard');
+const fixedYard = getFixedOperationYard();
+document.body.classList.toggle('portaria-mode', isPortariaMode());
+if (banner) {
+if (isPortariaMode()) {
+banner.classList.remove('d-none');
+banner.innerHTML = `<i class="bi bi-shield-check me-2"></i><strong>Modo Portaria ativo</strong><span class="ms-2">Operação restrita ao ${fixedYard || (userYards.join(', ') || 'pátio do usuário')}.</span>`;
+} else {
+banner.classList.add('d-none');
+banner.innerHTML = '';
+}
+}
+if (managementBtn) {
+managementBtn.style.display = isAdminUser() ? 'inline-flex' : 'none';
+managementBtn.disabled = !isAdminUser();
+}
+}
+
+function applyOperationYardLockState() {
+const fixedYard = getFixedOperationYard();
+const yardSelect = document.getElementById('yard');
+const editYard = document.getElementById('editYard');
+const conjuntoYard = document.getElementById('conjuntoYard');
+const yardLockHint = document.getElementById('yardLockHint');
+const conjuntoYardHint = document.getElementById('conjuntoYardHint');
+
+if (yardLockHint) {
+yardLockHint.textContent = fixedYard ? `Pátio definido automaticamente pelo login: ${fixedYard}.` : '';
+}
+if (conjuntoYardHint) {
+conjuntoYardHint.textContent = fixedYard ? `Montagem vinculada automaticamente ao pátio ${fixedYard}.` : '';
+}
+
+if (yardSelect) {
+if (fixedYard) {
+yardSelect.value = fixedYard;
+yardSelect.disabled = true;
+} else {
+yardSelect.disabled = false;
+}
+}
+
+if (conjuntoYard) {
+if (fixedYard) {
+conjuntoYard.value = fixedYard;
+conjuntoYard.disabled = true;
+} else {
+conjuntoYard.disabled = false;
+}
+}
+
+if (editYard) {
+if (fixedYard && !isAdminUser()) {
+editYard.value = fixedYard;
+editYard.disabled = true;
+} else {
+editYard.disabled = false;
+}
+}
 }
 
 function persistLoanReturnNotifications() {
@@ -3406,6 +3510,12 @@ console.error('Erro ao carregar liberados:', err);
 }
 
 function openManagementDashboard() {
+if (!isAdminUser()) {
+showToast('Somente o administrador pode abrir o modo gerencia.', 'warning');
+return;
+showToast('Somente o administrador pode abrir o modo gerência.', 'warning');
+return;
+}
 const dashboard = document.getElementById('managementDashboard');
 if (!dashboard.classList.contains('hidden')) {
 loadManagementDashboard();
@@ -4521,6 +4631,7 @@ showLoginScreen();
 function showLoginScreen() {
 stopVoiceCommandListening({ showMessage: false });
 hideVoiceStatus();
+document.body.classList.remove('portaria-mode');
 document.getElementById('loginScreen').classList.remove('hidden');
 document.getElementById('mainApp').classList.add('hidden');
 }
@@ -4533,9 +4644,9 @@ return;
 document.getElementById('loginScreen').classList.add('hidden');
 document.getElementById('mainApp').classList.remove('hidden');
 document.getElementById('userName').textContent = currentUser.username;
-document.getElementById('userRole').textContent = currentUser.role === 'admin' ? 'Administrador' : currentUser.role === 'seminovos' ? 'Seminovos' : 'Operador';
+document.getElementById('userRole').textContent = getRoleDisplayLabel();
 document.getElementById('userAvatar').textContent = currentUser.username.charAt(0).toUpperCase();
-document.getElementById('userRoleBadge').textContent = currentUser.role.toUpperCase();
+document.getElementById('userRoleBadge').textContent = isPortariaMode() ? 'PORTARIA' : currentUser.role.toUpperCase();
 document.getElementById('userRoleBadge').className = `role-badge ${currentUser.role === 'admin' ? 'bg-warning text-dark' : 'bg-secondary text-white'}`;
 
 userYards = currentUser.yards || [];
@@ -4543,8 +4654,10 @@ updateLoanAudioToggleUI();
 console.log('ðŸ“ Pátios permitidos:', userYards);
 console.log('âœ… Pode alterar Liberado:', canChangeLiberado);
 
+updatePortariaModeUI();
 applyPermissions();
 updateYardOptions();
+applyOperationYardLockState();
 await loadBaseOptions({ silent: true });
 await loadConjuntos();
 await Promise.all([loadStats(), loadVehicles(), loadSwaps({ suppressInitialAlert: true })]);
@@ -4581,6 +4694,7 @@ if (seminovosBtn) {
 seminovosBtn.style.display = showAdminAreas ? 'inline-flex' : 'none';
 seminovosBtn.disabled = !showAdminAreas;
 }
+updatePortariaModeUI();
 }
 
 function updateYardOptions() {
@@ -4590,6 +4704,7 @@ const editYard = document.getElementById('editYard');
 const conjuntoYard = document.getElementById('conjuntoYard');
 
 if (userYards.length === 0 || currentUser.role === 'admin') {
+applyOperationYardLockState();
 return;
 }
 
@@ -4609,6 +4724,8 @@ const firstAllowed = Array.from(options).find(o => userYards.includes(o.value));
 if (firstAllowed) select.value = firstAllowed.value;
 }
 });
+
+applyOperationYardLockState();
 }
 
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
@@ -4692,6 +4809,7 @@ const normalizedType = String(type || '').trim();
 const defaultMeta = { label: normalizedType || 'Tipo não informado', icon: 'truck', className: 'vehicle-type-truck' };
 const typeMap = {
 'Carreta': { label: 'Carreta', icon: 'truck', className: 'vehicle-type-carreta' },
+'Cavalo': { label: 'Cavalo', icon: 'car-front', className: 'vehicle-type-cavalo' },
 'Cavalo Mecânico': { label: 'Cavalo', icon: 'car-front', className: 'vehicle-type-cavalo' },
 'Van': { label: 'Van', icon: 'bus-front', className: 'vehicle-type-van' },
 'VUC / 3/4': { label: 'VUC / 3/4', icon: 'truck-flatbed', className: 'vehicle-type-vuc' },
@@ -5148,6 +5266,8 @@ toggleNewLineSection(prefix);
 }
 
 function openEntryModal() {
+currentEntryLookup = null;
+document.getElementById('entryForm').reset();
 document.getElementById('plate').value = '';
 document.getElementById('chassis').value = '';
 const entryImageInput = document.getElementById('plateImageEntry');
@@ -5162,6 +5282,9 @@ document.getElementById('plateAlert').classList.add('hidden');
 resetVehicleWorkflowFields();
 resetAccidentPhotoFields();
 document.getElementById('entryForm').querySelectorAll('input, select, textarea').forEach(el => el.disabled = false);
+setBaseSelectValue('base', '', 'Jaraguá-SP (Nacional)');
+setBaseSelectValue('baseDestino', '', '');
+applyOperationYardLockState();
 stopCamera('entry');
 new bootstrap.Modal(document.getElementById('entryModal')).show();
 }
@@ -5587,15 +5710,165 @@ return chars.map((char, index) => pattern[index] === 'L' ? (OCR_LETTER_MAP[char]
 }
 
 function findVehicleRecordByPlate(vehicles, plate, { preferActive = true } = {}) {
-const normalizedPlate = normalizePlateForComparison(plate);
-if (!normalizedPlate || !Array.isArray(vehicles)) return null;
-const matches = vehicles.filter(v => normalizePlateForComparison(v.plate) === normalizedPlate);
+if (!plate || !Array.isArray(vehicles)) return null;
+const matches = vehicles.filter(v => platesMatchForComparison(v.plate, plate));
 if (matches.length === 0) return null;
 if (preferActive) {
 const activeMatch = matches.find(v => v.status !== 'Liberado');
 if (activeMatch) return activeMatch;
 }
 return matches[0];
+}
+
+async function fetchPortariaLookup({ plate = '', chassis = '' } = {}) {
+const query = new URLSearchParams();
+if (plate) query.set('plate', plate);
+if (chassis) query.set('chassis', chassis);
+const res = await fetch(`${API_URL}/portaria/lookup?${query.toString()}`, { cache: 'no-store' });
+const payload = await res.json().catch(() => ({}));
+if (!res.ok) {
+const error = new Error(payload.error || 'Não foi possível consultar a placa.');
+error.status = res.status;
+error.payload = payload;
+throw error;
+}
+return payload;
+}
+
+function setEntryFormInteractiveState(disabled) {
+document.getElementById('entryForm').querySelectorAll('input, select, textarea').forEach(el => el.disabled = disabled);
+document.getElementById('plate').disabled = false;
+applyOperationYardLockState();
+}
+
+function resetEntryAutoFill() {
+document.getElementById('type').value = '';
+document.getElementById('keys').value = '';
+setBaseSelectValue('base', '', 'Jaraguá-SP (Nacional)');
+}
+
+function applyEntryLookupAutofill(lookup) {
+const latestRecord = lookup?.latestRecord || null;
+const catalogRecord = lookup?.catalogRecord || null;
+const resolvedType = latestRecord?.type || catalogRecord?.type || '';
+document.getElementById('type').value = resolvedType;
+document.getElementById('keys').value = latestRecord?.keys || '';
+setBaseSelectValue('base', latestRecord?.base || '', 'JaraguÃ¡-SP (Nacional)');
+}
+
+function buildConjuntoLookupHtml(conjunto) {
+if (!conjunto) return '';
+const roleLabel = conjunto.role === 'cavalo' ? 'Cavalo' : conjunto.role === 'carreta' ? 'Carreta' : 'Veículo';
+const counterpart = conjunto.counterpartPlate
+? `<br><small class="text-muted">Outra placa do conjunto: <strong>${escapeHtml(conjunto.counterpartPlate)}</strong></small>`
+: '';
+return `<div class="history-item info"><strong>Conjunto identificado</strong><br><small>${roleLabel} do conjunto <strong>${escapeHtml(conjunto.cavaloPlate || '—')}</strong> + <strong>${escapeHtml(conjunto.carretaPlate || '—')}</strong>.</small>${counterpart}</div>`;
+}
+
+function renderEntryLookupState(lookup) {
+currentEntryLookup = lookup || null;
+const historyDiv = document.getElementById('vehicleHistory');
+const historyContent = document.getElementById('historyContent');
+const plateAlert = document.getElementById('plateAlert');
+const conflict = lookup?.conflict || null;
+const latestRecord = lookup?.latestRecord || null;
+const catalogRecord = lookup?.catalogRecord || null;
+const resolvedType = latestRecord?.type || catalogRecord?.type || '';
+
+if (conflict) {
+const isOtherYardConflict = conflict.scope === 'other-yard';
+const alertClass = isOtherYardConflict ? 'alert alert-warning mt-2' : 'alert alert-danger mt-2';
+const canAdminResolve = Boolean(lookup?.canOverrideConflict && conflict.canOverride);
+const details = conflict.entryDate
+? `<br>Entrada: ${escapeHtml(conflict.entryDate)}${conflict.timeInYard ? `<br>Tempo no pátio: ${escapeHtml(conflict.timeInYard)}` : ''}`
+: '';
+const conflictTitle = isOtherYardConflict
+? 'Veículo ativo em outro pátio'
+: 'Veículo já está com entrada aberta';
+const conflictDescription = isOtherYardConflict
+? 'Solicite regularização ao ADM antes de registrar uma nova entrada.'
+: `Pátio atual: ${escapeHtml(conflict.yard || '—')}.`;
+if (latestRecord || catalogRecord) {
+document.getElementById('type').value = resolvedType;
+setBaseSelectValue('base', latestRecord?.base || '', 'Jaraguá-SP (Nacional)');
+document.getElementById('keys').value = latestRecord?.keys || '';
+} else {
+resetEntryAutoFill();
+}
+const overrideButton = canAdminResolve
+? `<div class="mt-2"><button type="button" class="btn btn-sm btn-outline-dark" onclick="submitEntry({ forceConflictResolution: true })"><i class="bi bi-shield-lock me-1"></i>Regularizar e lançar nova entrada</button></div>`
+: '';
+plateAlert.className = alertClass;
+plateAlert.innerHTML = `<i class="bi bi-exclamation-triangle-fill"></i> <strong>${conflictTitle}</strong><br>${conflictDescription}${details}${overrideButton}`;
+plateAlert.classList.remove('hidden');
+setEntryFormInteractiveState(!canAdminResolve);
+historyDiv.classList.remove('hidden');
+historyContent.innerHTML = `<div class="history-item alert"><strong>CONFLITO DE ENTRADA</strong><br><small>${canAdminResolve ? 'O ADM pode revisar os campos e regularizar a saída anterior antes de seguir.' : 'A nova entrada foi bloqueada para evitar duplicidade.'}</small></div>`;
+return;
+}
+
+plateAlert.className = 'alert alert-danger mt-2 hidden';
+plateAlert.classList.add('hidden');
+setEntryFormInteractiveState(false);
+
+if (lookup?.latestRecord) {
+document.getElementById('type').value = lookup.latestRecord.type || '';
+setBaseSelectValue('base', lookup.latestRecord.base, 'Jaraguá-SP (Nacional)');
+document.getElementById('keys').value = lookup.latestRecord.keys || '';
+} else if (catalogRecord) {
+document.getElementById('type').value = resolvedType;
+document.getElementById('keys').value = '';
+setBaseSelectValue('base', '', 'Jaraguá-SP (Nacional)');
+} else {
+resetEntryAutoFill();
+}
+
+const sections = [];
+if (lookup?.latestRecord) {
+sections.push(`<div class="history-item info"><strong>Veículo conhecido</strong><br><small>Dados preenchidos automaticamente: Tipo ${escapeHtml(lookup.latestRecord.type || '—')} • Base ${escapeHtml(lookup.latestRecord.base || '—')}</small></div>`);
+} else if (catalogRecord) 
+if (lookup?.conjunto) {
+sections.push(buildConjuntoLookupHtml(lookup.conjunto));
+}
+if (Array.isArray(lookup?.history) && lookup.history.length > 0) {
+sections.push(...lookup.history.slice(0, 3).map(item => `<div class="history-item"><div><strong>${escapeHtml(item.entryDate || '—')}</strong> - ${escapeHtml(item.yard || '—')}</div><small class="text-muted">${escapeHtml(item.type || '—')} • ${escapeHtml(item.timeInYard || '—')}</small></div>`));
+}
+
+if (sections.length > 0) {
+historyDiv.classList.remove('hidden');
+historyContent.innerHTML = sections.join('');
+} else {
+historyDiv.classList.add('hidden');
+historyContent.innerHTML = '';
+}
+}
+
+function renderExitLookupState(lookup, plateInput) {
+const exitInfo = document.getElementById('exitVehicleInfo');
+const exitContent = document.getElementById('exitVehicleContent');
+const activeRecord = lookup?.activeRecord || null;
+
+if (activeRecord) {
+vehicleToExit = { ...activeRecord, conjunto: lookup?.conjunto || null };
+const conjuntoHtml = lookup?.conjunto
+? `<div class="history-item info mt-3"><strong>Conjunto relacionado</strong><br><small>Cavalo ${escapeHtml(lookup.conjunto.cavaloPlate || '—')} + Carreta ${escapeHtml(lookup.conjunto.carretaPlate || '—')}</small></div>`
+: '';
+exitInfo.classList.remove('hidden');
+exitContent.innerHTML = `<div class="history-item success"><h5><i class="bi bi-check-circle me-2"></i>Veículo Encontrado</h5><div class="row mt-3"><div class="col-6 text-start"><strong>Placa:</strong> ${escapeHtml(activeRecord.plate || '')}<br><strong>Tipo:</strong> ${escapeHtml(activeRecord.type || '—')}<br><strong>Pátio:</strong> ${escapeHtml(activeRecord.yard || '—')}</div><div class="col-6 text-start"><strong>Entrada:</strong> ${escapeHtml(activeRecord.entryDate || '—')}<br><strong>Tempo:</strong> ${escapeHtml(activeRecord.timeInYard || '—')}<br><strong>Status:</strong> ${escapeHtml(activeRecord.status || '—')}</div></div></div>${conjuntoHtml}`;
+return;
+}
+
+vehicleToExit = null;
+exitInfo.classList.remove('hidden');
+if (lookup?.conflict?.scope === 'other-yard') {
+exitContent.innerHTML = `<div class="history-item alert"><h5><i class="bi bi-exclamation-triangle me-2"></i>Veículo ativo em outro pátio</h5><p class="mb-0">A placa <strong>${escapeHtml(plateInput)}</strong> não está com entrada aberta no seu pátio. Solicite regularização ao ADM.</p></div>`;
+return;
+}
+if (lookup?.latestRecord) {
+exitContent.innerHTML = `<div class="history-item alert"><h5><i class="bi bi-info-circle me-2"></i>Placa conhecida</h5><p class="mb-0">A placa <strong>${escapeHtml(plateInput)}</strong> já existe no histórico, mas não há entrada aberta neste pátio.</p></div>`;
+return;
+}
+exitContent.innerHTML = `<div class="history-item alert"><h5><i class="bi bi-exclamation-triangle me-2"></i>Veículo Não Encontrado</h5><p class="mb-0">A placa <strong>${escapeHtml(plateInput)}</strong> não está registrada no pátio atual.</p></div>`;
 }
 
 function showVehicleReportModal(vehicle, { returnToModalId = null } = {}) {
@@ -5633,41 +5906,14 @@ sourceModal.hide();
 
 async function checkVehicleHistory(plate, { openReport = false } = {}) {
 try {
-const res = await fetch(`${API_URL}/vehicles`);
-const vehicles = await res.json();
-const matchedVehicle = findVehicleRecordByPlate(vehicles, plate);
-const normalizedPlate = normalizePlateForComparison(plate);
-const existingVehicle = vehicles.find(v => normalizePlateForComparison(v.plate) === normalizedPlate && v.status !== 'Liberado');
-const historyDiv = document.getElementById('vehicleHistory');
-const historyContent = document.getElementById('historyContent');
-const plateAlert = document.getElementById('plateAlert');
-if (existingVehicle) {
-plateAlert.innerHTML = `<i class="bi bi-exclamation-triangle-fill"></i> <strong>Veículo já está no pátio!</strong><br>Local: ${existingVehicle.yard}<br>Entrada: ${existingVehicle.entryDate}<br>â³ Tempo: ${existingVehicle.timeInYard}`;
-plateAlert.classList.remove('hidden');
-document.getElementById('entryForm').querySelectorAll('input, select, textarea').forEach(el => el.disabled = true);
-document.getElementById('plate').disabled = false;
-historyDiv.classList.remove('hidden');
-historyContent.innerHTML = `<div class="history-item alert"><strong>VEÍCULO JÁ ESTÁ NO PÁTIO</strong><br><small>Não é possível cadastrar entrada duplicada</small></div>`;
-} else {
-const vehicleHistory = vehicles.filter(v => normalizePlateForComparison(v.plate) === normalizedPlate);
-plateAlert.classList.add('hidden');
-document.getElementById('entryForm').querySelectorAll('input, select, textarea').forEach(el => el.disabled = false);
-if (vehicleHistory.length > 0) {
-const lastRecord = vehicleHistory[0];
-document.getElementById('type').value = lastRecord.type || '';
-setBaseSelectValue('base', lastRecord.base, 'Jaraguá-SP (Nacional)');
-document.getElementById('keys').value = lastRecord.keys || '';
-historyDiv.classList.remove('hidden');
-historyContent.innerHTML = `<div class="history-item info"><strong>Veículo conhecido - Dados preenchidos automaticamente</strong><br><small>Tipo: ${lastRecord.type || '—'} | Base: ${lastRecord.base || '—'}</small></div>${vehicleHistory.slice(0, 3).map(v => `<div class="history-item"><div><strong>${v.entryDate}</strong> - ${v.yard}</div><small class="text-muted">${v.type} • ${v.timeInYard || '—'}</small></div>`).join('')}`;
-} else {
-historyDiv.classList.add('hidden');
-}
-}
-if (openReport && matchedVehicle) {
-openVehicleReportFromContext(matchedVehicle, 'entryModal');
+const lookup = await fetchPortariaLookup({ plate });
+renderEntryLookupState(lookup);
+if (openReport && lookup?.latestRecord) {
+openVehicleReportFromContext(lookup.latestRecord, 'entryModal');
 }
 } catch (err) {
 console.error('Erro ao buscar histórico:', err);
+renderEntryLookupState(null);
 }
 }
 
@@ -5675,24 +5921,10 @@ async function checkPlateForExit(plate = null, { openReport = false } = {}) {
 const plateInput = plate || document.getElementById('scanExitPlate').value.trim();
 if (!plateInput) { showToast('âš ï¸ Digite ou escaneie uma placa', 'warning'); return; }
 try {
-const res = await fetch(`${API_URL}/vehicles`);
-const vehicles = await res.json();
-const matchedVehicle = findVehicleRecordByPlate(vehicles, plateInput);
-const normalizedPlateInput = normalizePlateForComparison(plateInput);
-const vehicle = vehicles.find(v => normalizePlateForComparison(v.plate) === normalizedPlateInput && v.status !== 'Liberado');
-const exitInfo = document.getElementById('exitVehicleInfo');
-const exitContent = document.getElementById('exitVehicleContent');
-if (vehicle) {
-vehicleToExit = vehicle;
-exitInfo.classList.remove('hidden');
-exitContent.innerHTML = `<div class="history-item success"><h5><i class="bi bi-check-circle me-2"></i>Veículo Encontrado</h5><div class="row mt-3"><div class="col-6 text-start"><strong>Placa:</strong> ${vehicle.plate}<br><strong>Tipo:</strong> ${vehicle.type}<br><strong>Pátio:</strong> ${vehicle.yard}</div><div class="col-6 text-start"><strong>Entrada:</strong> ${vehicle.entryDate}<br><strong>Tempo:</strong> ${vehicle.timeInYard}<br><strong>Status:</strong> ${vehicle.status}</div></div></div>`;
-} else {
-vehicleToExit = null;
-exitInfo.classList.remove('hidden');
-exitContent.innerHTML = `<div class="history-item alert"><h5><i class="bi bi-exclamation-triangle me-2"></i>Veículo Não Encontrado</h5><p class="mb-0">A placa <strong>${plateInput}</strong> não está registrada no pátio ou já foi liberada.</p></div>`;
-}
-if (openReport && matchedVehicle) {
-openVehicleReportFromContext(matchedVehicle, 'scanExitModal');
+const lookup = await fetchPortariaLookup({ plate: plateInput });
+renderExitLookupState(lookup, plateInput);
+if (openReport && lookup?.latestRecord) {
+openVehicleReportFromContext(lookup.latestRecord, 'scanExitModal');
 }
 } catch (err) {
 showToast('âŒ Erro ao buscar veículo', 'danger');
@@ -5701,10 +5933,20 @@ showToast('âŒ Erro ao buscar veículo', 'danger');
 
 async function confirmExitVehicle() {
 if (!vehicleToExit) { showToast('Nenhum veículo para liberar', 'warning'); return; }
-if (!confirm(`Confirmar SAÍDA do veículo ${vehicleToExit.plate}?`)) return;
+if (!userPermissions?.canExit) {
+showToast('Você não tem permissão para registrar saída.', 'danger');
+return;
+}
+const conjuntoHint = vehicleToExit?.conjunto ? `\nConjunto atual: Cavalo ${vehicleToExit.conjunto.cavaloPlate} + Carreta ${vehicleToExit.conjunto.carretaPlate}` : '';
+if (!confirm(`Confirmar SAÍDA do veículo ${vehicleToExit.plate}?${conjuntoHint}`)) return;
 try {
 unlockAppAudio();
-await fetch(`${API_URL}/vehicles/${vehicleToExit.id}/exit`, { method: 'POST' });
+const res = await fetch(`${API_URL}/vehicles/${vehicleToExit.id}/exit`, { method: 'POST' });
+const result = await res.json().catch(() => ({}));
+if (!res.ok) {
+showToast(result.error || 'Não foi possível registrar a saída.', 'danger');
+return;
+}
 bootstrap.Modal.getInstance(document.getElementById('scanExitModal')).hide();
 loadStats();
 loadVehicles();
@@ -6076,7 +6318,7 @@ document.getElementById('current-yard-filter').textContent = 'Todos os Pátios';
 }
 
 const cards = [
-{ icon: '/images/cavalo-mecanico.png', label: 'Cavalos Mecânicos', value: safeCount(stats.cavalosMecanicos), filterType: 'Cavalo Mecânico', isImage: true },
+{ icon: '/images/cavalo-mecanico.png', label: 'Cavalos', value: safeCount(stats.cavalosMecanicos), filterType: 'Cavalo', isImage: true },
 { icon: '/images/carreta.png', label: 'Carretas', value: safeCount(stats.carretas), filterType: 'Carreta', isImage: true },
 { icon: '/images/conjunto-montado.png', label: 'Conjuntos Montados', value: safeCount(stats.conjuntosMontados), filterConjunto: true, isImage: true },
 { icon: '/images/manutencao.png', label: 'Em Manutenção', value: safeCount(stats.emManutencao), filterStatus: 'Em manutenção', isImage: true },
@@ -6228,6 +6470,29 @@ const workflowBadges = renderVehicleWorkflowBadges(v);
 const seminovosHint = v.movedToSeminovos ? `<span class="conjunto-hint text-primary-emphasis"><i class="bi bi-box-arrow-up-right"></i>Seminovos${v.seminovosMovedAt ? ` em ${escapeHtml(formatDateBR(v.seminovosMovedAt))}` : ''}${v.seminovosYard ? ` • ${escapeHtml(v.seminovosYard)}` : ''}</span>` : '';
 const entregueBadge = v.entregue ? `<span class="badge-entregue"><i class="bi bi-box-seam"></i>${v.entreguePara === 'correios' ? 'Correios' : v.entreguePara === 'diversos' ? 'Diversos' : 'Entregue'}</span>` : '';
 const canUndoLiberado = v.canChangeLiberado && v.status === 'Liberado';
+const canUsePortariaActions = Boolean(userPermissions?.canExit);
+const showAdvancedActions = !isPortariaMode();
+const baseActionBlock = v.status !== 'Liberado'
+? `${showAdvancedActions ? `
+<button class="dropdown-item" onclick="updateStatus(${v.id}, 'Aguardando linha')"><i class="bi bi-hourglass-split"></i> Aguardando linha</button>
+<button class="dropdown-item" onclick="updateStatus(${v.id}, 'Aguardando abastecimento')"><i class="bi bi-fuel-pump-diesel"></i> Aguardando abastecimento</button>
+<button class="dropdown-item" onclick="updateStatus(${v.id}, 'Aguardando manutenção')"><i class="bi bi-tools"></i> Aguardando manutenção</button>
+<button class="dropdown-item" onclick="updateStatus(${v.id}, 'Em manutenção')"><i class="bi bi-wrench"></i> Em manutenção</button>
+<button class="dropdown-item" onclick="updateStatus(${v.id}, 'Funilaria')"><i class="bi bi-hammer"></i> Funilaria</button>
+<button class="dropdown-item" onclick="updateStatus(${v.id}, 'Borracharia')"><i class="bi bi-life-preserver"></i> Borracharia</button>` : ''}
+${canUsePortariaActions ? `<button class="dropdown-item" onclick="exitVehicle(${v.id})"><i class="bi bi-check-lg"></i> Liberar saída</button>` : ''}
+<div class="dropdown-divider"></div>`
+: canUndoLiberado ? `
+<button class="dropdown-item text-warning" onclick="undoLiberado(${v.id})"><i class="bi bi-arrow-counterclockwise"></i> Desfazer Liberado</button>
+<div class="dropdown-divider"></div>
+` : '<button class="dropdown-item" disabled><i class="bi bi-check-circle"></i> Veículo liberado</button><div class="dropdown-divider"></div>';
+const deliveryActionBlock = v.status === 'Liberado' && !v.entregue && showAdvancedActions ? `
+<button class="dropdown-item text-success" onclick="marcarEntregue(${v.id}, 'correios')"><i class="bi bi-envelope"></i> Marcar como Entregue Correios</button>
+<button class="dropdown-item text-success" onclick="marcarEntregue(${v.id}, 'diversos')"><i class="bi bi-box"></i> Marcar como Entregue Diversos</button>
+<div class="dropdown-divider"></div>
+` : '';
+const editActionBlock = showAdvancedActions && userPermissions?.canEdit ? `<button class="dropdown-item" onclick="openEditVehicle(${v.id})"><i class="bi bi-pencil"></i> Editar veículo</button>` : '';
+const deleteActionBlock = userPermissions?.canDelete ? `<button class="dropdown-item text-danger" onclick="deleteVehicle(${v.id})"><i class="bi bi-trash"></i> Excluir</button>` : '';
 return `<tr data-yard="${v.yard}" data-status="${v.status}" data-type="${v.type}" data-search="${v.plate} ${v.type} ${v.yard} ${v.base} ${v.baseDestino} ${v.notes || ''} ${v.manager || ''} ${v.newLineName || ''} ${v.newLineState || ''} ${v.newVehicleNotes || ''} ${v.seminovosYard || ''} ${v.movedToSeminovos ? 'seminovos' : ''}" data-entregar-diversos="${entregarDiversos}" data-entregar-correios="${entregarCorreios}" data-entregue="${v.entregue ? 'true' : 'false'}" data-has-accident="${hasAccident}" data-document-issue="${documentIssue}" data-in-conjunto="${inConjunto}" data-is-new-vehicle="${v.isNewVehicle ? 'true' : 'false'}" data-sascar="${sascarStatus}" data-id="${v.id}">
 <td>${renderVehicleTypeBadge(v.type)}</td>
 <td>${placaHtml}${sinistroBadge}${docBadge}${conjuntoBadge}${workflowBadges}${seminovosHint}${conjuntoDescription ? `<span class="conjunto-hint"><i class="bi bi-link-45deg"></i>${conjuntoDescription}</span>` : ''}</td>
@@ -6249,26 +6514,7 @@ return `<tr data-yard="${v.yard}" data-status="${v.status}" data-type="${v.type}
 <i class="bi bi-three-dots-vertical"></i> Ações
 </button>
 <div class="actions-dropdown-menu">
-${v.status !== 'Liberado' ? `
-<button class="dropdown-item" onclick="updateStatus(${v.id}, 'Aguardando linha')"><i class="bi bi-hourglass-split"></i> Aguardando linha</button>
-<button class="dropdown-item" onclick="updateStatus(${v.id}, 'Aguardando abastecimento')"><i class="bi bi-fuel-pump-diesel"></i> Aguardando abastecimento</button>
-<button class="dropdown-item" onclick="updateStatus(${v.id}, 'Aguardando manutenção')"><i class="bi bi-tools"></i> Aguardando manutenção</button>
-<button class="dropdown-item" onclick="updateStatus(${v.id}, 'Em manutenção')"><i class="bi bi-wrench"></i> Em manutenção</button>
-<button class="dropdown-item" onclick="updateStatus(${v.id}, 'Funilaria')"><i class="bi bi-hammer"></i> Funilaria</button>
-<button class="dropdown-item" onclick="updateStatus(${v.id}, 'Borracharia')"><i class="bi bi-life-preserver"></i> Borracharia</button>
-<button class="dropdown-item" onclick="exitVehicle(${v.id})"><i class="bi bi-check-lg"></i> Liberar saída</button>
-<div class="dropdown-divider"></div>
-` : canUndoLiberado ? `
-<button class="dropdown-item text-warning" onclick="undoLiberado(${v.id})"><i class="bi bi-arrow-counterclockwise"></i> Desfazer Liberado</button>
-<div class="dropdown-divider"></div>
-` : '<button class="dropdown-item" disabled><i class="bi bi-check-circle"></i> Veículo liberado</button><div class="dropdown-divider"></div>'}
-${v.status === 'Liberado' && !v.entregue ? `
-<button class="dropdown-item text-success" onclick="marcarEntregue(${v.id}, 'correios')"><i class="bi bi-envelope"></i> Marcar como Entregue Correios</button>
-<button class="dropdown-item text-success" onclick="marcarEntregue(${v.id}, 'diversos')"><i class="bi bi-box"></i> Marcar como Entregue Diversos</button>
-<div class="dropdown-divider"></div>
-` : ''}
-<button class="dropdown-item" onclick="openEditVehicle(${v.id})"><i class="bi bi-pencil"></i> Editar veículo</button>
-<button class="dropdown-item text-danger" onclick="deleteVehicle(${v.id})"><i class="bi bi-trash"></i> Excluir</button>
+${baseActionBlock}${deliveryActionBlock}${editActionBlock}${deleteActionBlock}
 </div>
 </div>
 </td>
@@ -6316,6 +6562,8 @@ function openConjuntoModal() {
 document.getElementById('conjuntoForm').reset();
 document.getElementById('editConjuntoId').value = '';
 document.getElementById('conjuntoBtnText').textContent = 'Montar';
+document.getElementById('conjuntoDate').value = getLocalDateTimeInputValue();
+applyOperationYardLockState();
 new bootstrap.Modal(document.getElementById('conjuntoModal')).show();
 }
 
@@ -6349,7 +6597,7 @@ async function submitConjunto() {
 const id = document.getElementById('editConjuntoId').value;
 const payload = {
 date: serializeDateTimeInputValue(document.getElementById('conjuntoDate').value),
-yard: document.getElementById('conjuntoYard').value,
+yard: getFixedOperationYard() || document.getElementById('conjuntoYard').value,
 cavaloPlate: document.getElementById('conjuntoCavaloPlate').value.trim().toUpperCase(),
 carretaPlate: document.getElementById('conjuntoCarretaPlate').value.trim().toUpperCase(),
 base: document.getElementById('conjuntoBase').value,
@@ -6358,7 +6606,7 @@ leaderName: document.getElementById('conjuntoLeaderName').value,
 notes: document.getElementById('conjuntoNotes').value
 };
 if (!payload.cavaloPlate || !payload.carretaPlate) {
-alert('Informe as placas do cavalo mecânico e da carreta.');
+alert('Informe as placas do cavalo e da carreta.');
 return;
 }
 const method = id ? 'PUT' : 'POST';
@@ -6404,6 +6652,7 @@ const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
 document.getElementById('conjuntoDate').value = local.toISOString().slice(0,16);
 }
 document.getElementById('conjuntoBtnText').textContent = 'Atualizar';
+applyOperationYardLockState();
 new bootstrap.Modal(document.getElementById('conjuntoModal')).show();
 }
 
@@ -6476,12 +6725,13 @@ alert('Erro de conexão ao desfazer liberação');
 }
 }
 
-async function submitEntry() {
+async function submitEntry({ forceConflictResolution = false } = {}) {
 const plate = document.getElementById('plate').value.trim();
 const plateAlert = document.getElementById('plateAlert');
-if (!plateAlert.classList.contains('hidden')) { alert('âš ï¸ Não é possível cadastrar. Veículo já está no pátio!'); return; }
+const hasVisibleConflict = !plateAlert.classList.contains('hidden') && Boolean(currentEntryLookup?.conflict);
+if (hasVisibleConflict && !forceConflictResolution) { alert('âš ï¸ Não é possível cadastrar enquanto houver conflito de entrada em aberto.'); return; }
 const type = document.getElementById('type').value;
-const yard = document.getElementById('yard').value;
+const yard = getFixedOperationYard() || document.getElementById('yard').value;
 const hasAccident = document.getElementById('hasAccident').checked;
 const hasNewLine = document.getElementById('hasNewLine').checked;
 const newLineName = document.getElementById('newLineName').value.trim();
@@ -6499,6 +6749,7 @@ body: JSON.stringify({
 plate,
 type,
 yard,
+forceConflictResolution: forceConflictResolution ? 1 : 0,
 entryDate: serializeDateTimeInputValue(document.getElementById('entryDate').value),
 base: document.getElementById('base').value,
 baseDestino: document.getElementById('baseDestino').value,
@@ -6529,17 +6780,26 @@ accidentPhotos
 });
 const result = await res.json().catch(() => ({}));
 if (!res.ok) {
+if (res.status === 409 && result.code === 'ACTIVE_CONFLICT') {
+renderEntryLookupState({
+...currentEntryLookup,
+conflict: result.conflict || currentEntryLookup?.conflict || null,
+canOverrideConflict: Boolean(result.canOverrideConflict)
+});
+}
 showToast(result.error || '❌ Erro ao registrar veículo', 'danger');
 return;
 }
 stopCamera('entry');
 bootstrap.Modal.getInstance(document.getElementById('entryModal')).hide();
 document.getElementById('entryForm').reset();
+currentEntryLookup = null;
 setBaseSelectValue('base', '', 'Jaraguá-SP (Nacional)');
 document.getElementById('vehicleHistory').classList.add('hidden');
 document.getElementById('plateAlert').classList.add('hidden');
 resetVehicleWorkflowFields();
 resetAccidentPhotoFields();
+applyOperationYardLockState();
 if (result.loanReturn) {
 showLoanReturnAlert(result.loanReturn, { playSound: true, force: true });
 } else {
@@ -6557,18 +6817,53 @@ if (preserveEntryModalStateOnNextShow) {
 preserveEntryModalStateOnNextShow = false;
 return;
 }
+currentEntryLookup = null;
 document.getElementById('plate').value = '';
 document.getElementById('vehicleHistory').classList.add('hidden');
 document.getElementById('plateAlert').classList.add('hidden');
 resetVehicleWorkflowFields();
 resetAccidentPhotoFields();
-document.getElementById('entryForm').querySelectorAll('input, select, textarea').forEach(el => el.disabled = false);
+setEntryFormInteractiveState(false);
 stopCamera('entry');
 });
 
 document.getElementById('entryModal').addEventListener('hide.bs.modal', () => stopCamera('entry'));
 document.getElementById('scanExitModal').addEventListener('hide.bs.modal', () => stopCamera('exit'));
 document.getElementById('editVehicleModal').addEventListener('hidden.bs.modal', () => resetAccidentPhotoFields('edit'));
+
+function queueEntryPlateLookup() {
+const plateValue = document.getElementById('plate').value;
+const normalizedPlate = normalizePlateForComparison(plateValue);
+clearTimeout(entryLookupTimer);
+if (!normalizedPlate || normalizedPlate.length < 7) {
+renderEntryLookupState(null);
+return;
+}
+entryLookupTimer = setTimeout(() => checkVehicleHistory(plateValue), 220);
+}
+
+function queueExitPlateLookup() {
+const plateValue = document.getElementById('scanExitPlate').value;
+const normalizedPlate = normalizePlateForComparison(plateValue);
+clearTimeout(exitLookupTimer);
+if (!normalizedPlate || normalizedPlate.length < 7) {
+vehicleToExit = null;
+document.getElementById('exitVehicleInfo').classList.add('hidden');
+return;
+}
+exitLookupTimer = setTimeout(() => checkPlateForExit(plateValue), 220);
+}
+
+document.getElementById('plate').addEventListener('input', queueEntryPlateLookup);
+document.getElementById('plate').addEventListener('blur', queueEntryPlateLookup);
+document.getElementById('scanExitPlate').addEventListener('input', queueExitPlateLookup);
+document.getElementById('scanExitPlate').addEventListener('keydown', (event) => {
+if (event.key === 'Enter') {
+event.preventDefault();
+checkPlateForExit();
+}
+});
+
 document.getElementById('isNewVehicle').addEventListener('change', () => toggleNewVehicleSection());
 document.getElementById('hasNewLine').addEventListener('change', () => toggleNewLineSection());
 document.getElementById('hasAccident').addEventListener('change', () => toggleAccidentPhotoSection());
@@ -6583,6 +6878,12 @@ renderAccidentPhotoFields();
 renderAccidentPhotoFields('edit');
 
 async function openEditVehicle(id) {
+if (isPortariaMode()) {
+showToast('A edicao completa do veiculo esta disponivel apenas para perfis administrativos.', 'warning');
+return;
+showToast('A edição completa do veículo está disponível apenas para perfis administrativos.', 'warning');
+return;
+}
 const v = allVehicles.find(x => x.id === id);
 if (!v) return;
 resetAccidentPhotoFields('edit');
@@ -6655,9 +6956,7 @@ const exitDateBadge = document.getElementById('exitDateBadge');
 const dateHelp = document.getElementById('dateEditHelp');
 const exitDateHelp = document.getElementById('exitDateHelp');
 
-const canEditDates = currentUser?.role === 'admin' || 
-currentUser?.username?.toLowerCase() === 'bandeirantes' ||
-userYards?.includes('Pátio Bandeirantes');
+const canEditDates = isAdminUser();
 
 if (canEditDates) {
 dateField.disabled = false;
@@ -6668,13 +6967,13 @@ if (dateBadge) dateBadge.style.display = 'inline-block';
 if (exitDateBadge) exitDateBadge.style.display = 'inline-block';
 if (dateHelp) {
 dateHelp.style.display = 'block';
-dateHelp.textContent = '✅ Você pode editar a data de entrada';
+ dateHelp.textContent = '✅ Você pode editar a data de entrada';
 dateHelp.classList.remove('text-danger');
 dateHelp.classList.add('text-success');
 }
 if (exitDateHelp) {
 exitDateHelp.style.display = 'block';
-exitDateHelp.textContent = '✅ Você pode editar a data de saída';
+ exitDateHelp.textContent = '✅ Você pode editar a data de saída';
 exitDateHelp.classList.remove('text-danger');
 exitDateHelp.classList.add('text-success');
 }
@@ -6687,15 +6986,17 @@ if (dateBadge) dateBadge.style.display = 'none';
 if (exitDateBadge) exitDateBadge.style.display = 'none';
 if (dateHelp) {
 dateHelp.style.display = 'block';
-dateHelp.textContent = 'ðŸ”’ Apenas admin e Bandeirantes podem alterar';
+ dateHelp.textContent = 'ðŸ”’ Apenas administradores podem alterar';
 dateHelp.classList.add('text-danger');
 dateHelp.classList.remove('text-success');
+dateHelp.textContent = 'Apenas administradores podem alterar';
 }
 if (exitDateHelp) {
 exitDateHelp.style.display = 'block';
-exitDateHelp.textContent = 'ðŸ”’ Apenas admin e Bandeirantes podem alterar';
+ exitDateHelp.textContent = 'ðŸ”’ Apenas administradores podem alterar';
 exitDateHelp.classList.add('text-danger');
 exitDateHelp.classList.remove('text-success');
+exitDateHelp.textContent = 'Apenas administradores podem alterar';
 }
 }
 
@@ -6703,10 +7004,17 @@ setTimeout(() => {
 console.log('ðŸ“… Campo data disabled:', dateField.disabled);
 console.log('ðŸ“… Campo exitDate disabled:', exitDateField.disabled);
 }, 500);
+applyOperationYardLockState();
 new bootstrap.Modal(document.getElementById('editVehicleModal')).show();
 }
 
 async function saveVehicleEdit() {
+if (isPortariaMode()) {
+showToast('A edicao completa do veiculo esta disponivel apenas para perfis administrativos.', 'warning');
+return;
+showToast('A edição completa do veículo está disponível apenas para perfis administrativos.', 'warning');
+return;
+}
 const id = document.getElementById('editVehicleId').value;
 const hasAccident = document.getElementById('editHasAccident').checked;
 const updates = {
@@ -6749,9 +7057,7 @@ return;
 }
 
 const entryTime = document.getElementById('editEntryTime').value;
-const canEditDates = currentUser?.role === 'admin' || 
-currentUser?.username?.toLowerCase() === 'bandeirantes' ||
-userYards?.includes('Pátio Bandeirantes');
+const canEditDates = isAdminUser();
 
 if (entryTime && canEditDates) {
 updates.entryTime = serializeDateTimeInputValue(entryTime);
@@ -6787,14 +7093,27 @@ alert('Erro de conexão ao salvar alterações: ' + err.message);
 }
 
 async function updateStatus(id, newStatus) {
+if (isPortariaMode()) {
+showToast('A alteração manual de status está disponível apenas para perfis administrativos.', 'warning');
+return;
+}
 await fetch(`${API_URL}/vehicles/${id}/status`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ status: newStatus }) });
 loadStats(); loadVehicles();
 }
 
 async function exitVehicle(id) {
+if (!userPermissions?.canExit) {
+showToast('Você não tem permissão para registrar saída.', 'danger');
+return;
+}
 if (!confirm('Confirmar SAÍDA?')) return;
 unlockAppAudio();
-await fetch(`${API_URL}/vehicles/${id}/exit`, { method: 'POST' });
+const res = await fetch(`${API_URL}/vehicles/${id}/exit`, { method: 'POST' });
+const result = await res.json().catch(() => ({}));
+if (!res.ok) {
+showToast(result.error || 'Não foi possível registrar a saída.', 'danger');
+return;
+}
 loadStats(); loadVehicles();
 playAppSound('vehicleReleased');
 showToast('ðŸšª Saída registrada!', 'success');
@@ -6804,6 +7123,10 @@ async function deleteVehicle(id) {
 if (!confirm('EXCLUIR veículo?')) return;
 const res = await fetch(`${API_URL}/vehicles/${id}`, { method: 'DELETE' });
 const data = await res.json();
+if (res.status === 403) {
+showToast('Apenas administradores podem excluir', 'danger');
+return;
+}
 if (res.status === 403) {
 showToast('ðŸ”’ Apenas administradores podem excluir', 'danger');
 } else if (data.success) {
@@ -7316,6 +7639,10 @@ headers: {'Content-Type': 'application/json'},
 body: JSON.stringify(payload)
 });
 const result = await res.json();
+if (res.status === 403) {
+document.getElementById('importPreview').innerHTML = `<div class="alert alert-danger mt-3">Apenas administradores podem importar</div>`;
+return;
+}
 if (res.status === 403) {
 document.getElementById('importPreview').innerHTML = `<div class="alert alert-danger mt-3">ðŸ”’ Apenas administradores podem importar</div>`;
 return;
