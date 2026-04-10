@@ -5826,7 +5826,9 @@ resetEntryAutoFill();
 const sections = [];
 if (lookup?.latestRecord) {
 sections.push(`<div class="history-item info"><strong>Veículo conhecido</strong><br><small>Dados preenchidos automaticamente: Tipo ${escapeHtml(lookup.latestRecord.type || '—')} • Base ${escapeHtml(lookup.latestRecord.base || '—')}</small></div>`);
-} else if (catalogRecord) 
+} else if (catalogRecord) {
+sections.push(`<div class="history-item info"><strong>Cadastro mestre encontrado</strong><br><small>Tipo ${escapeHtml(catalogRecord.type || '—')}${catalogRecord.brand || catalogRecord.model ? ` • ${escapeHtml([catalogRecord.brand, catalogRecord.model].filter(Boolean).join(' '))}` : ''}</small></div>`);
+}
 if (lookup?.conjunto) {
 sections.push(buildConjuntoLookupHtml(lookup.conjunto));
 }
