@@ -1545,13 +1545,13 @@ placeholder="Senha" required autocomplete="current-password">
 <button class="btn btn-scan-exit" onclick="openScanExitModal()"><i class="bi bi-qr-code-scan"></i> Escanear Saída</button>
 <button class="btn btn-outline-secondary" onclick="openSwapModal('troca')"><i class="bi bi-arrow-left-right"></i> Registrar Troca</button>
 <button class="btn btn-outline-primary" onclick="openConjuntoModal()"><i class="bi bi-link-45deg"></i> Montar Conjunto</button>
-<button class="btn btn-outline-success" onclick="exportToJSON()"><i class="bi bi-file-earmark-json"></i> Exportar JSON</button>
+<button class="btn btn-outline-success" onclick="exportToJSON()"><i class="bi bi-download"></i> Fazer Backup</button>
 <button class="btn btn-outline-success" onclick="openExportModal('excel')"><i class="bi bi-file-earmark-excel"></i> Exportar Excel</button>
 <button class="btn btn-outline-danger" onclick="openExportModal('pdf')"><i class="bi bi-file-earmark-pdf"></i> Exportar PDF</button>
 <button class="btn btn-outline-warning" onclick="openOccurrencesModule()"><i class="bi bi-journal-text"></i> Ocorrências</button>
 <button class="btn btn-outline-info" id="btnCadastros" onclick="openBasesModule()"><i class="bi bi-sliders2"></i> Cadastros</button>
 <button class="btn btn-outline-danger" id="btnAudit" onclick="openAuditModule()"><i class="bi bi-clipboard-data"></i> Auditoria</button>
-<button class="btn btn-outline-info" id="btnImportJSON" data-bs-toggle="modal" data-bs-target="#importModal" style="display: inline-flex !important;"><i class="bi bi-file-earmark-arrow-up"></i> Importar JSON</button>
+<button class="btn btn-outline-info" id="btnImportJSON" data-bs-toggle="modal" data-bs-target="#importModal" style="display: inline-flex !important;"><i class="bi bi-upload"></i> Restaurar Backup</button>
 <div class="vr mx-2"></div>
 <button class="btn btn-outline-warning" onclick="refreshData()"><i class="bi bi-arrow-clockwise"></i> Atualizar</button>
 </div>
@@ -2630,28 +2630,28 @@ Nenhum veículo com mais de 24h no pátio neste momento.
 <input type="file" id="accidentPhotoCameraInput" class="d-none" accept="image/*" capture="environment">
 <input type="file" id="accidentPhotoDeviceInput" class="d-none" accept="image/*">
 
-<!-- Modal: Importar JSON -->
+<!-- Modal: Restaurar Backup -->
 <div class="modal fade" id="importModal" tabindex="-1">
 <div class="modal-dialog modal-md">
 <div class="modal-content">
 <div class="modal-header bg-info text-white">
-<h5 class="modal-title"><i class="bi bi-file-earmark-arrow-up me-2"></i>Importar Dados</h5>
+<h5 class="modal-title"><i class="bi bi-upload me-2"></i>Restaurar Backup</h5>
 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
 </div>
 <div class="modal-body">
 <div class="alert alert-warning">
-<i class="bi bi-exclamation-triangle me-2"></i><strong>Atenção:</strong> Importar um arquivo irá <u>substituir todos os dados atuais</u> do sistema.
+<i class="bi bi-exclamation-triangle me-2"></i><strong>Atenção:</strong> Restaurar um backup irá <u>substituir todos os dados atuais</u> do sistema.
 </div>
 <div class="mb-3">
-<label class="form-label fw-bold">Selecione o arquivo JSON de backup</label>
+<label class="form-label fw-bold">Selecione o arquivo de backup</label>
 <input type="file" class="form-control form-control-lg" id="importJsonFile" accept=".json">
-<div class="form-text">Arquivos exportados: <code>print-patio-backup-*.json</code></div>
+<div class="form-text">Backups gerados: <code>print-patio-backup-*.json</code></div>
 </div>
 <div id="importPreview"></div>
 </div>
 <div class="modal-footer">
 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-<button type="button" class="btn btn-info text-white" onclick="processImport()"><i class="bi bi-upload me-1"></i> Importar e Substituir</button>
+<button type="button" class="btn btn-info text-white" onclick="processImport()"><i class="bi bi-upload me-1"></i> Restaurar Backup</button>
 </div>
 </div>
 </div>
@@ -3936,11 +3936,11 @@ items: [
 ]
 },
 {
-title: 'Exportação e Dados',
+title: 'Backups e Dados',
 items: [
 { label: 'Exportar PDF', example: 'exportar pdf' },
 { label: 'Exportar Excel', example: 'exportar excel' },
-{ label: 'Exportar JSON', example: 'exportar json' },
+{ label: 'Fazer backup', example: 'fazer backup' },
 { label: 'Atualizar dados', example: 'atualizar dados, atualizar tela' }
 ]
 },
@@ -4505,11 +4505,11 @@ return { success: true, message: 'Abrindo as opções de exportação em Excel.'
 }
 },
 {
-label: 'Exportar JSON',
-matches: (text) => hasVoicePhrase(text, ['exportar json']),
+label: 'Fazer backup',
+matches: (text) => hasVoicePhrase(text, ['fazer backup', 'gerar backup', 'exportar backup', 'exportar json']),
 run: async () => {
 await exportToJSON();
-return { success: true, message: 'Exportação JSON iniciada.', tone: 'success' };
+return { success: true, message: 'Backup iniciado.', tone: 'success' };
 }
 },
 {
@@ -7240,9 +7240,9 @@ const a = document.createElement('a');
 a.href = url;
 a.download = `print-patio-backup-${new Date().toISOString().slice(0,10)}.json`;
 a.click();
-showToast('ðŸ“¦ JSON exportado!', 'success');
+showToast('ðŸ“¦ Backup gerado!', 'success');
 } catch (err) {
-showToast('âŒ Erro ao exportar', 'danger');
+showToast('âŒ Erro ao fazer backup', 'danger');
 }
 }
 
@@ -7602,11 +7602,11 @@ return false;
 
 async function processImport() {
 const fileInput = document.getElementById('importJsonFile');
-if (!fileInput.files || fileInput.files.length === 0) { alert('âš ï¸ Selecione um arquivo JSON'); return; }
+if (!fileInput.files || fileInput.files.length === 0) { alert('âš ï¸ Selecione um arquivo de backup'); return; }
 const file = fileInput.files[0];
 const text = await file.text();
 const jsonData = JSON.parse(text);
-if (!jsonData.vehicles || !Array.isArray(jsonData.vehicles)) { alert('âŒ Arquivo inválido'); return; }
+if (!jsonData.vehicles || !Array.isArray(jsonData.vehicles)) { alert('âŒ Backup inválido'); return; }
 
 const swapsImportados = [
 ...(Array.isArray(jsonData.swaps) ? jsonData.swaps : []),
@@ -7627,7 +7627,7 @@ const seminovosOrdersCount = Array.isArray(seminovosImportados?.serviceOrders) ?
 const seminovosConfirmText = seminovosImportados
 ? `\nInclui também ${seminovosVehiclesCount} veículo(s) e ${seminovosOrdersCount} ordem(ns) de serviço do módulo Seminovos.`
 : '';
-if (!confirm(`ðŸ”„ Substituir TODOS os dados por ${jsonData.vehicles.length} veículo(s)?${seminovosConfirmText}`)) return;
+if (!confirm(`ðŸ”„ Restaurar backup e substituir TODOS os dados por ${jsonData.vehicles.length} veículo(s)?${seminovosConfirmText}`)) return;
 const payload = {
 vehicles: jsonData.vehicles,
 swaps: swapsImportados,
@@ -7642,15 +7642,15 @@ body: JSON.stringify(payload)
 });
 const result = await res.json();
 if (res.status === 403) {
-document.getElementById('importPreview').innerHTML = `<div class="alert alert-danger mt-3">Apenas administradores podem importar</div>`;
+document.getElementById('importPreview').innerHTML = `<div class="alert alert-danger mt-3">Apenas administradores podem restaurar backup</div>`;
 return;
 }
 if (res.status === 403) {
-document.getElementById('importPreview').innerHTML = `<div class="alert alert-danger mt-3">ðŸ”’ Apenas administradores podem importar</div>`;
+document.getElementById('importPreview').innerHTML = `<div class="alert alert-danger mt-3">ðŸ”’ Apenas administradores podem restaurar backup</div>`;
 return;
 }
 if (!res.ok) {
-document.getElementById('importPreview').innerHTML = `<div class="alert alert-danger mt-3">❌ <strong>Importação cancelada.</strong><br>${result.error || 'Não foi possível importar o arquivo.'}</div>`;
+document.getElementById('importPreview').innerHTML = `<div class="alert alert-danger mt-3">❌ <strong>Restauração cancelada.</strong><br>${result.error || 'Não foi possível restaurar o backup.'}</div>`;
 return;
 }
 const swapsCount = swapsImportados.length;
@@ -7662,14 +7662,14 @@ const accidentPhotosSummary = Number(result?.accidentPhotosImported || 0) > 0
 const seminovosSummary = result?.seminovos
 ? `<br>🚛 Seminovos: ${result.seminovos.vehiclesImported || 0} veículo(s), ${result.seminovos.ordersImported || 0} ordem(ns) e ${result.seminovos.photosImported || 0} foto(s).`
 : '';
-document.getElementById('importPreview').innerHTML = `<div class="alert alert-success mt-3">âœ… <strong>Importação concluída!</strong><br>ðŸ“¥ ${result.imported} veículo(s), ${swapsCount} troca(s)/empréstimo(s) e ${conjuntosCount} conjunto(s) carregado(s)${accidentPhotosSummary}${seminovosSummary}${backupInfo}</div>`;
+document.getElementById('importPreview').innerHTML = `<div class="alert alert-success mt-3">âœ… <strong>Backup restaurado!</strong><br>ðŸ“¥ ${result.imported} veículo(s), ${swapsCount} troca(s)/empréstimo(s) e ${conjuntosCount} conjunto(s) carregado(s)${accidentPhotosSummary}${seminovosSummary}${backupInfo}</div>`;
 setTimeout(async () => {
 await loadConjuntos();
 await loadStats();
 await loadVehicles();
 await loadSwaps();
 bootstrap.Modal.getInstance(document.getElementById('importModal')).hide();
-showToast('ðŸ“¥ Dados importados!', 'success');
+showToast('ðŸ“¥ Backup restaurado!', 'success');
 }, 1500);
 fileInput.value = '';
 }
