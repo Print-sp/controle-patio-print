@@ -17,11 +17,29 @@ const isProduction = process.env.NODE_ENV === 'production' && process.env.DATABA
 let pool = null;
 let db = null;
 
+function getPostgresConnectionString() {
+    const connectionString = process.env.DATABASE_URL;
+    if (!connectionString) return connectionString;
+
+    try {
+        const url = new URL(connectionString);
+        ['sslmode', 'sslcert', 'sslkey', 'sslrootcert', 'uselibpqcompat'].forEach(param => {
+            url.searchParams.delete(param);
+        });
+        return url.toString();
+    } catch (error) {
+        return connectionString;
+    }
+}
+
 if (isProduction) {
     const { Pool } = require('pg');
     pool = new Pool({
-        connectionString: process.env.DATABASE_URL,
-        ssl: { rejectUnauthorized: false }
+        connectionString: getPostgresConnectionString(),
+        ssl: { rejectUnauthorized: false },
+        max: Number(process.env.PG_POOL_MAX || 8),
+        idleTimeoutMillis: Number(process.env.PG_IDLE_TIMEOUT_MS || 10000),
+        connectionTimeoutMillis: Number(process.env.PG_CONNECTION_TIMEOUT_MS || 10000)
     });
     console.log('💾 Banco: PostgreSQL (Produção)');
 } else {
