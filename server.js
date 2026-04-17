@@ -558,6 +558,7 @@ function mapSeminovosVehicleRow(row) {
         odometer: Number(row.odometer || 0),
         operationalStatus: canonicalizeSeminovosOperationalStatus(row.operationalstatus || row.operationalStatus),
         commercialStatus: canonicalizeSeminovosCommercialStatus(row.commercialstatus || row.commercialStatus),
+        sold: normalizeBooleanFlag(row.sold ?? row.vendido),
         notes: row.notes || '',
         createdAt: row.createdat || row.createdAt,
         updatedAt: row.updatedat || row.updatedAt,
@@ -1542,6 +1543,7 @@ function normalizeImportedSeminovosVehicle(vehicle) {
         odometer: Math.max(0, Number.parseInt(pickFirstDefined(vehicle, ['odometer', 'Odometer'], 0), 10) || 0),
         operationalStatus: canonicalizeSeminovosOperationalStatus(pickFirstDefined(vehicle, ['operationalStatus', 'operationalstatus', 'statusOperacional'], 'Disponível')),
         commercialStatus: canonicalizeSeminovosCommercialStatus(pickFirstDefined(vehicle, ['commercialStatus', 'commercialstatus', 'statusComercial'], 'Nenhum')),
+        sold: normalizeBooleanFlag(pickFirstDefined(vehicle, ['sold', 'Sold', 'vehicleSold', 'veiculoVendido', 'vendido'], false)),
         notes: pickFirstDefined(vehicle, ['notes', 'Notes', 'observacoes', 'observacao'], ''),
         createdAt: pickFirstDefined(vehicle, ['createdAt', 'createdat'], new Date().toISOString()),
         updatedAt: pickFirstDefined(vehicle, ['updatedAt', 'updatedat'], new Date().toISOString()),
@@ -2021,6 +2023,7 @@ async function initDatabase() {
                     odometer INTEGER DEFAULT 0,
                     operationalStatus TEXT DEFAULT 'Disponível',
                     commercialStatus TEXT DEFAULT 'Nenhum',
+                    sold BOOLEAN DEFAULT false,
                     notes TEXT DEFAULT '',
                     createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -2155,6 +2158,7 @@ async function initDatabase() {
             await pool.query(`ALTER TABLE conjuntos ADD COLUMN IF NOT EXISTS leaderName TEXT DEFAULT ''`);
             await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS yards JSONB DEFAULT '[]'`);
             await pool.query(`ALTER TABLE seminovos_vehicles ADD COLUMN IF NOT EXISTS yard TEXT DEFAULT ''`);
+            await pool.query(`ALTER TABLE seminovos_vehicles ADD COLUMN IF NOT EXISTS sold BOOLEAN DEFAULT false`);
             await pool.query(`ALTER TABLE occurrences ADD COLUMN IF NOT EXISTS branch TEXT DEFAULT ''`);
             await pool.query(`ALTER TABLE occurrences ADD COLUMN IF NOT EXISTS tripType TEXT DEFAULT ''`);
             await pool.query(`ALTER TABLE occurrences ADD COLUMN IF NOT EXISTS line TEXT DEFAULT ''`);
@@ -2339,6 +2343,7 @@ async function initDatabase() {
                     odometer INTEGER DEFAULT 0,
                     operationalStatus TEXT DEFAULT 'Disponível',
                     commercialStatus TEXT DEFAULT 'Nenhum',
+                    sold INTEGER DEFAULT 0,
                     notes TEXT DEFAULT '',
                     createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
                     updatedAt TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -2468,6 +2473,7 @@ async function initDatabase() {
             try { db.exec('ALTER TABLE swaps ADD COLUMN returnVehicleId INTEGER'); } catch(e) {}
             try { db.exec('ALTER TABLE swaps ADD COLUMN returnDetectedBy TEXT DEFAULT ""'); } catch(e) {}
             try { db.exec('ALTER TABLE seminovos_vehicles ADD COLUMN yard TEXT DEFAULT ""'); } catch(e) {}
+            try { db.exec('ALTER TABLE seminovos_vehicles ADD COLUMN sold INTEGER DEFAULT 0'); } catch(e) {}
             try { db.exec('ALTER TABLE occurrences ADD COLUMN branch TEXT DEFAULT ""'); } catch(e) {}
             try { db.exec('ALTER TABLE occurrences ADD COLUMN tripType TEXT DEFAULT ""'); } catch(e) {}
             try { db.exec('ALTER TABLE occurrences ADD COLUMN line TEXT DEFAULT ""'); } catch(e) {}
@@ -2653,11 +2659,13 @@ async function detectLoanReturnOnEntry(vehicle, updatedBy) {
 }
 
 function buildSeminovosTransferNote(existingNotes, seminovosYard, movedAt) {
-    const transferLine = `[Seminovos] Encaminhado para o módulo Seminovos em ${formatDateBR(movedAt)}${seminovosYard ? ` • Pátio de origem: ${seminovosYard}` : ''}`;
+    const transferLine = `[Seminovos] Veículo está em Seminovos desde ${formatDateBR(movedAt)}${seminovosYard ? ` • Pátio de origem: ${seminovosYard}` : ''}`;
     const preservedLines = String(existingNotes || '')
         .split(/\r?\n/)
         .map(line => line.trim())
-        .filter(line => line && !line.startsWith('[Seminovos] Encaminhado para o módulo Seminovos'));
+        .filter(line => line
+            && !line.startsWith('[Seminovos] Encaminhado para o módulo Seminovos')
+            && !line.startsWith('[Seminovos] Veículo está em Seminovos'));
     preservedLines.push(transferLine);
     return preservedLines.join('\n');
 }
@@ -3251,8 +3259,8 @@ async function replaceSeminovosData(payload, username = 'system') {
         let createdVehicle;
         if (isProduction) {
             const result = await pool.query(
-                `INSERT INTO seminovos_vehicles (plate, type, yard, chassis, odometer, operationalStatus, commercialStatus, notes, createdAt, updatedAt, updatedBy)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                `INSERT INTO seminovos_vehicles (plate, type, yard, chassis, odometer, operationalStatus, commercialStatus, sold, notes, createdAt, updatedAt, updatedBy)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
                  RETURNING *`,
                 [
                     vehicle.plate,
@@ -3262,6 +3270,7 @@ async function replaceSeminovosData(payload, username = 'system') {
                     vehicle.odometer || 0,
                     vehicle.operationalStatus,
                     vehicle.commercialStatus,
+                    vehicle.sold || false,
                     vehicle.notes || '',
                     vehicle.createdAt || new Date().toISOString(),
                     vehicle.updatedAt || vehicle.createdAt || new Date().toISOString(),
@@ -3271,8 +3280,8 @@ async function replaceSeminovosData(payload, username = 'system') {
             createdVehicle = mapSeminovosVehicleRow(result.rows[0]);
         } else {
             const result = db.prepare(
-                `INSERT INTO seminovos_vehicles (plate, type, yard, chassis, odometer, operationalStatus, commercialStatus, notes, createdAt, updatedAt, updatedBy)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                `INSERT INTO seminovos_vehicles (plate, type, yard, chassis, odometer, operationalStatus, commercialStatus, sold, notes, createdAt, updatedAt, updatedBy)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
             ).run(
                 vehicle.plate,
                 vehicle.type,
@@ -3281,6 +3290,7 @@ async function replaceSeminovosData(payload, username = 'system') {
                 vehicle.odometer || 0,
                 vehicle.operationalStatus,
                 vehicle.commercialStatus,
+                vehicle.sold ? 1 : 0,
                 vehicle.notes || '',
                 vehicle.createdAt || new Date().toISOString(),
                 vehicle.updatedAt || vehicle.createdAt || new Date().toISOString(),
@@ -3408,6 +3418,7 @@ app.post('/api/seminovos/vehicles', requireSeminovosAccess, async (req, res) => 
     const operationalStatus = canonicalizeSeminovosOperationalStatus(payload.operationalStatus);
     const commercialStatus = canonicalizeSeminovosCommercialStatus(payload.commercialStatus);
     const chassis = String(payload.chassis || '').trim();
+    const sold = normalizeBooleanFlag(payload.sold);
     const notes = String(payload.notes || '').trim();
     const username = req.session.user.username;
 
@@ -3415,17 +3426,17 @@ app.post('/api/seminovos/vehicles', requireSeminovosAccess, async (req, res) => 
         let createdVehicle;
         if (isProduction) {
             const result = await pool.query(
-                `INSERT INTO seminovos_vehicles (plate, type, yard, chassis, odometer, operationalStatus, commercialStatus, notes, updatedBy)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                `INSERT INTO seminovos_vehicles (plate, type, yard, chassis, odometer, operationalStatus, commercialStatus, sold, notes, updatedBy)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
                  RETURNING *`,
-                [normalizedPlate, normalizedType, yard, chassis, odometer, operationalStatus, commercialStatus, notes, username]
+                [normalizedPlate, normalizedType, yard, chassis, odometer, operationalStatus, commercialStatus, sold, notes, username]
             );
             createdVehicle = mapSeminovosVehicleRow(result.rows[0]);
         } else {
             const result = db.prepare(
-                `INSERT INTO seminovos_vehicles (plate, type, yard, chassis, odometer, operationalStatus, commercialStatus, notes, updatedBy)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-            ).run(normalizedPlate, normalizedType, yard, chassis, odometer, operationalStatus, commercialStatus, notes, username);
+                `INSERT INTO seminovos_vehicles (plate, type, yard, chassis, odometer, operationalStatus, commercialStatus, sold, notes, updatedBy)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            ).run(normalizedPlate, normalizedType, yard, chassis, odometer, operationalStatus, commercialStatus, sold ? 1 : 0, notes, username);
             createdVehicle = await getSeminovosVehicleById(result.lastInsertRowid);
         }
 
@@ -3468,6 +3479,7 @@ app.put('/api/seminovos/vehicles/:id', requireSeminovosAccess, async (req, res) 
     const operationalStatus = payload.operationalStatus ? canonicalizeSeminovosOperationalStatus(payload.operationalStatus) : currentVehicle.operationalStatus;
     const commercialStatus = payload.commercialStatus ? canonicalizeSeminovosCommercialStatus(payload.commercialStatus) : currentVehicle.commercialStatus;
     const chassis = payload.chassis !== undefined ? String(payload.chassis || '').trim() : currentVehicle.chassis;
+    const sold = payload.sold !== undefined ? normalizeBooleanFlag(payload.sold) : Boolean(currentVehicle.sold);
     const notes = payload.notes !== undefined ? String(payload.notes || '').trim() : currentVehicle.notes;
     const username = req.session.user.username;
 
@@ -3476,17 +3488,17 @@ app.put('/api/seminovos/vehicles/:id', requireSeminovosAccess, async (req, res) 
             await pool.query(
                 `UPDATE seminovos_vehicles
                  SET plate = $1, type = $2, yard = $3, chassis = $4, odometer = $5, operationalStatus = $6,
-                     commercialStatus = $7, notes = $8, updatedAt = CURRENT_TIMESTAMP, updatedBy = $9
-                 WHERE id = $10`,
-                [normalizedPlate, normalizedType, yard, chassis, odometer, operationalStatus, commercialStatus, notes, username, id]
+                     commercialStatus = $7, sold = $8, notes = $9, updatedAt = CURRENT_TIMESTAMP, updatedBy = $10
+                 WHERE id = $11`,
+                [normalizedPlate, normalizedType, yard, chassis, odometer, operationalStatus, commercialStatus, sold, notes, username, id]
             );
         } else {
             db.prepare(
                 `UPDATE seminovos_vehicles
                  SET plate = ?, type = ?, yard = ?, chassis = ?, odometer = ?, operationalStatus = ?,
-                     commercialStatus = ?, notes = ?, updatedAt = ?, updatedBy = ?
+                     commercialStatus = ?, sold = ?, notes = ?, updatedAt = ?, updatedBy = ?
                  WHERE id = ?`
-            ).run(normalizedPlate, normalizedType, yard, chassis, odometer, operationalStatus, commercialStatus, notes, new Date().toISOString(), username, id);
+            ).run(normalizedPlate, normalizedType, yard, chassis, odometer, operationalStatus, commercialStatus, sold ? 1 : 0, notes, new Date().toISOString(), username, id);
         }
 
         const updatedVehicle = await getSeminovosVehicleById(id);
