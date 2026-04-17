@@ -4918,7 +4918,7 @@ updateStalledVehiclesState();
 
 function getPlacaTipo(placa) {
 if (!placa) return 'mercosul';
-const cleanPlate = placa.replace(/[-\s]/g, '').toUpperCase();
+const cleanPlate = String(placa || '').replace(/[-\s]/g, '').toUpperCase();
 const mercosulPattern = /^[A-Z]{3}\d[A-Z]\d{2}$/;
 const antigoPattern = /^[A-Z]{3}\d{4}$/;
 if (mercosulPattern.test(cleanPlate)) {
@@ -6434,13 +6434,21 @@ return;
 async function loadVehicles() {
 try {
 const res = await fetch(`${API_URL}/vehicles`, { cache: 'no-store' });
-let vehicles = await res.json();
+let vehicles = await res.json().catch(() => null);
+if (res.status === 401) {
+showLoginScreen();
+return;
+}
+if (!res.ok || !Array.isArray(vehicles)) {
+throw new Error((vehicles && vehicles.error) || `Resposta inválida ao carregar veículos (${res.status})`);
+}
+vehicles = vehicles.filter(vehicle => vehicle && typeof vehicle === 'object');
 allVehicles = vehicles;
 
 vehicles.sort((a, b) => {
 if (a.status === 'Liberado' && b.status !== 'Liberado') return 1;
 if (a.status !== 'Liberado' && b.status === 'Liberado') return -1;
-return a.plate.localeCompare(b.plate);
+return String(a.plate || '').localeCompare(String(b.plate || ''));
 });
 
 const tbody = document.getElementById('vehicleTableBody');
@@ -6453,7 +6461,8 @@ return;
 }
 const conjuntoPlateSet = getMountedConjuntoPlateSet();
 emptyMsg.style.display = 'none';
-tbody.innerHTML = vehicles.map(v => {
+const rows = vehicles.map(v => {
+try {
 const statusClass = getStatusBadgeClass(v.status);
 const placaHtml = `<button type="button" class="plate-report-trigger" onclick="openVehicleReport(${v.id})" title="Abrir ficha atual do veículo">${renderPlaca(v.plate)}</button>`;
 const entregarDiversos = v.entregarDiversos ? 'true' : 'false';
@@ -6495,21 +6504,26 @@ const deliveryActionBlock = v.status === 'Liberado' && !v.entregue && showAdvanc
 ` : '';
 const editActionBlock = showAdvancedActions && userPermissions?.canEdit ? `<button class="dropdown-item" onclick="openEditVehicle(${v.id})"><i class="bi bi-pencil"></i> Editar veículo</button>` : '';
 const deleteActionBlock = userPermissions?.canDelete ? `<button class="dropdown-item text-danger" onclick="deleteVehicle(${v.id})"><i class="bi bi-trash"></i> Excluir</button>` : '';
-return `<tr data-yard="${v.yard}" data-status="${v.status}" data-type="${v.type}" data-search="${v.plate} ${v.type} ${v.yard} ${v.base} ${v.baseDestino} ${v.notes || ''} ${v.manager || ''} ${v.newLineName || ''} ${v.newLineState || ''} ${v.newVehicleNotes || ''} ${v.seminovosYard || ''} ${v.movedToSeminovos ? 'seminovos' : ''}" data-entregar-diversos="${entregarDiversos}" data-entregar-correios="${entregarCorreios}" data-entregue="${v.entregue ? 'true' : 'false'}" data-has-accident="${hasAccident}" data-document-issue="${documentIssue}" data-in-conjunto="${inConjunto}" data-is-new-vehicle="${v.isNewVehicle ? 'true' : 'false'}" data-sascar="${sascarStatus}" data-id="${v.id}">
+const searchText = [
+v.plate, v.type, v.yard, v.base, v.baseDestino, v.notes, v.manager,
+v.newLineName, v.newLineState, v.newVehicleNotes, v.seminovosYard,
+v.movedToSeminovos ? 'seminovos' : ''
+].filter(Boolean).join(' ');
+return `<tr data-yard="${escapeHtml(v.yard || '')}" data-status="${escapeHtml(v.status || '')}" data-type="${escapeHtml(v.type || '')}" data-search="${escapeHtml(searchText)}" data-entregar-diversos="${entregarDiversos}" data-entregar-correios="${entregarCorreios}" data-entregue="${v.entregue ? 'true' : 'false'}" data-has-accident="${hasAccident}" data-document-issue="${documentIssue}" data-in-conjunto="${inConjunto}" data-is-new-vehicle="${v.isNewVehicle ? 'true' : 'false'}" data-sascar="${escapeHtml(sascarStatus)}" data-id="${escapeHtml(v.id)}">
 <td>${renderVehicleTypeBadge(v.type)}</td>
 <td>${placaHtml}${sinistroBadge}${docBadge}${conjuntoBadge}${workflowBadges}${seminovosHint}${conjuntoDescription ? `<span class="conjunto-hint"><i class="bi bi-link-45deg"></i>${conjuntoDescription}</span>` : ''}</td>
-<td><small>${v.chassis || '—'}</small></td>
-<td><span class="date-badge">${v.entryDate}</span></td>
-<td>${v.exitDate ? `<span class="date-badge text-success">${v.exitDate}</span>` : '—'}</td>
-<td><span class="time-badge">${v.timeInYard}</span></td>
-<td><small class="text-primary"><i class="bi bi-pin me-1"></i>${v.yard}</small></td>
-<td><small>${v.base || '—'}</small></td>
-<td><small>${v.baseDestino || '—'}</small></td>
-<td><small>${v.manager || '—'}</small></td>
+<td><small>${escapeHtml(v.chassis || '—')}</small></td>
+<td><span class="date-badge">${escapeHtml(v.entryDate || '—')}</span></td>
+<td>${v.exitDate ? `<span class="date-badge text-success">${escapeHtml(v.exitDate)}</span>` : '—'}</td>
+<td><span class="time-badge">${escapeHtml(v.timeInYard || '—')}</span></td>
+<td><small class="text-primary"><i class="bi bi-pin me-1"></i>${escapeHtml(v.yard || '—')}</small></td>
+<td><small>${escapeHtml(v.base || '—')}</small></td>
+<td><small>${escapeHtml(v.baseDestino || '—')}</small></td>
+<td><small>${escapeHtml(v.manager || '—')}</small></td>
 <td><span class="sascar-badge ${sascarClass}">${sascarLabel}</span></td>
 <td>${entregueBadge || '<span class="text-muted">—</span>'}</td>
 <td>${v.hasAccident ? '<span class="text-danger"><i class="bi bi-exclamation-triangle"></i></span>' : '<span class="text-muted">—</span>'}</td>
-<td><span class="status-badge ${statusClass}">${v.status}</span></td>
+<td><span class="status-badge ${statusClass}">${escapeHtml(v.status || '—')}</span></td>
 <td>
 <div class="actions-dropdown">
 <button class="actions-dropdown-toggle" onclick="toggleActionsDropdown(this, event)">
@@ -6521,10 +6535,27 @@ ${baseActionBlock}${deliveryActionBlock}${editActionBlock}${deleteActionBlock}
 </div>
 </td>
 </tr>`;
-}).join('');
+} catch (rowError) {
+console.error('Erro ao renderizar veículo:', v, rowError);
+return '';
+}
+}).filter(Boolean);
+tbody.innerHTML = rows.join('');
+if (vehicles.length > 0 && rows.length === 0) {
+throw new Error('Nenhum veículo pôde ser renderizado na tabela principal');
+}
 updateStalledVehiclesState();
 applyCurrentFilters();
-} catch (err) { console.error('Erro loadVehicles:', err); }
+} catch (err) {
+console.error('Erro loadVehicles:', err);
+const tbody = document.getElementById('vehicleTableBody');
+const emptyMsg = document.getElementById('emptyMessage');
+if (tbody) tbody.innerHTML = '';
+if (emptyMsg) {
+emptyMsg.style.display = 'block';
+emptyMsg.innerHTML = `<i class="bi bi-exclamation-triangle fs-1 d-block mb-2"></i><p>Não foi possível carregar a lista de veículos.</p><small>${escapeHtml(err.message || 'Erro desconhecido')}</small>`;
+}
+}
 }
 
 function toggleActionsDropdown(button, event) {
