@@ -315,6 +315,7 @@ body {
 
 .status-pill,
 .commercial-pill,
+.sold-pill,
 .type-pill,
 .yard-pill {
   display: inline-flex;
@@ -340,6 +341,9 @@ body {
 .commercial-pill.garantia { background: rgba(59, 130, 246, 0.15); color: #1d4ed8; }
 .commercial-pill.posvenda { background: rgba(234, 88, 12, 0.15); color: #c2410c; }
 .commercial-pill.finalizado { background: rgba(100, 116, 139, 0.18); color: #475569; }
+
+.sold-pill.available { background: rgba(15, 118, 110, 0.12); color: #115e59; }
+.sold-pill.sold { background: rgba(22, 101, 52, 0.16); color: #14532d; }
 
 .type-pill { background: rgba(74,31,10,0.08); color: var(--seminovos-primary-dark); }
 .yard-pill { background: rgba(26,58,92,0.08); color: var(--seminovos-primary-dark); }
