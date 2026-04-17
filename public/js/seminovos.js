@@ -205,6 +205,10 @@ function renderCommercialStatus(status) {
   return `<span class="commercial-pill ${getCommercialStatusClass(status)}">${escapeHtml(status || '—')}</span>`;
 }
 
+function renderSoldBadge(sold) {
+  return `<span class="sold-pill ${sold ? 'sold' : 'available'}"><i class="bi ${sold ? 'bi-cash-coin' : 'bi-tag'}"></i>${sold ? 'Vendido' : 'Não vendido'}</span>`;
+}
+
 function renderVehicleType(type) {
   return `<span class="type-pill"><i class="bi bi-truck-front"></i>${escapeHtml(type || '—')}</span>`;
 }
@@ -400,6 +404,7 @@ function exportSeminovosFullPDF() {
           <th>Odômetro</th>
           <th>Situação</th>
           <th>Pós-venda / Garantia</th>
+          <th>Vendido</th>
           <th>Última OS</th>
           <th>Observações</th>
         </tr>
@@ -413,6 +418,7 @@ function exportSeminovosFullPDF() {
             <td>${formatNumberBR(vehicle.odometer)} km</td>
             <td>${escapeHtml(vehicle.operationalStatus)}</td>
             <td>${escapeHtml(vehicle.commercialStatus)}</td>
+            <td>${vehicle.sold ? 'Sim' : 'Não'}</td>
             <td>${escapeHtml(vehicle.latestServiceOrderNumber || 'Sem OS')}</td>
             <td>${escapeHtml(vehicle.notes || '—')}</td>
           </tr>
@@ -524,6 +530,7 @@ function exportSeminovosVehiclePDF(vehicleId) {
         <div class="meta-card"><small>Odômetro</small>${formatNumberBR(vehicle.odometer)} km</div>
         <div class="meta-card"><small>Situação</small>${escapeHtml(vehicle.operationalStatus)}</div>
         <div class="meta-card"><small>Pós-venda / Garantia</small>${escapeHtml(vehicle.commercialStatus)}</div>
+        <div class="meta-card"><small>Vendido</small>${vehicle.sold ? 'Sim' : 'Não'}</div>
         <div class="meta-card"><small>Chassi</small>${escapeHtml(vehicle.chassis || 'Não informado')}</div>
         <div class="meta-card"><small>Última OS</small>${escapeHtml(vehicle.latestServiceOrderNumber || 'Sem OS')}</div>
       </div>
@@ -652,7 +659,8 @@ function getDashboardCards() {
     { label: 'Problema mecânico', value: seminovosVehicles.filter(v => v.operationalStatus === 'Problema mecânico').length, helper: 'Parados por falha mecânica', action: () => applyVehicleStatusFilter('Problema mecânico') },
     { label: 'Aguardando peça', value: seminovosVehicles.filter(v => v.operationalStatus === 'Aguardando peça').length, helper: 'Dependem de componente', action: () => applyVehicleStatusFilter('Aguardando peça') },
     { label: 'Pós-venda', value: seminovosVehicles.filter(v => v.commercialStatus === 'Pós-venda' || v.commercialStatus === 'Pós-venda e garantia').length, helper: 'Acompanhamento comercial ativo', action: () => applyCommercialStatusFilter('Pós-venda') },
-    { label: 'Garantia', value: seminovosVehicles.filter(v => v.commercialStatus === 'Garantia' || v.commercialStatus === 'Pós-venda e garantia').length, helper: 'Atendimento coberto por garantia', action: () => applyCommercialStatusFilter('Garantia') }
+    { label: 'Garantia', value: seminovosVehicles.filter(v => v.commercialStatus === 'Garantia' || v.commercialStatus === 'Pós-venda e garantia').length, helper: 'Atendimento coberto por garantia', action: () => applyCommercialStatusFilter('Garantia') },
+    { label: 'Vendidos', value: seminovosVehicles.filter(v => v.sold).length, helper: 'Veículos marcados como vendidos', action: () => applySoldFilter('true') }
   ];
 }
 
@@ -682,7 +690,7 @@ function renderDashboard() {
       <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-start gap-3 py-2 border-bottom">
         <div>
           <div class="mb-2">${renderClickablePlate(vehicle.plate, vehicle.id)}</div>
-          <div class="d-flex flex-wrap gap-2 mb-2">${renderYardBadge(vehicle.yard)} ${renderVehicleType(vehicle.type)} ${renderVehicleStatus(vehicle.operationalStatus)} ${renderCommercialStatus(vehicle.commercialStatus)}</div>
+          <div class="d-flex flex-wrap gap-2 mb-2">${renderYardBadge(vehicle.yard)} ${renderVehicleType(vehicle.type)} ${renderVehicleStatus(vehicle.operationalStatus)} ${renderCommercialStatus(vehicle.commercialStatus)} ${renderSoldBadge(vehicle.sold)}</div>
           <small class="text-muted">Odômetro: ${formatNumberBR(vehicle.odometer)} km • Atualizado em ${formatDateTimeBR(vehicle.updatedAt)}</small>
         </div>
         <div class="d-flex gap-2 flex-wrap attention-actions">
@@ -719,8 +727,9 @@ function getFilteredVehicles() {
   const type = document.getElementById('seminovosVehicleTypeFilter').value;
   const status = document.getElementById('seminovosVehicleStatusFilter').value;
   const commercial = document.getElementById('seminovosVehicleCommercialFilter').value;
+  const sold = document.getElementById('seminovosVehicleSoldFilter')?.value || '';
   return seminovosVehicles.filter(vehicle => {
-    const haystack = `${vehicle.plate} ${vehicle.yard} ${vehicle.chassis} ${vehicle.notes} ${vehicle.latestServiceOrderNumber}`.toLowerCase();
+    const haystack = `${vehicle.plate} ${vehicle.yard} ${vehicle.chassis} ${vehicle.notes} ${vehicle.latestServiceOrderNumber} ${vehicle.sold ? 'vendido' : 'nao vendido não vendido'}`.toLowerCase();
     if (search && !haystack.includes(search)) return false;
     if (yard && vehicle.yard !== yard) return false;
     if (type && vehicle.type !== type) return false;
@@ -734,6 +743,7 @@ function getFilteredVehicles() {
         return false;
       }
     }
+    if (sold && String(Boolean(vehicle.sold)) !== sold) return false;
     return true;
   });
 }
@@ -755,6 +765,7 @@ function renderVehiclesTable() {
       <td><strong>${formatNumberBR(vehicle.odometer)}</strong> km</td>
       <td>${renderVehicleStatus(vehicle.operationalStatus)}</td>
       <td>${renderCommercialStatus(vehicle.commercialStatus)}</td>
+      <td>${renderSoldBadge(vehicle.sold)}</td>
       <td>${vehicle.latestServiceOrderNumber ? `<span class="fw-semibold">${escapeHtml(vehicle.latestServiceOrderNumber)}</span>` : '<span class="text-muted">Sem OS</span>'}</td>
       <td><span class="badge text-bg-light border"><i class="bi bi-images me-1"></i>${vehicle.photoCount || 0}</span></td>
       <td><small>${formatDateTimeBR(vehicle.updatedAt)}</small></td>
@@ -875,6 +886,8 @@ function clearVehicleFilters() {
   document.getElementById('seminovosVehicleTypeFilter').value = '';
   document.getElementById('seminovosVehicleStatusFilter').value = '';
   document.getElementById('seminovosVehicleCommercialFilter').value = '';
+  const soldFilter = document.getElementById('seminovosVehicleSoldFilter');
+  if (soldFilter) soldFilter.value = '';
   renderVehiclesTable();
 }
 
@@ -887,6 +900,13 @@ function applyVehicleStatusFilter(status) {
 function applyCommercialStatusFilter(status) {
   openView('veiculos');
   document.getElementById('seminovosVehicleCommercialFilter').value = status;
+  renderVehiclesTable();
+}
+
+function applySoldFilter(value) {
+  openView('veiculos');
+  const soldFilter = document.getElementById('seminovosVehicleSoldFilter');
+  if (soldFilter) soldFilter.value = value;
   renderVehiclesTable();
 }
 
@@ -1038,6 +1058,7 @@ function getVehicleFormElements() {
     'seminovosVehicleOdometer',
     'seminovosVehicleOperationalStatus',
     'seminovosVehicleCommercialStatus',
+    'seminovosVehicleSold',
     'seminovosVehicleNotes'
   ];
   const elements = Object.fromEntries(requiredIds.map(id => [id, document.getElementById(id)]));
@@ -1056,6 +1077,7 @@ function resetVehicleForm() {
   fields.seminovosVehicleYard.value = SEMINOVOS_YARDS[0];
   fields.seminovosVehicleOperationalStatus.value = 'Disponível';
   fields.seminovosVehicleCommercialStatus.value = 'Nenhum';
+  fields.seminovosVehicleSold.checked = false;
   renderVehiclePhotoFields([]);
 }
 
@@ -1080,6 +1102,7 @@ function openSeminovosVehicleModal(id = '') {
       fields.seminovosVehicleOdometer.value = vehicle.odometer || 0;
       fields.seminovosVehicleOperationalStatus.value = vehicle.operationalStatus;
       fields.seminovosVehicleCommercialStatus.value = vehicle.commercialStatus;
+      fields.seminovosVehicleSold.checked = Boolean(vehicle.sold);
       fields.seminovosVehicleNotes.value = vehicle.notes || '';
       renderVehiclePhotoFields(vehicle.photos || []);
     }
@@ -1102,6 +1125,7 @@ async function saveSeminovosVehicle(event) {
       odometer: fields.seminovosVehicleOdometer.value,
       operationalStatus: fields.seminovosVehicleOperationalStatus.value,
       commercialStatus: fields.seminovosVehicleCommercialStatus.value,
+      sold: fields.seminovosVehicleSold.checked,
       notes: fields.seminovosVehicleNotes.value,
       photos: await collectVehiclePhotoPayloads()
     };
@@ -1113,7 +1137,7 @@ async function saveSeminovosVehicle(event) {
     bootstrap.Modal.getInstance(document.getElementById('seminovosVehicleModal')).hide();
     await loadSeminovosData();
     if (!id && result?.linkedPatioVehicle) {
-      showToast(`Veículo cadastrado no Seminovos e baixado no sistema principal (${result.linkedPatioVehicle.plate})`, 'success');
+      showToast(`Veículo cadastrado no Seminovos, baixado e sinalizado no sistema principal (${result.linkedPatioVehicle.plate})`, 'success');
       return;
     }
     showToast(id ? 'Veículo atualizado com sucesso' : 'Veículo cadastrado com sucesso', 'success');
@@ -1425,6 +1449,7 @@ function viewSeminovosVehicleDetails(id) {
                 ${renderVehicleType(vehicle.type)}
                 ${renderVehicleStatus(vehicle.operationalStatus)}
                 ${renderCommercialStatus(vehicle.commercialStatus)}
+                ${renderSoldBadge(vehicle.sold)}
               </div>
             </div>
             <div class="text-md-end">
@@ -1465,6 +1490,10 @@ function viewSeminovosVehicleDetails(id) {
           <div class="d-flex justify-content-between border-bottom py-2">
             <span>Ordens registradas</span>
             <strong>${formatNumberBR(relatedOrders.length)}</strong>
+          </div>
+          <div class="d-flex justify-content-between border-bottom py-2">
+            <span>Veículo vendido</span>
+            <strong>${vehicle.sold ? 'Sim' : 'Não'}</strong>
           </div>
           <div class="d-flex justify-content-between py-2">
             <span>Peças lançadas</span>
@@ -1532,7 +1561,7 @@ function bindSeminovosEvents() {
     button.addEventListener('click', () => openView(button.dataset.view));
   });
 
-  ['seminovosVehicleSearch', 'seminovosVehicleYardFilter', 'seminovosVehicleTypeFilter', 'seminovosVehicleStatusFilter', 'seminovosVehicleCommercialFilter'].forEach(id => {
+  ['seminovosVehicleSearch', 'seminovosVehicleYardFilter', 'seminovosVehicleTypeFilter', 'seminovosVehicleStatusFilter', 'seminovosVehicleCommercialFilter', 'seminovosVehicleSoldFilter'].forEach(id => {
     document.getElementById(id)?.addEventListener(id.includes('Search') ? 'input' : 'change', renderVehiclesTable);
   });
 
