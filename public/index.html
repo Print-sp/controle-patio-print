@@ -1739,7 +1739,7 @@ Nenhum veículo com mais de 24h no pátio neste momento.
 <div class="modal-dialog modal-lg">
 <div class="modal-content">
 <div class="modal-header bg-primary text-white">
-<h5 class="modal-title"><i class="bi bi-link-45deg me-2"></i>Montar Conjunto</h5>
+<h5 class="modal-title" id="conjuntoModalTitle"><i class="bi bi-link-45deg me-2"></i>Montar Conjunto</h5>
 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
 </div>
 <div class="modal-body">
@@ -3387,6 +3387,37 @@ function getConjuntoDescription(plate) {
 const conjunto = getConjuntoByPlate(plate);
 if (!conjunto) return '';
 return `Cavalo ${conjunto.cavaloPlate} + Carreta ${conjunto.carretaPlate}`;
+}
+
+function setConjuntoModalMode(isEditing = false) {
+const title = document.getElementById('conjuntoModalTitle');
+const buttonText = document.getElementById('conjuntoBtnText');
+if (title) {
+title.innerHTML = isEditing
+? '<i class="bi bi-pencil-square me-2"></i>Editar Conjunto'
+: '<i class="bi bi-link-45deg me-2"></i>Montar Conjunto';
+}
+if (buttonText) {
+buttonText.textContent = isEditing ? 'Atualizar' : 'Montar';
+}
+}
+
+async function openEditConjuntoByPlate(plate) {
+const conjunto = getConjuntoByPlate(plate);
+if (!conjunto) {
+showToast('Nenhum conjunto encontrado para esta placa.', 'warning');
+return;
+}
+await openEditConjunto(conjunto.id);
+}
+
+async function deleteConjuntoByPlate(plate) {
+const conjunto = getConjuntoByPlate(plate);
+if (!conjunto) {
+showToast('Nenhum conjunto encontrado para esta placa.', 'warning');
+return;
+}
+await deleteConjunto(conjunto.id);
 }
 
 function formatElapsedTime(startTime) {
@@ -6506,6 +6537,11 @@ const deliveryActionBlock = v.status === 'Liberado' && !v.entregue && showAdvanc
 <button class="dropdown-item text-success" onclick="marcarEntregue(${v.id}, 'diversos')"><i class="bi bi-box"></i> Marcar como Entregue Diversos</button>
 <div class="dropdown-divider"></div>
 ` : '';
+const conjuntoActionBlock = showAdvancedActions && inConjunto === 'true' ? `
+<button class="dropdown-item" onclick="openEditConjuntoByPlate('${escapeHtml(v.plate || '')}')"><i class="bi bi-pencil-square"></i> Editar conjunto</button>
+<button class="dropdown-item text-danger" onclick="deleteConjuntoByPlate('${escapeHtml(v.plate || '')}')"><i class="bi bi-unlink-45deg"></i> Desfazer conjunto</button>
+<div class="dropdown-divider"></div>
+` : '';
 const editActionBlock = showAdvancedActions && userPermissions?.canEdit ? `<button class="dropdown-item" onclick="openEditVehicle(${v.id})"><i class="bi bi-pencil"></i> Editar veículo</button>` : '';
 const deleteActionBlock = userPermissions?.canDelete ? `<button class="dropdown-item text-danger" onclick="deleteVehicle(${v.id})"><i class="bi bi-trash"></i> Excluir</button>` : '';
 const searchText = [
@@ -6534,7 +6570,7 @@ return `<tr data-yard="${escapeHtml(v.yard || '')}" data-status="${escapeHtml(v.
 <i class="bi bi-three-dots-vertical"></i> Ações
 </button>
 <div class="actions-dropdown-menu">
-${baseActionBlock}${deliveryActionBlock}${editActionBlock}${deleteActionBlock}
+${baseActionBlock}${deliveryActionBlock}${conjuntoActionBlock}${editActionBlock}${deleteActionBlock}
 </div>
 </div>
 </td>
@@ -6598,7 +6634,7 @@ allSwaps = [];
 function openConjuntoModal() {
 document.getElementById('conjuntoForm').reset();
 document.getElementById('editConjuntoId').value = '';
-document.getElementById('conjuntoBtnText').textContent = 'Montar';
+setConjuntoModalMode(false);
 document.getElementById('conjuntoDate').value = getLocalDateTimeInputValue();
 applyOperationYardLockState();
 new bootstrap.Modal(document.getElementById('conjuntoModal')).show();
@@ -6654,7 +6690,7 @@ method,
 headers: {'Content-Type': 'application/json'},
 body: JSON.stringify(payload)
 });
-const result = await res.json();
+const result = await parseApiResponse(res);
 if (!result.success) {
 alert('Erro: ' + (result.error || 'Não foi possível salvar o conjunto.'));
 return;
@@ -6662,13 +6698,13 @@ return;
 bootstrap.Modal.getInstance(document.getElementById('conjuntoModal')).hide();
 document.getElementById('conjuntoForm').reset();
 document.getElementById('editConjuntoId').value = '';
-document.getElementById('conjuntoBtnText').textContent = 'Montar';
+setConjuntoModalMode(false);
 await loadConjuntos();
 await Promise.all([loadStats(), loadVehicles()]);
 showToast(id ? 'Conjunto atualizado!' : 'Conjunto montado com sucesso!', 'success');
 } catch (err) {
 console.error('Erro ao salvar conjunto:', err);
-alert('Erro de conexão ao salvar conjunto');
+alert('Erro ao salvar conjunto: ' + (err.message || 'Falha desconhecida.'));
 }
 }
 
@@ -6688,7 +6724,7 @@ const d = new Date(conjunto.date);
 const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
 document.getElementById('conjuntoDate').value = local.toISOString().slice(0,16);
 }
-document.getElementById('conjuntoBtnText').textContent = 'Atualizar';
+setConjuntoModalMode(true);
 applyOperationYardLockState();
 new bootstrap.Modal(document.getElementById('conjuntoModal')).show();
 }
@@ -7829,6 +7865,26 @@ toast.innerHTML = `<div class="d-flex"><div class="toast-body">${message}</div><
 document.body.appendChild(toast);
 new bootstrap.Toast(toast, { delay: 3000 }).show();
 toast.addEventListener('hidden.bs.toast', () => toast.remove());
+}
+
+async function parseApiResponse(res) {
+const rawText = await res.text();
+let data = null;
+
+if (rawText) {
+try {
+data = JSON.parse(rawText);
+} catch (error) {
+data = { error: rawText };
+}
+}
+
+if (res.ok) {
+return data || { success: true };
+}
+
+const message = data?.error || data?.message || `Erro HTTP ${res.status}`;
+throw new Error(message);
 }
 
 setInterval(() => { silentRefreshData(); }, 30000);
