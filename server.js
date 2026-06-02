@@ -72,6 +72,8 @@ function mapPostgresRow(row) {
         baseDestino: row.basedestino || '',
         manager: row.manager, chassis: row.chassis, status: row.status,
         maintenance: row.maintenance, maintenanceCategory: row.maintenancecategory || '',
+        maintenanceProblem: row.maintenanceproblem || '',
+        maintenanceServiceOrder: row.maintenanceserviceorder || '',
         hasAccident: row.hasaccident || false, documentIssue: row.documentissue || false, sascarStatus: row.sascarstatus || 'pendente',
         keys: row.keys, notes: row.notes,
         isNewVehicle: row.isnewvehicle || false,
@@ -86,6 +88,7 @@ function mapPostgresRow(row) {
         hasNewLine: row.hasnewline || false,
         newLineName: row.newlinename || '',
         newLineState: row.newlinestate || '',
+        isReserveVehicle: row.isreservevehicle || false,
         entregarDiversos: row.entregar_diversos || false,
         entregarCorreios: row.entregar_correios || false,
         entregue: row.entregue || false, entreguePara: row.entreguepara || '',
@@ -1022,25 +1025,28 @@ function normalizeVehicleRecord(vehicle) {
         baseDestino: canonicalizeBaseLocation(vehicle.baseDestino ?? vehicle.basedestino),
         sascarStatus: canonicalizeSascarStatus(vehicle.sascarStatus),
         maintenanceCategory: canonicalizeMaintenanceCategory(vehicle.maintenanceCategory),
-        maintenance: Boolean(vehicle.maintenance),
-        hasAccident: Boolean(vehicle.hasAccident),
-        documentIssue: Boolean(vehicle.documentIssue),
-        isNewVehicle: Boolean(vehicle.isNewVehicle ?? vehicle.isnewvehicle),
-        newVehiclePlotagem: Boolean(vehicle.newVehiclePlotagem ?? vehicle.newvehicleplotagem),
-        newVehicleTesteDrive: Boolean(vehicle.newVehicleTesteDrive ?? vehicle.newvehicletestedrive ?? vehicle.newvehiculetestedrive),
-        newVehicleAdesivoCorreios: Boolean(vehicle.newVehicleAdesivoCorreios ?? vehicle.newvehicleadesivocorreios),
-        newVehicleAdesivoPrint: Boolean(vehicle.newVehicleAdesivoPrint ?? vehicle.newvehicleadesivoprint),
-        newVehicleMarcacaoPneus: Boolean(vehicle.newVehicleMarcacaoPneus ?? vehicle.newvehiclemarcacaopneus),
-        newVehiclePlataformaCarga: Boolean(vehicle.newVehiclePlataformaCarga ?? vehicle.newvehicleplataformacarga),
-        newVehicleForracaoInterna: normalizedType === 'Van' && Boolean(vehicle.newVehicleForracaoInterna ?? vehicle.newvehicleforracaointerna),
+        maintenanceProblem: String(vehicle.maintenanceProblem ?? vehicle.maintenanceproblem ?? '').trim(),
+        maintenanceServiceOrder: String(vehicle.maintenanceServiceOrder ?? vehicle.maintenanceserviceorder ?? '').trim(),
+        maintenance: normalizeBooleanFlag(vehicle.maintenance),
+        hasAccident: normalizeBooleanFlag(vehicle.hasAccident ?? vehicle.hasaccident),
+        documentIssue: normalizeBooleanFlag(vehicle.documentIssue ?? vehicle.documentissue),
+        isNewVehicle: normalizeBooleanFlag(vehicle.isNewVehicle ?? vehicle.isnewvehicle),
+        newVehiclePlotagem: normalizeBooleanFlag(vehicle.newVehiclePlotagem ?? vehicle.newvehicleplotagem),
+        newVehicleTesteDrive: normalizeBooleanFlag(vehicle.newVehicleTesteDrive ?? vehicle.newvehicletestedrive ?? vehicle.newvehiculetestedrive),
+        newVehicleAdesivoCorreios: normalizeBooleanFlag(vehicle.newVehicleAdesivoCorreios ?? vehicle.newvehicleadesivocorreios),
+        newVehicleAdesivoPrint: normalizeBooleanFlag(vehicle.newVehicleAdesivoPrint ?? vehicle.newvehicleadesivoprint),
+        newVehicleMarcacaoPneus: normalizeBooleanFlag(vehicle.newVehicleMarcacaoPneus ?? vehicle.newvehiclemarcacaopneus),
+        newVehiclePlataformaCarga: normalizeBooleanFlag(vehicle.newVehiclePlataformaCarga ?? vehicle.newvehicleplataformacarga),
+        newVehicleForracaoInterna: normalizedType === 'Van' && normalizeBooleanFlag(vehicle.newVehicleForracaoInterna ?? vehicle.newvehicleforracaointerna),
         newVehicleNotes: String(vehicle.newVehicleNotes ?? vehicle.newvehiclenotes ?? '').trim(),
-        hasNewLine: Boolean(vehicle.hasNewLine ?? vehicle.hasnewline),
+        hasNewLine: normalizeBooleanFlag(vehicle.hasNewLine ?? vehicle.hasnewline),
         newLineName: String(vehicle.newLineName ?? vehicle.newlinename ?? '').trim(),
         newLineState: String(vehicle.newLineState ?? vehicle.newlinestate ?? '').trim(),
-        entregarDiversos: Boolean(vehicle.entregarDiversos ?? vehicle.entregar_diversos),
-        entregarCorreios: Boolean(vehicle.entregarCorreios ?? vehicle.entregar_correios),
-        entregue: Boolean(vehicle.entregue),
-        movedToSeminovos: Boolean(vehicle.movedToSeminovos ?? vehicle.movedtoseminovos),
+        isReserveVehicle: normalizeBooleanFlag(vehicle.isReserveVehicle ?? vehicle.isreservevehicle),
+        entregarDiversos: normalizeBooleanFlag(vehicle.entregarDiversos ?? vehicle.entregar_diversos),
+        entregarCorreios: normalizeBooleanFlag(vehicle.entregarCorreios ?? vehicle.entregar_correios),
+        entregue: normalizeBooleanFlag(vehicle.entregue),
+        movedToSeminovos: normalizeBooleanFlag(vehicle.movedToSeminovos ?? vehicle.movedtoseminovos),
         seminovosMovedAt: vehicle.seminovosMovedAt ?? vehicle.seminovosmovedat ?? null,
         seminovosYard: canonicalizeSystemYard(vehicle.seminovosYard ?? vehicle.seminovosyard ?? ''),
         accidentPhotos,
@@ -1390,6 +1396,8 @@ function normalizeImportedVehicle(v) {
         status: pickFirstDefined(v, ['status', 'Status'], 'Aguardando linha'),
         maintenance: normalizeBooleanFlag(pickFirstDefined(v, ['maintenance', 'Maintenance'], false)),
         maintenanceCategory: pickFirstDefined(v, ['maintenanceCategory', 'maintenancecategory', 'maintenance_category'], ''),
+        maintenanceProblem: pickFirstDefined(v, ['maintenanceProblem', 'maintenanceproblem', 'maintenance_problem', 'problemaManutencao', 'problema_manutencao'], ''),
+        maintenanceServiceOrder: pickFirstDefined(v, ['maintenanceServiceOrder', 'maintenanceserviceorder', 'maintenance_service_order', 'ordemServicoPrint', 'ordem_servico_print', 'osPrint'], ''),
         hasAccident: normalizeBooleanFlag(pickFirstDefined(v, ['hasAccident', 'hasaccident', 'has_accident'], false)),
         documentIssue: normalizeBooleanFlag(pickFirstDefined(v, ['documentIssue', 'documentissue', 'document_issue', 'problemaDocumentacao', 'problema_documentacao'], false)),
         sascarStatus: pickFirstDefined(v, ['sascarStatus', 'sascarstatus', 'sascar_status'], 'pendente'),
@@ -1407,6 +1415,7 @@ function normalizeImportedVehicle(v) {
         hasNewLine: normalizeBooleanFlag(pickFirstDefined(v, ['hasNewLine', 'hasnewline', 'has_new_line'], false)),
         newLineName: pickFirstDefined(v, ['newLineName', 'newlinename', 'new_line_name'], ''),
         newLineState: pickFirstDefined(v, ['newLineState', 'newlinestate', 'new_line_state'], ''),
+        isReserveVehicle: normalizeBooleanFlag(pickFirstDefined(v, ['isReserveVehicle', 'isreservevehicle', 'is_reserve_vehicle', 'veiculoReserva', 'veiculo_reserva'], false)),
         entregarDiversos: normalizeBooleanFlag(pickFirstDefined(v, ['entregarDiversos', 'entregar_diversos'], false)),
         entregarCorreios: normalizeBooleanFlag(pickFirstDefined(v, ['entregarCorreios', 'entregar_correios'], false)),
         entregue: normalizeBooleanFlag(pickFirstDefined(v, ['entregue', 'Entregue'], false)),
@@ -1910,6 +1919,7 @@ async function initDatabase() {
                     manager TEXT DEFAULT '', chassis TEXT DEFAULT '',
                     status TEXT DEFAULT 'Aguardando linha',
                     maintenance BOOLEAN DEFAULT false, maintenanceCategory TEXT DEFAULT '',
+                    maintenanceProblem TEXT DEFAULT '', maintenanceServiceOrder TEXT DEFAULT '',
                     hasAccident BOOLEAN DEFAULT false, documentIssue BOOLEAN DEFAULT false, sascarStatus TEXT DEFAULT 'pendente',
                     keys TEXT DEFAULT '', notes TEXT DEFAULT '',
                     isNewVehicle BOOLEAN DEFAULT false,
@@ -1924,6 +1934,7 @@ async function initDatabase() {
                     hasNewLine BOOLEAN DEFAULT false,
                     newLineName TEXT DEFAULT '',
                     newLineState TEXT DEFAULT '',
+                    isReserveVehicle BOOLEAN DEFAULT false,
                     entregar_diversos BOOLEAN DEFAULT false,
                     entregar_correios BOOLEAN DEFAULT false,
                     entregue BOOLEAN DEFAULT false, entreguePara TEXT DEFAULT '',
@@ -2138,6 +2149,8 @@ async function initDatabase() {
             await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS documentIssue BOOLEAN DEFAULT false`);
             await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS sascarStatus TEXT DEFAULT 'pendente'`);
             await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS maintenanceCategory TEXT DEFAULT ''`);
+            await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS maintenanceProblem TEXT DEFAULT ''`);
+            await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS maintenanceServiceOrder TEXT DEFAULT ''`);
             await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS readyTime TIMESTAMP`);
             await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS isNewVehicle BOOLEAN DEFAULT false`);
             await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS newVehiclePlotagem BOOLEAN DEFAULT false`);
@@ -2151,6 +2164,7 @@ async function initDatabase() {
             await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS hasNewLine BOOLEAN DEFAULT false`);
             await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS newLineName TEXT DEFAULT ''`);
             await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS newLineState TEXT DEFAULT ''`);
+            await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS isReserveVehicle BOOLEAN DEFAULT false`);
             await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS entregar_diversos BOOLEAN DEFAULT false`);
             await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS entregar_correios BOOLEAN DEFAULT false`);
             await pool.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS entregue BOOLEAN DEFAULT false`);
@@ -2230,6 +2244,7 @@ async function initDatabase() {
                     manager TEXT DEFAULT '', chassis TEXT DEFAULT '',
                     status TEXT DEFAULT 'Aguardando linha',
                     maintenance INTEGER DEFAULT 0, maintenanceCategory TEXT DEFAULT '',
+                    maintenanceProblem TEXT DEFAULT '', maintenanceServiceOrder TEXT DEFAULT '',
                     hasAccident INTEGER DEFAULT 0, documentIssue INTEGER DEFAULT 0, sascarStatus TEXT DEFAULT 'pendente',
                     keys TEXT DEFAULT '', notes TEXT DEFAULT '',
                     isNewVehicle INTEGER DEFAULT 0,
@@ -2244,6 +2259,7 @@ async function initDatabase() {
                     hasNewLine INTEGER DEFAULT 0,
                     newLineName TEXT DEFAULT '',
                     newLineState TEXT DEFAULT '',
+                    isReserveVehicle INTEGER DEFAULT 0,
                     entregar_diversos INTEGER DEFAULT 0,
                     entregar_correios INTEGER DEFAULT 0,
                     entregue INTEGER DEFAULT 0, entreguePara TEXT DEFAULT '',
@@ -2457,6 +2473,8 @@ async function initDatabase() {
             try { db.exec('ALTER TABLE vehicles ADD COLUMN documentIssue INTEGER DEFAULT 0'); } catch(e) {}
             try { db.exec('ALTER TABLE vehicles ADD COLUMN sascarStatus TEXT DEFAULT "pendente"'); } catch(e) {}
             try { db.exec('ALTER TABLE vehicles ADD COLUMN maintenanceCategory TEXT DEFAULT ""'); } catch(e) {}
+            try { db.exec('ALTER TABLE vehicles ADD COLUMN maintenanceProblem TEXT DEFAULT ""'); } catch(e) {}
+            try { db.exec('ALTER TABLE vehicles ADD COLUMN maintenanceServiceOrder TEXT DEFAULT ""'); } catch(e) {}
             try { db.exec('ALTER TABLE vehicles ADD COLUMN readyTime TEXT'); } catch(e) {}
             try { db.exec('ALTER TABLE vehicles ADD COLUMN isNewVehicle INTEGER DEFAULT 0'); } catch(e) {}
             try { db.exec('ALTER TABLE vehicles ADD COLUMN newVehiclePlotagem INTEGER DEFAULT 0'); } catch(e) {}
@@ -2470,6 +2488,7 @@ async function initDatabase() {
             try { db.exec('ALTER TABLE vehicles ADD COLUMN hasNewLine INTEGER DEFAULT 0'); } catch(e) {}
             try { db.exec('ALTER TABLE vehicles ADD COLUMN newLineName TEXT DEFAULT ""'); } catch(e) {}
             try { db.exec('ALTER TABLE vehicles ADD COLUMN newLineState TEXT DEFAULT ""'); } catch(e) {}
+            try { db.exec('ALTER TABLE vehicles ADD COLUMN isReserveVehicle INTEGER DEFAULT 0'); } catch(e) {}
             try { db.exec('ALTER TABLE vehicles ADD COLUMN entregar_diversos INTEGER DEFAULT 0'); } catch(e) {}
             try { db.exec('ALTER TABLE vehicles ADD COLUMN entregar_correios INTEGER DEFAULT 0'); } catch(e) {}
             try { db.exec('ALTER TABLE vehicles ADD COLUMN entregue INTEGER DEFAULT 0'); } catch(e) {}
@@ -3918,6 +3937,9 @@ app.post('/api/vehicles', requireAuth, async (req, res) => {
     const hasNewLine = normalizeBooleanFlag(req.body?.hasNewLine);
     const newLineName = hasNewLine ? String(req.body?.newLineName || '').trim() : '';
     const newLineState = hasNewLine ? String(req.body?.newLineState || '').trim() : '';
+    const isReserveVehicle = normalizeBooleanFlag(req.body?.isReserveVehicle);
+    const maintenanceProblem = String(req.body?.maintenanceProblem || '').trim();
+    const maintenanceServiceOrder = String(req.body?.maintenanceServiceOrder || '').trim();
     const normalizedEntryTime = normalizeRequestTimestamp(entryDate, new Date().toISOString());
     if (hasNewLine && (!newLineName || !newLineState)) return res.status(400).json({ error: 'Preencha o nome e o estado/UF da nova linha' });
     try {
@@ -4004,12 +4026,12 @@ app.post('/api/vehicles', requireAuth, async (req, res) => {
 
         let createdVehicle;
         if (isProduction) {
-            const result = await pool.query(`INSERT INTO vehicles (plate, type, yard, base, baseDestino, manager, chassis, keys, notes, isNewVehicle, newVehiclePlotagem, newVehicleTesteDrive, newVehicleAdesivoCorreios, newVehicleAdesivoPrint, newVehicleMarcacaoPneus, newVehiclePlataformaCarga, newVehicleForracaoInterna, newVehicleNotes, hasNewLine, newLineName, newLineState, entregar_diversos, entregar_correios, hasAccident, documentIssue, sascarStatus, maintenanceCategory, entryTime, updatedBy) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29) RETURNING *`,
-                [normalizedPlate || '', normalizedType, resolvedYard, normalizedBase, normalizedBaseDestino, manager || '', chassis || '', keys || '', notes || '', isNewVehicle, newVehiclePlotagem, newVehicleTesteDrive, newVehicleAdesivoCorreios, newVehicleAdesivoPrint, newVehicleMarcacaoPneus, newVehiclePlataformaCarga, newVehicleForracaoInterna, newVehicleNotes, hasNewLine, newLineName, newLineState, entregarDiversos ? true : false, entregarCorreios ? true : false, normalizedHasAccident ? true : false, documentIssue ? true : false, sascarStatus || 'pendente', maintenanceCategory || '', normalizedEntryTime, req.session.user.username]);
+            const result = await pool.query(`INSERT INTO vehicles (plate, type, yard, base, baseDestino, manager, chassis, keys, notes, isNewVehicle, newVehiclePlotagem, newVehicleTesteDrive, newVehicleAdesivoCorreios, newVehicleAdesivoPrint, newVehicleMarcacaoPneus, newVehiclePlataformaCarga, newVehicleForracaoInterna, newVehicleNotes, hasNewLine, newLineName, newLineState, isReserveVehicle, entregar_diversos, entregar_correios, hasAccident, documentIssue, sascarStatus, maintenanceCategory, maintenanceProblem, maintenanceServiceOrder, entryTime, updatedBy) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32) RETURNING *`,
+                [normalizedPlate || '', normalizedType, resolvedYard, normalizedBase, normalizedBaseDestino, manager || '', chassis || '', keys || '', notes || '', isNewVehicle, newVehiclePlotagem, newVehicleTesteDrive, newVehicleAdesivoCorreios, newVehicleAdesivoPrint, newVehicleMarcacaoPneus, newVehiclePlataformaCarga, newVehicleForracaoInterna, newVehicleNotes, hasNewLine, newLineName, newLineState, isReserveVehicle, entregarDiversos ? true : false, entregarCorreios ? true : false, normalizedHasAccident ? true : false, documentIssue ? true : false, sascarStatus || 'pendente', maintenanceCategory || '', maintenanceProblem, maintenanceServiceOrder, normalizedEntryTime, req.session.user.username]);
         createdVehicle = normalizeVehicleRecord(mapPostgresRow(result.rows[0]));
     } else {
-            const stmt = db.prepare(`INSERT INTO vehicles (plate, type, yard, base, baseDestino, manager, chassis, keys, notes, isNewVehicle, newVehiclePlotagem, newVehicleTesteDrive, newVehicleAdesivoCorreios, newVehicleAdesivoPrint, newVehicleMarcacaoPneus, newVehiclePlataformaCarga, newVehicleForracaoInterna, newVehicleNotes, hasNewLine, newLineName, newLineState, entregar_diversos, entregar_correios, hasAccident, documentIssue, sascarStatus, maintenanceCategory, entryTime, updatedBy) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-            const result = stmt.run(normalizedPlate || '', normalizedType, resolvedYard, normalizedBase, normalizedBaseDestino, manager || '', chassis || '', keys || '', notes || '', isNewVehicle ? 1 : 0, newVehiclePlotagem ? 1 : 0, newVehicleTesteDrive ? 1 : 0, newVehicleAdesivoCorreios ? 1 : 0, newVehicleAdesivoPrint ? 1 : 0, newVehicleMarcacaoPneus ? 1 : 0, newVehiclePlataformaCarga ? 1 : 0, newVehicleForracaoInterna ? 1 : 0, newVehicleNotes, hasNewLine ? 1 : 0, newLineName, newLineState, entregarDiversos ? 1 : 0, entregarCorreios ? 1 : 0, normalizedHasAccident ? 1 : 0, documentIssue ? 1 : 0, sascarStatus || 'pendente', maintenanceCategory || '', normalizedEntryTime, req.session.user.username);
+            const stmt = db.prepare(`INSERT INTO vehicles (plate, type, yard, base, baseDestino, manager, chassis, keys, notes, isNewVehicle, newVehiclePlotagem, newVehicleTesteDrive, newVehicleAdesivoCorreios, newVehicleAdesivoPrint, newVehicleMarcacaoPneus, newVehiclePlataformaCarga, newVehicleForracaoInterna, newVehicleNotes, hasNewLine, newLineName, newLineState, isReserveVehicle, entregar_diversos, entregar_correios, hasAccident, documentIssue, sascarStatus, maintenanceCategory, maintenanceProblem, maintenanceServiceOrder, entryTime, updatedBy) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+            const result = stmt.run(normalizedPlate || '', normalizedType, resolvedYard, normalizedBase, normalizedBaseDestino, manager || '', chassis || '', keys || '', notes || '', isNewVehicle ? 1 : 0, newVehiclePlotagem ? 1 : 0, newVehicleTesteDrive ? 1 : 0, newVehicleAdesivoCorreios ? 1 : 0, newVehicleAdesivoPrint ? 1 : 0, newVehicleMarcacaoPneus ? 1 : 0, newVehiclePlataformaCarga ? 1 : 0, newVehicleForracaoInterna ? 1 : 0, newVehicleNotes, hasNewLine ? 1 : 0, newLineName, newLineState, isReserveVehicle ? 1 : 0, entregarDiversos ? 1 : 0, entregarCorreios ? 1 : 0, normalizedHasAccident ? 1 : 0, documentIssue ? 1 : 0, sascarStatus || 'pendente', maintenanceCategory || '', maintenanceProblem, maintenanceServiceOrder, normalizedEntryTime, req.session.user.username);
             createdVehicle = normalizeVehicleRecord({ ...db.prepare('SELECT * FROM vehicles WHERE id = ?').get(result.lastInsertRowid) });
         }
         const accidentPhotos = normalizedHasAccident
@@ -4062,6 +4084,9 @@ app.put('/api/vehicles/:id', requireAuth, async (req, res) => {
     const hasNewLine = normalizeBooleanFlag(updates.hasNewLine);
     const newLineName = hasNewLine ? String(updates.newLineName ?? '').trim() : '';
     const newLineState = hasNewLine ? String(updates.newLineState ?? '').trim() : '';
+    const isReserveVehicle = normalizeBooleanFlag(updates.isReserveVehicle);
+    const maintenanceProblem = String(updates.maintenanceProblem ?? '').trim();
+    const maintenanceServiceOrder = String(updates.maintenanceServiceOrder ?? '').trim();
     const normalizedUpdateStatus = updates.status ? canonicalizeVehicleStatus(updates.status) : null;
     const shouldClearTimeline = normalizedUpdateStatus && normalizedUpdateStatus !== 'Liberado';
     const shouldClearSeminovosTracking = normalizedUpdateStatus && normalizedUpdateStatus !== 'Liberado';
@@ -4082,18 +4107,18 @@ app.put('/api/vehicles/:id', requireAuth, async (req, res) => {
         if (!nextPlate && !nextChassis) return res.status(400).json({ error: 'Placa ou Chassi obrigatórios' });
 
         if (isProduction) {
-            await pool.query(`UPDATE vehicles SET plate = COALESCE($1::TEXT, plate), type = COALESCE($2::TEXT, type), yard = COALESCE($3::TEXT, yard), base = COALESCE($4::TEXT, base), baseDestino = COALESCE($5::TEXT, baseDestino), manager = COALESCE($6::TEXT, manager), chassis = COALESCE($7::TEXT, chassis), keys = COALESCE($8::TEXT, keys), status = COALESCE($9::TEXT, status), maintenance = COALESCE($10::BOOLEAN, maintenance), hasAccident = COALESCE($11::BOOLEAN, hasAccident), documentIssue = COALESCE($12::BOOLEAN, documentIssue), sascarStatus = COALESCE($13::TEXT, sascarStatus), maintenanceCategory = COALESCE($14::TEXT, maintenanceCategory), notes = COALESCE($15::TEXT, notes), entregar_diversos = COALESCE($16::BOOLEAN, entregar_diversos), entregar_correios = COALESCE($17::BOOLEAN, entregar_correios), entregue = COALESCE($18::BOOLEAN, entregue), entreguePara = COALESCE($19::TEXT, entreguePara), movedToSeminovos = COALESCE($20::BOOLEAN, movedToSeminovos), seminovosMovedAt = CASE WHEN $21::TEXT IS NOT NULL THEN $21::TIMESTAMP ELSE NULL END, seminovosYard = COALESCE($22::TEXT, seminovosYard), entryTime = CASE WHEN $23::TEXT IS NOT NULL AND ${canEditDates} THEN $23::TIMESTAMP ELSE entryTime END, exitTime = CASE WHEN ${shouldClearTimeline} THEN NULL WHEN $24::TEXT IS NOT NULL AND ${canEditDates} THEN $24::TIMESTAMP ELSE exitTime END, readyTime = CASE WHEN ${shouldClearTimeline} THEN NULL ELSE readyTime END, isNewVehicle = COALESCE($25::BOOLEAN, isNewVehicle), newVehiclePlotagem = COALESCE($26::BOOLEAN, newVehiclePlotagem), newVehicleTesteDrive = COALESCE($27::BOOLEAN, newVehicleTesteDrive), newVehicleAdesivoCorreios = COALESCE($28::BOOLEAN, newVehicleAdesivoCorreios), newVehicleAdesivoPrint = COALESCE($29::BOOLEAN, newVehicleAdesivoPrint), newVehicleMarcacaoPneus = COALESCE($30::BOOLEAN, newVehicleMarcacaoPneus), newVehiclePlataformaCarga = COALESCE($31::BOOLEAN, newVehiclePlataformaCarga), newVehicleForracaoInterna = COALESCE($32::BOOLEAN, newVehicleForracaoInterna), newVehicleNotes = COALESCE($33::TEXT, newVehicleNotes), hasNewLine = COALESCE($34::BOOLEAN, hasNewLine), newLineName = COALESCE($35::TEXT, newLineName), newLineState = COALESCE($36::TEXT, newLineState), updatedAt = CURRENT_TIMESTAMP, updatedBy = $37::TEXT WHERE id = $38::INTEGER`,
-                [nextPlate, normalizedUpdateType, normalizedUpdateYard || null, normalizedUpdateBase, normalizedUpdateBaseDestino, updates.manager || null, nextChassis, updates.keys || null, normalizedUpdateStatus || null, updates.maintenance !== undefined ? Boolean(updates.maintenance) : null, updates.hasAccident !== undefined ? Boolean(updates.hasAccident) : null, updates.documentIssue !== undefined ? Boolean(updates.documentIssue) : null, updates.sascarStatus || null, updates.maintenanceCategory || null, updates.notes !== undefined ? String(updates.notes ?? '') : null, updates.entregarDiversos !== undefined ? Boolean(updates.entregarDiversos) : null, updates.entregarCorreios !== undefined ? Boolean(updates.entregarCorreios) : null, updates.entregue !== undefined ? Boolean(updates.entregue) : null, updates.entreguePara || null, nextMovedToSeminovos, nextSeminovosMovedAt, nextSeminovosYard || '', normalizedUpdateEntryTime, normalizedUpdateExitTime, isNewVehicle, newVehiclePlotagem, newVehicleTesteDrive, newVehicleAdesivoCorreios, newVehicleAdesivoPrint, newVehicleMarcacaoPneus, newVehiclePlataformaCarga, newVehicleForracaoInterna, newVehicleNotes ?? null, hasNewLine, newLineName ?? null, newLineState ?? null, req.session.user.username, id]);
+            await pool.query(`UPDATE vehicles SET plate = COALESCE($1::TEXT, plate), type = COALESCE($2::TEXT, type), yard = COALESCE($3::TEXT, yard), base = COALESCE($4::TEXT, base), baseDestino = COALESCE($5::TEXT, baseDestino), manager = COALESCE($6::TEXT, manager), chassis = COALESCE($7::TEXT, chassis), keys = COALESCE($8::TEXT, keys), status = COALESCE($9::TEXT, status), maintenance = COALESCE($10::BOOLEAN, maintenance), hasAccident = COALESCE($11::BOOLEAN, hasAccident), documentIssue = COALESCE($12::BOOLEAN, documentIssue), sascarStatus = COALESCE($13::TEXT, sascarStatus), maintenanceCategory = COALESCE($14::TEXT, maintenanceCategory), notes = COALESCE($15::TEXT, notes), entregar_diversos = COALESCE($16::BOOLEAN, entregar_diversos), entregar_correios = COALESCE($17::BOOLEAN, entregar_correios), entregue = COALESCE($18::BOOLEAN, entregue), entreguePara = COALESCE($19::TEXT, entreguePara), movedToSeminovos = COALESCE($20::BOOLEAN, movedToSeminovos), seminovosMovedAt = CASE WHEN $21::TEXT IS NOT NULL THEN $21::TIMESTAMP ELSE NULL END, seminovosYard = COALESCE($22::TEXT, seminovosYard), entryTime = CASE WHEN $23::TEXT IS NOT NULL AND ${canEditDates} THEN $23::TIMESTAMP ELSE entryTime END, exitTime = CASE WHEN ${shouldClearTimeline} THEN NULL WHEN $24::TEXT IS NOT NULL AND ${canEditDates} THEN $24::TIMESTAMP ELSE exitTime END, readyTime = CASE WHEN ${shouldClearTimeline} THEN NULL ELSE readyTime END, isNewVehicle = COALESCE($25::BOOLEAN, isNewVehicle), newVehiclePlotagem = COALESCE($26::BOOLEAN, newVehiclePlotagem), newVehicleTesteDrive = COALESCE($27::BOOLEAN, newVehicleTesteDrive), newVehicleAdesivoCorreios = COALESCE($28::BOOLEAN, newVehicleAdesivoCorreios), newVehicleAdesivoPrint = COALESCE($29::BOOLEAN, newVehicleAdesivoPrint), newVehicleMarcacaoPneus = COALESCE($30::BOOLEAN, newVehicleMarcacaoPneus), newVehiclePlataformaCarga = COALESCE($31::BOOLEAN, newVehiclePlataformaCarga), newVehicleForracaoInterna = COALESCE($32::BOOLEAN, newVehicleForracaoInterna), newVehicleNotes = COALESCE($33::TEXT, newVehicleNotes), hasNewLine = COALESCE($34::BOOLEAN, hasNewLine), newLineName = COALESCE($35::TEXT, newLineName), newLineState = COALESCE($36::TEXT, newLineState), maintenanceProblem = COALESCE($37::TEXT, maintenanceProblem), maintenanceServiceOrder = COALESCE($38::TEXT, maintenanceServiceOrder), isReserveVehicle = COALESCE($39::BOOLEAN, isReserveVehicle), updatedAt = CURRENT_TIMESTAMP, updatedBy = $40::TEXT WHERE id = $41::INTEGER`,
+                [nextPlate, normalizedUpdateType, normalizedUpdateYard || null, normalizedUpdateBase, normalizedUpdateBaseDestino, updates.manager || null, nextChassis, updates.keys || null, normalizedUpdateStatus || null, updates.maintenance !== undefined ? Boolean(updates.maintenance) : null, updates.hasAccident !== undefined ? Boolean(updates.hasAccident) : null, updates.documentIssue !== undefined ? Boolean(updates.documentIssue) : null, updates.sascarStatus || null, updates.maintenanceCategory || null, updates.notes !== undefined ? String(updates.notes ?? '') : null, updates.entregarDiversos !== undefined ? Boolean(updates.entregarDiversos) : null, updates.entregarCorreios !== undefined ? Boolean(updates.entregarCorreios) : null, updates.entregue !== undefined ? Boolean(updates.entregue) : null, updates.entreguePara || null, nextMovedToSeminovos, nextSeminovosMovedAt, nextSeminovosYard || '', normalizedUpdateEntryTime, normalizedUpdateExitTime, isNewVehicle, newVehiclePlotagem, newVehicleTesteDrive, newVehicleAdesivoCorreios, newVehicleAdesivoPrint, newVehicleMarcacaoPneus, newVehiclePlataformaCarga, newVehicleForracaoInterna, newVehicleNotes ?? null, hasNewLine, newLineName ?? null, newLineState ?? null, maintenanceProblem, maintenanceServiceOrder, isReserveVehicle, req.session.user.username, id]);
         } else {
             const nextEntryTime = normalizedUpdateEntryTime || currentVehicle?.entryTime || null;
             const nextExitTime = shouldClearTimeline ? null : (normalizedUpdateExitTime || currentVehicle?.exitTime || null);
             const nextReadyTime = shouldClearTimeline ? null : (currentVehicle?.readyTime || null);
-            db.prepare(`UPDATE vehicles SET plate = ?, type = ?, yard = ?, base = ?, baseDestino = ?, manager = ?, chassis = ?, keys = ?, status = ?, maintenance = ?, hasAccident = ?, documentIssue = ?, sascarStatus = ?, maintenanceCategory = ?, notes = ?, entregar_diversos = ?, entregar_correios = ?, entregue = ?, entreguePara = ?, movedToSeminovos = ?, seminovosMovedAt = ?, seminovosYard = ?, readyTime = ?, entryTime = ?, exitTime = ?, isNewVehicle = ?, newVehiclePlotagem = ?, newVehicleTesteDrive = ?, newVehicleAdesivoCorreios = ?, newVehicleAdesivoPrint = ?, newVehicleMarcacaoPneus = ?, newVehiclePlataformaCarga = ?, newVehicleForracaoInterna = ?, newVehicleNotes = ?, hasNewLine = ?, newLineName = ?, newLineState = ?, updatedAt = ?, updatedBy = ? WHERE id = ?`).run(
+            db.prepare(`UPDATE vehicles SET plate = ?, type = ?, yard = ?, base = ?, baseDestino = ?, manager = ?, chassis = ?, keys = ?, status = ?, maintenance = ?, hasAccident = ?, documentIssue = ?, sascarStatus = ?, maintenanceCategory = ?, notes = ?, entregar_diversos = ?, entregar_correios = ?, entregue = ?, entreguePara = ?, movedToSeminovos = ?, seminovosMovedAt = ?, seminovosYard = ?, readyTime = ?, entryTime = ?, exitTime = ?, isNewVehicle = ?, newVehiclePlotagem = ?, newVehicleTesteDrive = ?, newVehicleAdesivoCorreios = ?, newVehicleAdesivoPrint = ?, newVehicleMarcacaoPneus = ?, newVehiclePlataformaCarga = ?, newVehicleForracaoInterna = ?, newVehicleNotes = ?, hasNewLine = ?, newLineName = ?, newLineState = ?, maintenanceProblem = ?, maintenanceServiceOrder = ?, isReserveVehicle = ?, updatedAt = ?, updatedBy = ? WHERE id = ?`).run(
                 nextPlate, normalizedUpdateType, normalizedUpdateYard || null, normalizedUpdateBase, normalizedUpdateBaseDestino, updates.manager || null, nextChassis, updates.keys || null, normalizedUpdateStatus || null,
                 updates.maintenance ? 1 : 0, updates.hasAccident ? 1 : 0, updates.documentIssue ? 1 : 0, updates.sascarStatus || 'pendente', updates.maintenanceCategory || '', updates.notes !== undefined ? String(updates.notes ?? '') : null,
                 updates.entregarDiversos ? 1 : 0, updates.entregarCorreios ? 1 : 0, updates.entregue ? 1 : 0, updates.entreguePara || '', nextMovedToSeminovos ? 1 : 0, nextSeminovosMovedAt, nextSeminovosYard,
                 nextReadyTime, nextEntryTime, nextExitTime,
-                isNewVehicle ? 1 : 0, newVehiclePlotagem ? 1 : 0, newVehicleTesteDrive ? 1 : 0, newVehicleAdesivoCorreios ? 1 : 0, newVehicleAdesivoPrint ? 1 : 0, newVehicleMarcacaoPneus ? 1 : 0, newVehiclePlataformaCarga ? 1 : 0, newVehicleForracaoInterna ? 1 : 0, newVehicleNotes, hasNewLine ? 1 : 0, newLineName, newLineState,
+                isNewVehicle ? 1 : 0, newVehiclePlotagem ? 1 : 0, newVehicleTesteDrive ? 1 : 0, newVehicleAdesivoCorreios ? 1 : 0, newVehicleAdesivoPrint ? 1 : 0, newVehicleMarcacaoPneus ? 1 : 0, newVehiclePlataformaCarga ? 1 : 0, newVehicleForracaoInterna ? 1 : 0, newVehicleNotes, hasNewLine ? 1 : 0, newLineName, newLineState, maintenanceProblem, maintenanceServiceOrder, isReserveVehicle ? 1 : 0,
                 new Date().toISOString(), req.session.user.username, id);
         }
         const updatedVehicle = isProduction
@@ -4674,6 +4699,7 @@ app.get('/api/stats', requireAuth, async (req, res) => {
         const entreguesCorreios = vehicles.filter(v => v.entregarCorreios).length;
         const comSinistro = vehicles.filter(v => v.hasAccident).length;
         const veiculosNovos = vehicles.filter(v => v.isNewVehicle).length;
+        const veiculosReservas = vehicles.filter(v => v.isReserveVehicle).length;
         const now = new Date();
         const stalledVehicles = active.filter(v => (now - new Date(v.entryTime)) / (1000 * 60 * 60) > 24);
         const readyForBoarding = liberated.filter(v => !v.entregue).length;
@@ -4692,6 +4718,7 @@ app.get('/api/stats', requireAuth, async (req, res) => {
             entreguesCorreios,
             comSinistro,
             veiculosNovos,
+            veiculosReservas,
             readyForBoarding,
             sascarIssues,
             documentationIssues,
@@ -4798,8 +4825,8 @@ app.post('/api/import', requireAuth, requireRole(['admin']), async (req, res) =>
                 await client.query('DELETE FROM conjuntos');
                 for (const v of importedVehicles) {
                     if (v.plate || v.chassis) {
-                        const insertedVehicle = await client.query(`INSERT INTO vehicles (plate, type, yard, base, baseDestino, manager, chassis, status, maintenance, maintenanceCategory, hasAccident, documentIssue, sascarStatus, keys, notes, isNewVehicle, newVehiclePlotagem, newVehicleTesteDrive, newVehicleAdesivoCorreios, newVehicleAdesivoPrint, newVehicleMarcacaoPneus, newVehiclePlataformaCarga, newVehicleForracaoInterna, newVehicleNotes, hasNewLine, newLineName, newLineState, entregar_diversos, entregar_correios, entregue, entreguePara, movedToSeminovos, seminovosMovedAt, seminovosYard, readyTime, entryTime, exitTime, updatedBy) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38) RETURNING id, plate`,
-                            [v.plate ? v.plate.toUpperCase() : '', v.type, v.yard, v.base || 'Jaraguá-SP (Nacional)', v.baseDestino || '', v.manager || '', v.chassis || '', v.status || 'Aguardando linha', v.maintenance || false, v.maintenanceCategory || '', v.hasAccident || false, v.documentIssue || false, v.sascarStatus || 'pendente', v.keys || '', v.notes || '', v.isNewVehicle || false, v.newVehiclePlotagem || false, v.newVehicleTesteDrive || false, v.newVehicleAdesivoCorreios || false, v.newVehicleAdesivoPrint || false, v.newVehicleMarcacaoPneus || false, v.newVehiclePlataformaCarga || false, v.newVehicleForracaoInterna || false, v.newVehicleNotes || '', v.hasNewLine || false, v.newLineName || '', v.newLineState || '', v.entregarDiversos || false, v.entregarCorreios || false, v.entregue || false, v.entreguePara || '', v.movedToSeminovos || false, v.seminovosMovedAt || null, v.seminovosYard || '', v.readyTime || null, v.entryTime || new Date().toISOString(), v.exitTime || null, req.session.user.username]);
+                        const insertedVehicle = await client.query(`INSERT INTO vehicles (plate, type, yard, base, baseDestino, manager, chassis, status, maintenance, maintenanceCategory, maintenanceProblem, maintenanceServiceOrder, hasAccident, documentIssue, sascarStatus, keys, notes, isNewVehicle, newVehiclePlotagem, newVehicleTesteDrive, newVehicleAdesivoCorreios, newVehicleAdesivoPrint, newVehicleMarcacaoPneus, newVehiclePlataformaCarga, newVehicleForracaoInterna, newVehicleNotes, hasNewLine, newLineName, newLineState, isReserveVehicle, entregar_diversos, entregar_correios, entregue, entreguePara, movedToSeminovos, seminovosMovedAt, seminovosYard, readyTime, entryTime, exitTime, updatedBy) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41) RETURNING id, plate`,
+                            [v.plate ? v.plate.toUpperCase() : '', v.type, v.yard, v.base || 'Jaraguá-SP (Nacional)', v.baseDestino || '', v.manager || '', v.chassis || '', v.status || 'Aguardando linha', v.maintenance || false, v.maintenanceCategory || '', v.maintenanceProblem || '', v.maintenanceServiceOrder || '', v.hasAccident || false, v.documentIssue || false, v.sascarStatus || 'pendente', v.keys || '', v.notes || '', v.isNewVehicle || false, v.newVehiclePlotagem || false, v.newVehicleTesteDrive || false, v.newVehicleAdesivoCorreios || false, v.newVehicleAdesivoPrint || false, v.newVehicleMarcacaoPneus || false, v.newVehiclePlataformaCarga || false, v.newVehicleForracaoInterna || false, v.newVehicleNotes || '', v.hasNewLine || false, v.newLineName || '', v.newLineState || '', v.isReserveVehicle || false, v.entregarDiversos || false, v.entregarCorreios || false, v.entregue || false, v.entreguePara || '', v.movedToSeminovos || false, v.seminovosMovedAt || null, v.seminovosYard || '', v.readyTime || null, v.entryTime || new Date().toISOString(), v.exitTime || null, req.session.user.username]);
                         createdVehicleRefs.push({
                             importedVehicle: v,
                             createdVehicle: {
@@ -4834,7 +4861,7 @@ app.post('/api/import', requireAuth, requireRole(['admin']), async (req, res) =>
                 client.release();
             }
         } else {
-            const vehicleStmt = db.prepare(`INSERT INTO vehicles (plate, type, yard, base, baseDestino, manager, chassis, status, maintenance, maintenanceCategory, hasAccident, documentIssue, sascarStatus, keys, notes, isNewVehicle, newVehiclePlotagem, newVehicleTesteDrive, newVehicleAdesivoCorreios, newVehicleAdesivoPrint, newVehicleMarcacaoPneus, newVehiclePlataformaCarga, newVehicleForracaoInterna, newVehicleNotes, hasNewLine, newLineName, newLineState, entregar_diversos, entregar_correios, entregue, entreguePara, movedToSeminovos, seminovosMovedAt, seminovosYard, readyTime, entryTime, exitTime, updatedBy) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`); 
+            const vehicleStmt = db.prepare(`INSERT INTO vehicles (plate, type, yard, base, baseDestino, manager, chassis, status, maintenance, maintenanceCategory, maintenanceProblem, maintenanceServiceOrder, hasAccident, documentIssue, sascarStatus, keys, notes, isNewVehicle, newVehiclePlotagem, newVehicleTesteDrive, newVehicleAdesivoCorreios, newVehicleAdesivoPrint, newVehicleMarcacaoPneus, newVehiclePlataformaCarga, newVehicleForracaoInterna, newVehicleNotes, hasNewLine, newLineName, newLineState, isReserveVehicle, entregar_diversos, entregar_correios, entregue, entreguePara, movedToSeminovos, seminovosMovedAt, seminovosYard, readyTime, entryTime, exitTime, updatedBy) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
             const runSqliteImport = db.transaction(() => {
                 db.exec('DELETE FROM vehicles');
                 db.exec('DELETE FROM swaps');
@@ -4844,7 +4871,7 @@ app.post('/api/import', requireAuth, requireRole(['admin']), async (req, res) =>
                 db.exec("DELETE FROM sqlite_sequence WHERE name='conjuntos'");
                 for (const v of importedVehicles) {
                     if (v.plate || v.chassis) {
-                        const insertedVehicle = vehicleStmt.run(v.plate ? v.plate.toUpperCase() : '', v.type, v.yard, v.base || 'Jaraguá-SP (Nacional)', v.baseDestino || '', v.manager || '', v.chassis || '', v.status || 'Aguardando linha', v.maintenance ? 1 : 0, v.maintenanceCategory || '', v.hasAccident ? 1 : 0, v.documentIssue ? 1 : 0, v.sascarStatus || 'pendente', v.keys || '', v.notes || '', v.isNewVehicle ? 1 : 0, v.newVehiclePlotagem ? 1 : 0, v.newVehicleTesteDrive ? 1 : 0, v.newVehicleAdesivoCorreios ? 1 : 0, v.newVehicleAdesivoPrint ? 1 : 0, v.newVehicleMarcacaoPneus ? 1 : 0, v.newVehiclePlataformaCarga ? 1 : 0, v.newVehicleForracaoInterna ? 1 : 0, v.newVehicleNotes || '', v.hasNewLine ? 1 : 0, v.newLineName || '', v.newLineState || '', v.entregarDiversos ? 1 : 0, v.entregarCorreios ? 1 : 0, v.entregue ? 1 : 0, v.entreguePara || '', v.movedToSeminovos ? 1 : 0, v.seminovosMovedAt || null, v.seminovosYard || '', v.readyTime || null, v.entryTime || new Date().toISOString(), v.exitTime || null, req.session.user.username);
+                        const insertedVehicle = vehicleStmt.run(v.plate ? v.plate.toUpperCase() : '', v.type, v.yard, v.base || 'Jaraguá-SP (Nacional)', v.baseDestino || '', v.manager || '', v.chassis || '', v.status || 'Aguardando linha', v.maintenance ? 1 : 0, v.maintenanceCategory || '', v.maintenanceProblem || '', v.maintenanceServiceOrder || '', v.hasAccident ? 1 : 0, v.documentIssue ? 1 : 0, v.sascarStatus || 'pendente', v.keys || '', v.notes || '', v.isNewVehicle ? 1 : 0, v.newVehiclePlotagem ? 1 : 0, v.newVehicleTesteDrive ? 1 : 0, v.newVehicleAdesivoCorreios ? 1 : 0, v.newVehicleAdesivoPrint ? 1 : 0, v.newVehicleMarcacaoPneus ? 1 : 0, v.newVehiclePlataformaCarga ? 1 : 0, v.newVehicleForracaoInterna ? 1 : 0, v.newVehicleNotes || '', v.hasNewLine ? 1 : 0, v.newLineName || '', v.newLineState || '', v.isReserveVehicle ? 1 : 0, v.entregarDiversos ? 1 : 0, v.entregarCorreios ? 1 : 0, v.entregue ? 1 : 0, v.entreguePara || '', v.movedToSeminovos ? 1 : 0, v.seminovosMovedAt || null, v.seminovosYard || '', v.readyTime || null, v.entryTime || new Date().toISOString(), v.exitTime || null, req.session.user.username);
                         createdVehicleRefs.push({
                             importedVehicle: v,
                             createdVehicle: {
