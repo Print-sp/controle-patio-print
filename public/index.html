@@ -2065,6 +2065,14 @@ Nenhum veículo com mais de 24h no pátio neste momento.
 <option value="freios">🛑 Freios</option>
 </select>
 </div>
+<div class="col-md-6">
+<label class="form-label">Problema da Manutenção</label>
+<input type="text" class="form-control" id="maintenanceProblem" placeholder="Ex.: vazamento, freio, elétrica...">
+</div>
+<div class="col-md-6">
+<label class="form-label">Ordem de Serviço Print</label>
+<input type="text" class="form-control" id="maintenanceServiceOrder" placeholder="Número da OS Print">
+</div>
 <div class="col-12">
 <div class="card border-0 shadow-sm">
 <div class="card-body">
@@ -2115,6 +2123,22 @@ Nenhum veículo com mais de 24h no pátio neste momento.
 <div class="col-md-6">
 <label class="form-label">Estado/UF da linha</label>
 <input type="text" class="form-control" id="newLineState" placeholder="Ex.: Pernambuco / PE">
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="col-12">
+<div class="card border-0 shadow-sm">
+<div class="card-body">
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+<div>
+<h6 class="mb-1"><i class="bi bi-bookmark-check me-2 text-warning"></i>Veículo Reserva</h6>
+<small class="text-muted">Marque quando o veículo estiver reservado para apoio operacional.</small>
+</div>
+<div class="form-check form-switch">
+<input class="form-check-input" type="checkbox" id="isReserveVehicle">
+<label class="form-check-label" for="isReserveVehicle">Sim / Não</label>
 </div>
 </div>
 </div>
@@ -2457,6 +2481,14 @@ Nenhum veículo com mais de 24h no pátio neste momento.
 <option value="freios">🛑 Freios</option>
 </select>
 </div>
+<div class="col-md-6">
+<label class="form-label">Problema da Manutenção</label>
+<input type="text" class="form-control" id="editMaintenanceProblem" placeholder="Ex.: vazamento, freio, elétrica...">
+</div>
+<div class="col-md-6">
+<label class="form-label">Ordem de Serviço Print</label>
+<input type="text" class="form-control" id="editMaintenanceServiceOrder" placeholder="Número da OS Print">
+</div>
 <div class="col-12">
 <div class="card border-0 shadow-sm">
 <div class="card-body">
@@ -2507,6 +2539,22 @@ Nenhum veículo com mais de 24h no pátio neste momento.
 <div class="col-md-6">
 <label class="form-label">Estado/UF da linha</label>
 <input type="text" class="form-control" id="editNewLineState" placeholder="Ex.: Pernambuco / PE">
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="col-12">
+<div class="card border-0 shadow-sm">
+<div class="card-body">
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+<div>
+<h6 class="mb-1"><i class="bi bi-bookmark-check me-2 text-warning"></i>Veículo Reserva</h6>
+<small class="text-muted">Marque quando o veículo estiver reservado para apoio operacional.</small>
+</div>
+<div class="form-check form-switch">
+<input class="form-check-input" type="checkbox" id="editIsReserveVehicle">
+<label class="form-check-label" for="editIsReserveVehicle">Sim / Não</label>
 </div>
 </div>
 </div>
@@ -6081,6 +6129,7 @@ if (card.filterDiversos) return 'special:diversos';
 if (card.filterCorreios) return 'special:correios';
 if (card.filterSinistro) return 'special:sinistro';
 if (card.filterNewVehicle) return 'special:novo';
+if (card.filterReserveVehicle) return 'special:reserva';
 if (card.filterConjunto) return 'special:conjunto';
 if (card.filterClear) return 'clear';
 return card.label;
@@ -6123,6 +6172,9 @@ badges.push(`<span class="badge bg-info text-dark ms-1"><i class="bi bi-stars me
 if (vehicle.hasNewLine) {
 const details = [vehicle.newLineName, vehicle.newLineState].filter(Boolean).join(' • ');
 badges.push(`<span class="badge bg-success-subtle text-success-emphasis ms-1"><i class="bi bi-signpost-split me-1"></i>${escapeHtml(details || 'Nova linha')}</span>`);
+}
+if (vehicle.isReserveVehicle) {
+badges.push('<span class="badge bg-warning-subtle text-warning-emphasis ms-1"><i class="bi bi-bookmark-check me-1"></i>Reserva</span>');
 }
 if (vehicle.movedToSeminovos) {
 const seminovosDetails = [
@@ -6196,8 +6248,10 @@ vehicle.entregarCorreios ? '<span class="badge bg-info-subtle text-info-emphasis
 vehicle.entregarDiversos ? '<span class="badge bg-secondary-subtle text-secondary-emphasis"><i class="bi bi-box me-1"></i>Marcar para Diversos</span>' : '',
 vehicle.documentIssue ? '<span class="badge bg-warning text-dark"><i class="bi bi-file-earmark-text me-1"></i>Problema de documentação</span>' : '',
 vehicle.hasAccident ? '<span class="badge bg-danger"><i class="bi bi-exclamation-triangle me-1"></i>Sinistro</span>' : '',
+vehicle.isReserveVehicle ? '<span class="badge bg-warning-subtle text-warning-emphasis"><i class="bi bi-bookmark-check me-1"></i>Veículo reserva</span>' : '',
 inConjunto ? `<span class="badge bg-primary"><i class="bi bi-link-45deg me-1"></i>${escapeHtml(getConjuntoDescription(vehicle.plate) || 'Em conjunto')}</span>` : '',
-vehicle.maintenanceCategory ? `<span class="badge bg-dark-subtle text-dark-emphasis"><i class="bi bi-tools me-1"></i>${escapeHtml(vehicle.maintenanceCategory)}</span>` : ''
+vehicle.maintenanceCategory ? `<span class="badge bg-dark-subtle text-dark-emphasis"><i class="bi bi-tools me-1"></i>${escapeHtml(vehicle.maintenanceCategory)}</span>` : '',
+vehicle.maintenanceServiceOrder ? `<span class="badge bg-secondary-subtle text-secondary-emphasis"><i class="bi bi-receipt me-1"></i>OS ${escapeHtml(vehicle.maintenanceServiceOrder)}</span>` : ''
 ].filter(Boolean).join(' ');
 const accidentGalleryContent = accidentPhotos.length
 ? `<div class="vehicle-report-photo-grid">${accidentPhotos.map(photo => `
@@ -6243,6 +6297,7 @@ ${renderVehicleReportMeta('Placa', renderPlaca(vehicle.plate))}
 ${renderVehicleReportMeta('Chassi', formatVehicleReportValue(vehicle.chassis))}
 ${renderVehicleReportMeta('Gestor da base', formatVehicleReportValue(vehicle.manager))}
 ${renderVehicleReportMeta('Chaves com', formatVehicleReportValue(vehicle.keys))}
+${renderVehicleReportMeta('Veículo reserva', vehicle.isReserveVehicle ? '<span class="text-warning-emphasis fw-semibold">Sim</span>' : '<span class="text-muted">Não</span>')}
 </div>
 </div>
 </div>
@@ -6258,6 +6313,19 @@ ${renderVehicleReportMeta('Nova linha', vehicle.hasNewLine ? formatVehicleReport
 ${renderVehicleReportMeta('Estado/UF', vehicle.hasNewLine ? formatVehicleReportValue(vehicle.newLineState, 'Não informado') : '<span class="text-muted">—</span>')}
 ${renderVehicleReportMeta('Seminovos', vehicle.movedToSeminovos ? formatVehicleReportValue(vehicle.seminovosMovedAt ? formatDateBR(vehicle.seminovosMovedAt) : 'Encaminhado') : '<span class="text-muted">Não</span>')}
 ${renderVehicleReportMeta('Pátio de origem', vehicle.movedToSeminovos ? formatVehicleReportValue(vehicle.seminovosYard, 'Não informado') : '<span class="text-muted">—</span>')}
+</div>
+</div>
+</div>
+</div>
+<div class="col-12">
+<div class="card vehicle-report-card h-100">
+<div class="card-header"><i class="bi bi-tools me-2"></i>Manutenção</div>
+<div class="card-body">
+<div class="row g-3">
+${renderVehicleReportMeta('Categoria', formatVehicleReportValue(vehicle.maintenanceCategory, '<span class="text-muted">Sem manutenção</span>'))}
+${renderVehicleReportMeta('Problema', formatVehicleReportValue(vehicle.maintenanceProblem, '<span class="text-muted">Não informado</span>'))}
+${renderVehicleReportMeta('OS Print', formatVehicleReportValue(vehicle.maintenanceServiceOrder, '<span class="text-muted">Não informada</span>'))}
+${renderVehicleReportMeta('Flag manutenção', vehicle.maintenance ? '<span class="text-danger fw-semibold">Sim</span>' : '<span class="text-muted">Não</span>')}
 </div>
 </div>
 </div>
@@ -6362,6 +6430,7 @@ const cards = [
 { icon: 'bi bi-hammer', label: 'Em Funilaria', value: safeCount(stats.emFunilaria), filterStatus: 'Funilaria', isImage: false },
 { icon: 'bi bi-life-preserver', label: 'Em Borracharia', value: safeCount(stats.emBorracharia), filterStatus: 'Borracharia', isImage: false },
 { icon: 'bi bi-stars', label: 'Veículos Novos', value: safeCount(stats.veiculosNovos), filterNewVehicle: true, isImage: false },
+{ icon: 'bi bi-bookmark-check', label: 'Veículos Reservas', value: safeCount(stats.veiculosReservas), filterReserveVehicle: true, isImage: false },
 { icon: '/images/liberado.png', label: 'Liberados', value: safeCount(stats.liberados), filterStatus: 'Liberado', isImage: true },
 { icon: '/images/diversos.png', label: 'Marcados p/ Diversos', value: safeCount(stats.entreguesDiversos), filterDiversos: true, isImage: true },
 { icon: '/images/correios.png', label: 'Marcados p/ Correios', value: safeCount(stats.entreguesCorreios), filterCorreios: true, isImage: true },
@@ -6457,6 +6526,13 @@ loadStats();
 showToast('Filtrando: Veículos novos', 'info');
 return;
 }
+if (card.filterReserveVehicle) {
+persistentFilters.cardSpecial = 'reserva';
+applyCurrentFilters();
+loadStats();
+showToast('Filtrando: Veículos reservas', 'info');
+return;
+}
 if (card.filterConjunto) {
 persistentFilters.cardSpecial = 'conjunto';
 applyCurrentFilters();
@@ -6547,9 +6623,11 @@ const deleteActionBlock = userPermissions?.canDelete ? `<button class="dropdown-
 const searchText = [
 v.plate, v.type, v.yard, v.base, v.baseDestino, v.notes, v.manager,
 v.newLineName, v.newLineState, v.newVehicleNotes, v.seminovosYard,
+v.maintenanceProblem, v.maintenanceServiceOrder,
+v.isReserveVehicle ? 'reserva veiculo reserva' : '',
 v.movedToSeminovos ? 'seminovos' : ''
 ].filter(Boolean).join(' ');
-return `<tr data-yard="${escapeHtml(v.yard || '')}" data-status="${escapeHtml(v.status || '')}" data-type="${escapeHtml(v.type || '')}" data-search="${escapeHtml(searchText)}" data-entregar-diversos="${entregarDiversos}" data-entregar-correios="${entregarCorreios}" data-entregue="${v.entregue ? 'true' : 'false'}" data-has-accident="${hasAccident}" data-document-issue="${documentIssue}" data-in-conjunto="${inConjunto}" data-is-new-vehicle="${v.isNewVehicle ? 'true' : 'false'}" data-sascar="${escapeHtml(sascarStatus)}" data-id="${escapeHtml(v.id)}">
+return `<tr data-yard="${escapeHtml(v.yard || '')}" data-status="${escapeHtml(v.status || '')}" data-type="${escapeHtml(v.type || '')}" data-search="${escapeHtml(searchText)}" data-entregar-diversos="${entregarDiversos}" data-entregar-correios="${entregarCorreios}" data-entregue="${v.entregue ? 'true' : 'false'}" data-has-accident="${hasAccident}" data-document-issue="${documentIssue}" data-in-conjunto="${inConjunto}" data-is-new-vehicle="${v.isNewVehicle ? 'true' : 'false'}" data-is-reserve-vehicle="${v.isReserveVehicle ? 'true' : 'false'}" data-sascar="${escapeHtml(sascarStatus)}" data-id="${escapeHtml(v.id)}">
 <td>${renderVehicleTypeBadge(v.type)}</td>
 <td>${placaHtml}${sinistroBadge}${docBadge}${conjuntoBadge}${workflowBadges}${seminovosHint}${conjuntoDescription ? `<span class="conjunto-hint"><i class="bi bi-link-45deg"></i>${conjuntoDescription}</span>` : ''}</td>
 <td><small>${escapeHtml(v.chassis || '—')}</small></td>
@@ -6836,6 +6914,8 @@ hasAccident: hasAccident ? 1 : 0,
 documentIssue: document.getElementById('documentIssue').checked ? 1 : 0,
 sascarStatus: document.getElementById('sascarStatus').value,
 maintenanceCategory: document.getElementById('maintenanceCategory').value,
+maintenanceProblem: document.getElementById('maintenanceProblem').value,
+maintenanceServiceOrder: document.getElementById('maintenanceServiceOrder').value,
 isNewVehicle: document.getElementById('isNewVehicle').checked ? 1 : 0,
 newVehiclePlotagem: document.getElementById('newVehiclePlotagem').checked ? 1 : 0,
 newVehicleTesteDrive: document.getElementById('newVehicleTesteDrive').checked ? 1 : 0,
@@ -6848,6 +6928,7 @@ newVehicleNotes: document.getElementById('newVehicleNotes').value,
 hasNewLine: hasNewLine ? 1 : 0,
 newLineName,
 newLineState,
+isReserveVehicle: document.getElementById('isReserveVehicle').checked ? 1 : 0,
 accidentPhotos
 })
 });
@@ -6981,6 +7062,8 @@ renderAccidentPhotoFields('edit', v.accidentPhotos || []);
 document.getElementById('editDocumentIssue').checked = v.documentIssue == 1 || v.documentIssue === true;
 document.getElementById('editSascarStatus').value = v.sascarStatus || 'pendente';
 document.getElementById('editMaintenanceCategory').value = v.maintenanceCategory || '';
+document.getElementById('editMaintenanceProblem').value = v.maintenanceProblem || '';
+document.getElementById('editMaintenanceServiceOrder').value = v.maintenanceServiceOrder || '';
 document.getElementById('editIsNewVehicle').checked = v.isNewVehicle || false;
 document.getElementById('editNewVehiclePlotagem').checked = v.newVehiclePlotagem || false;
 document.getElementById('editNewVehicleTesteDrive').checked = v.newVehicleTesteDrive || false;
@@ -6993,6 +7076,7 @@ document.getElementById('editNewVehicleNotes').value = v.newVehicleNotes || '';
 document.getElementById('editHasNewLine').checked = v.hasNewLine || false;
 document.getElementById('editNewLineName').value = v.newLineName || '';
 document.getElementById('editNewLineState').value = v.newLineState || '';
+document.getElementById('editIsReserveVehicle').checked = v.isReserveVehicle || false;
 toggleNewVehicleSection('edit');
 toggleNewLineSection('edit');
 toggleAccidentPhotoSection('edit');
@@ -7110,6 +7194,8 @@ hasAccident: hasAccident ? 1 : 0,
 documentIssue: document.getElementById('editDocumentIssue').checked ? 1 : 0,
 sascarStatus: document.getElementById('editSascarStatus').value,
 maintenanceCategory: document.getElementById('editMaintenanceCategory').value,
+maintenanceProblem: document.getElementById('editMaintenanceProblem').value,
+maintenanceServiceOrder: document.getElementById('editMaintenanceServiceOrder').value,
 isNewVehicle: document.getElementById('editIsNewVehicle').checked ? 1 : 0,
 newVehiclePlotagem: document.getElementById('editNewVehiclePlotagem').checked ? 1 : 0,
 newVehicleTesteDrive: document.getElementById('editNewVehicleTesteDrive').checked ? 1 : 0,
@@ -7121,7 +7207,8 @@ newVehicleForracaoInterna: document.getElementById('editNewVehicleForracaoIntern
 newVehicleNotes: document.getElementById('editNewVehicleNotes').value,
 hasNewLine: document.getElementById('editHasNewLine').checked ? 1 : 0,
 newLineName: document.getElementById('editNewLineName').value.trim(),
-newLineState: document.getElementById('editNewLineState').value.trim()
+newLineState: document.getElementById('editNewLineState').value.trim(),
+isReserveVehicle: document.getElementById('editIsReserveVehicle').checked ? 1 : 0
 };
 
 if (updates.hasNewLine && (!updates.newLineName || !updates.newLineState)) {
@@ -7345,6 +7432,7 @@ if (persistentFilters.cardSpecial === 'diversos') descriptions.push('Marcados pa
 if (persistentFilters.cardSpecial === 'correios') descriptions.push('Marcados para Correios');
 if (persistentFilters.cardSpecial === 'sinistro') descriptions.push('Com Sinistro');
 if (persistentFilters.cardSpecial === 'novo') descriptions.push('Veículos novos');
+if (persistentFilters.cardSpecial === 'reserva') descriptions.push('Veículos reservas');
 if (persistentFilters.cardSpecial === 'conjunto') descriptions.push('Apenas veículos em conjunto');
 if (persistentFilters.cardSpecial === 'embarque') descriptions.push('Pronto para embarque');
 if (persistentFilters.cardSpecial === 'sascar') descriptions.push('Problema Sascar');
@@ -7363,6 +7451,7 @@ if (cardSpecial === 'diversos') return Boolean(vehicle.entregarDiversos);
 if (cardSpecial === 'correios') return Boolean(vehicle.entregarCorreios);
 if (cardSpecial === 'sinistro') return Boolean(vehicle.hasAccident);
 if (cardSpecial === 'novo') return Boolean(vehicle.isNewVehicle);
+if (cardSpecial === 'reserva') return Boolean(vehicle.isReserveVehicle);
 if (cardSpecial === 'conjunto') {
 const conjuntoPlates = mountedPlates || getMountedConjuntoPlateSet();
 return conjuntoPlates.has(normalizePlateForComparison(vehicle.plate));
@@ -7379,6 +7468,7 @@ if (cardSpecial === 'diversos') return row.dataset.entregarDiversos === 'true';
 if (cardSpecial === 'correios') return row.dataset.entregarCorreios === 'true';
 if (cardSpecial === 'sinistro') return row.dataset.hasAccident === 'true';
 if (cardSpecial === 'novo') return row.dataset.isNewVehicle === 'true';
+if (cardSpecial === 'reserva') return row.dataset.isReserveVehicle === 'true';
 if (cardSpecial === 'conjunto') return row.dataset.inConjunto === 'true';
 if (cardSpecial === 'embarque') return row.dataset.status === 'Liberado' && row.dataset.entregue !== 'true';
 if (cardSpecial === 'sascar') return ['pendente', 'manutencao'].includes(row.dataset.sascar || 'pendente');
@@ -7393,7 +7483,7 @@ const yardFilter = persistentFilters.yard;
 const statusFilter = persistentFilters.status;
 const cardType = persistentFilters.cardType;
 const cardSpecial = persistentFilters.cardSpecial;
-const searchContent = `${vehicle.plate || ''} ${vehicle.type || ''} ${vehicle.yard || ''} ${vehicle.base || ''} ${vehicle.baseDestino || ''} ${vehicle.notes || ''} ${vehicle.manager || ''} ${vehicle.newLineName || ''} ${vehicle.newLineState || ''} ${vehicle.newVehicleNotes || ''}`;
+const searchContent = `${vehicle.plate || ''} ${vehicle.type || ''} ${vehicle.yard || ''} ${vehicle.base || ''} ${vehicle.baseDestino || ''} ${vehicle.notes || ''} ${vehicle.manager || ''} ${vehicle.newLineName || ''} ${vehicle.newLineState || ''} ${vehicle.newVehicleNotes || ''} ${vehicle.maintenanceProblem || ''} ${vehicle.maintenanceServiceOrder || ''} ${vehicle.isReserveVehicle ? 'reserva veiculo reserva' : ''}`;
 let matches = isLooseSearchMatch(search, searchContent) && (!yardFilter || vehicle.yard === yardFilter);
 
 if (statusFilter === 'Sinistro') {
@@ -7530,7 +7620,7 @@ if (context.filtersText) {
 csvLines.push(`Filtros Aplicados;${context.filtersText}`);
 }
 csvLines.push('');
-csvLines.push('ID;Placa;Chassi;Tipo;Pátio;Base Origem;Base Destino;Gestor;Status;Manutenção;Categoria;Sinistro;Problema Documentação;Sascar;Entregue;Veículo Novo;Plotagem;Teste drive;Adesivo Correios;Adesivo Print;Marcação dos pneus;Plataforma de carga;Forração interna;Obs. Veículo Novo;Nova Linha;Nome da Linha;Estado/UF da Linha;Entrada;Saída;Tempo no Pátio;Chaves;Observações;Diversos;Correios');
+csvLines.push('ID;Placa;Chassi;Tipo;Pátio;Base Origem;Base Destino;Gestor;Status;Manutenção;Categoria;Problema Manutenção;OS Print;Sinistro;Problema Documentação;Sascar;Entregue;Veículo Novo;Veículo Reserva;Plotagem;Teste drive;Adesivo Correios;Adesivo Print;Marcação dos pneus;Plataforma de carga;Forração interna;Obs. Veículo Novo;Nova Linha;Nome da Linha;Estado/UF da Linha;Entrada;Saída;Tempo no Pátio;Chaves;Observações;Diversos;Correios');
 
 context.vehicles.forEach(vehicle => {
 const sascarLabel = vehicle.sascarStatus === 'pendente' ? 'Pendente' : vehicle.sascarStatus === 'instalado' ? 'Instalado' : vehicle.sascarStatus === 'manutencao' ? 'Manutenção' : 'N/A';
@@ -7548,11 +7638,14 @@ vehicle.id,
 `"${vehicle.status}"`,
 vehicle.maintenance ? 'Sim' : 'Não',
 `"${maintenanceCat}"`,
+`"${(vehicle.maintenanceProblem || '').replace(/"/g, '""')}"`,
+`"${(vehicle.maintenanceServiceOrder || '').replace(/"/g, '""')}"`,
 vehicle.hasAccident ? 'Sim' : 'Não',
 vehicle.documentIssue ? 'Sim' : 'Não',
 `"${sascarLabel}"`,
 `"${entregueLabel}"`,
 vehicle.isNewVehicle ? 'Sim' : 'Não',
+vehicle.isReserveVehicle ? 'Sim' : 'Não',
 vehicle.newVehiclePlotagem ? 'Sim' : 'Não',
 vehicle.newVehicleTesteDrive ? 'Sim' : 'Não',
 vehicle.newVehicleAdesivoCorreios ? 'Sim' : 'Não',
@@ -7623,11 +7716,12 @@ html += `<div class="header">
 ${context.filtersText ? `<p class="meta"><strong>Filtros aplicados:</strong> ${escapeHtml(context.filtersText)}</p>` : ''}
 </div>`;
 
-html += `<h2>VEÍCULOS CADASTRADOS</h2><table><thead><tr><th>ID</th><th>Placa</th><th>Tipo</th><th>Pátio</th><th>Base Origem</th><th>Base Destino</th><th>Status</th><th>Entrada</th><th>Saída</th><th>Tempo</th><th>Entregue</th><th>Sascar</th><th>Sinistro</th></tr></thead><tbody>`;
+html += `<h2>VEÍCULOS CADASTRADOS</h2><table><thead><tr><th>ID</th><th>Placa</th><th>Tipo</th><th>Pátio</th><th>Base Origem</th><th>Base Destino</th><th>Status</th><th>Entrada</th><th>Saída</th><th>Tempo</th><th>Entregue</th><th>Sascar</th><th>Reserva</th><th>Manutenção</th><th>Sinistro</th></tr></thead><tbody>`;
 context.vehicles.forEach(vehicle => {
 const sascarLabel = getSascarLabel(vehicle.sascarStatus);
 const entregueLabel = vehicle.entregue ? `Entregue (${vehicle.entreguePara})` : '—';
-html += `<tr><td>${vehicle.id}</td><td><strong>${escapeHtml(vehicle.plate)}</strong></td><td>${escapeHtml(vehicle.type)}</td><td>${escapeHtml(vehicle.yard)}</td><td>${escapeHtml(vehicle.base || '—')}</td><td>${escapeHtml(vehicle.baseDestino || '—')}</td><td>${escapeHtml(vehicle.status)}</td><td>${escapeHtml(vehicle.entryDate || '—')}</td><td>${escapeHtml(vehicle.exitDate || '—')}</td><td>${escapeHtml(vehicle.timeInYard || '—')}</td><td>${escapeHtml(entregueLabel)}</td><td>${escapeHtml(sascarLabel)}</td><td>${vehicle.hasAccident ? 'Sim' : '—'}</td></tr>`;
+const maintenanceLabel = [vehicle.maintenanceCategory, vehicle.maintenanceProblem, vehicle.maintenanceServiceOrder ? `OS ${vehicle.maintenanceServiceOrder}` : ''].filter(Boolean).join(' / ') || '—';
+html += `<tr><td>${vehicle.id}</td><td><strong>${escapeHtml(vehicle.plate)}</strong></td><td>${escapeHtml(vehicle.type)}</td><td>${escapeHtml(vehicle.yard)}</td><td>${escapeHtml(vehicle.base || '—')}</td><td>${escapeHtml(vehicle.baseDestino || '—')}</td><td>${escapeHtml(vehicle.status)}</td><td>${escapeHtml(vehicle.entryDate || '—')}</td><td>${escapeHtml(vehicle.exitDate || '—')}</td><td>${escapeHtml(vehicle.timeInYard || '—')}</td><td>${escapeHtml(entregueLabel)}</td><td>${escapeHtml(sascarLabel)}</td><td>${vehicle.isReserveVehicle ? 'Sim' : '—'}</td><td>${escapeHtml(maintenanceLabel)}</td><td>${vehicle.hasAccident ? 'Sim' : '—'}</td></tr>`;
 });
 html += `</tbody></table>`;
 
