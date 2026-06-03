@@ -1522,6 +1522,11 @@ placeholder="Senha" required autocomplete="current-password">
 </div>
 </div>
 <div class="col-6 col-md-3">
+<div class="quick-action-card" id="frotaQuickAction" style="background: linear-gradient(135deg, #1f5f99 0%, #177245 100%);" onclick="openFrotaModule()">
+<i class="bi bi-clipboard2-check"></i><div><strong>Preparação</strong></div><small>Frota por placa</small>
+</div>
+</div>
+<div class="col-6 col-md-3">
 <div class="quick-action-card" style="background: linear-gradient(135deg, #92400e 0%, #f97316 100%);" onclick="openOccurrencesModule()">
 <i class="bi bi-journal-text"></i><div><strong>Ocorrências</strong></div><small>Módulo separado</small>
 </div>
@@ -1548,6 +1553,7 @@ placeholder="Senha" required autocomplete="current-password">
 <button class="btn btn-outline-success" onclick="exportToJSON()"><i class="bi bi-download"></i> Fazer Backup</button>
 <button class="btn btn-outline-success" onclick="openExportModal('excel')"><i class="bi bi-file-earmark-excel"></i> Exportar Excel</button>
 <button class="btn btn-outline-danger" onclick="openExportModal('pdf')"><i class="bi bi-file-earmark-pdf"></i> Exportar PDF</button>
+<button class="btn btn-outline-primary" onclick="openFrotaModule()"><i class="bi bi-clipboard2-check"></i> Preparação de Frota</button>
 <button class="btn btn-outline-warning" onclick="openOccurrencesModule()"><i class="bi bi-journal-text"></i> Ocorrências</button>
 <button class="btn btn-outline-info" id="btnCadastros" onclick="openBasesModule()"><i class="bi bi-sliders2"></i> Cadastros</button>
 <button class="btn btn-outline-danger" id="btnAudit" onclick="openAuditModule()"><i class="bi bi-clipboard-data"></i> Auditoria</button>
@@ -4751,9 +4757,11 @@ function applyPermissions() {
 const importBtn = document.getElementById('btnImportJSON');
 const cadastrosQuickAction = document.getElementById('cadastrosQuickAction');
 const auditQuickAction = document.getElementById('auditQuickAction');
+const frotaQuickAction = document.getElementById('frotaQuickAction');
 const cadastrosBtn = document.getElementById('btnCadastros');
 const auditBtn = document.getElementById('btnAudit');
 const seminovosBtn = document.getElementById('btnSeminovosModule');
+const frotaBtn = document.getElementById('btnFrotaModule');
 if (importBtn) {
 if (currentUser?.role === 'admin') {
 importBtn.style.display = 'inline-flex';
@@ -4764,7 +4772,7 @@ importBtn.disabled = true;
 }
 }
 const showAdminAreas = currentUser?.role === 'admin';
-[cadastrosQuickAction, auditQuickAction].forEach(element => {
+[cadastrosQuickAction, auditQuickAction, frotaQuickAction].forEach(element => {
 if (!element) return;
 element.parentElement.style.display = showAdminAreas ? '' : 'none';
 });
@@ -4776,6 +4784,10 @@ element.disabled = !showAdminAreas;
 if (seminovosBtn) {
 seminovosBtn.style.display = showAdminAreas ? 'inline-flex' : 'none';
 seminovosBtn.disabled = !showAdminAreas;
+}
+if (frotaBtn) {
+frotaBtn.style.display = showAdminAreas ? 'inline-flex' : 'none';
+frotaBtn.disabled = !showAdminAreas;
 }
 updatePortariaModeUI();
 }
@@ -4874,6 +4886,17 @@ showToast('Módulo Seminovos aberto em outra aba.', 'success');
 return;
 }
 showToast('Não foi possível abrir outra aba. Abrindo Seminovos nesta tela.', 'warning');
+window.location.href = moduleUrl;
+}
+
+function openFrotaModule() {
+const moduleUrl = '/frota';
+const frotaWindow = window.open(moduleUrl, '_blank', 'noopener');
+if (frotaWindow) {
+showToast('Preparação de Frota aberta em outra aba.', 'success');
+return;
+}
+showToast('Não foi possível abrir outra aba. Abrindo Preparação de Frota nesta tela.', 'warning');
 window.location.href = moduleUrl;
 }
 
